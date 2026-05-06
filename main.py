@@ -8,7 +8,11 @@ import random
 import smtplib
 import logging
 import requests
-import anthropic
+try:
+    import anthropic
+    ANTHROPIC_OK = True
+except ImportError:
+    ANTHROPIC_OK = False
 try:
     import keyring
     KEYRING_OK = True
@@ -1115,6 +1119,8 @@ async def enriquecer_bula(request: Request, payload: EnriquecerPayload, db: Sess
     if existente:
         return existente
 
+    if not ANTHROPIC_OK:
+        raise HTTPException(status_code=503, detail="Enriquecimento de bulas não disponível.")
     api_key = get_api_key()
     if not api_key:
         raise HTTPException(status_code=503, detail="Chave da API não configurada.")
@@ -1868,6 +1874,8 @@ def exportar(telefone: str, db: Session = Depends(get_db)):
 @app.post("/reconhecer-imagem")
 @limiter.limit("15/hour")
 async def reconhecer_imagem(request: Request, arquivo: UploadFile = File(...)):
+    if not ANTHROPIC_OK:
+        raise HTTPException(status_code=503, detail="Reconhecimento de imagem não disponível.")
     api_key = get_api_key()
     if not api_key:
         raise HTTPException(status_code=503, detail="Chave da API não configurada.")
