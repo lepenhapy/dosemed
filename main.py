@@ -616,6 +616,10 @@ class AlarmePayload(BaseModel):
 
 # --- Rotas ---
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 @app.get("/")
 def root():
     return FileResponse(os.path.join(os.path.dirname(__file__), "index.html"))
