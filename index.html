@@ -1,0 +1,1976 @@
+<!DOCTYPE html>
+<html lang="pt-BR" x-data="dosemed()" x-init="init()">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DoseMed — Seu Estoque Digital</title>
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="DoseMed" />
+  <link rel="manifest" href="/manifest.json" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>[x-cloak]{display:none!important}</style>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+    }
+    let _pwaPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); _pwaPrompt = e; });
+
+    function _urlB64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const raw = atob(base64);
+      return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-800">
+
+<!-- DATALISTS GLOBAIS -->
+<datalist id="fabricantes">
+  <option value="EMS"></option><option value="Medley"></option><option value="Eurofarma"></option>
+  <option value="Hypera Pharma"></option><option value="Aché"></option><option value="Neo Química"></option>
+  <option value="Teuto"></option><option value="Biolab"></option><option value="Sandoz"></option>
+  <option value="Novartis"></option><option value="Sanofi"></option><option value="Pfizer"></option>
+  <option value="Bayer"></option><option value="Abbott"></option><option value="Roche"></option>
+  <option value="MSD (Merck)"></option><option value="AstraZeneca"></option><option value="Boehringer Ingelheim"></option>
+  <option value="Libbs"></option><option value="Cristália"></option><option value="União Química"></option>
+  <option value="Blau Farmacêutica"></option><option value="Prati-Donaduzzi"></option>
+  <option value="Germed"></option><option value="Biosintética"></option><option value="Cimed"></option>
+  <option value="Novo Nordisk"></option><option value="Lilly"></option><option value="Janssen"></option>
+  <option value="Genérico"></option><option value="Manipulado"></option>
+</datalist>
+<datalist id="principios">
+  <option value="Paracetamol"></option><option value="Ibuprofeno"></option><option value="Dipirona"></option>
+  <option value="Amoxicilina"></option><option value="Azitromicina"></option><option value="Ciprofloxacino"></option>
+  <option value="Metformina"></option><option value="Atorvastatina"></option><option value="Sinvastatina"></option>
+  <option value="Losartana"></option><option value="Enalapril"></option><option value="Amlodipino"></option>
+  <option value="Omeprazol"></option><option value="Pantoprazol"></option><option value="Levotiroxina"></option>
+  <option value="Insulina Humana NPH"></option><option value="Insulina Glargina"></option>
+  <option value="Clonazepam"></option><option value="Alprazolam"></option><option value="Sertralina"></option>
+  <option value="Fluoxetina"></option><option value="Escitalopram"></option><option value="Bupropiona"></option>
+  <option value="Ácido Acetilsalicílico"></option><option value="Clopidogrel"></option><option value="Warfarina"></option>
+  <option value="Rivaroxabana"></option><option value="Prednisona"></option><option value="Dexametasona"></option>
+  <option value="Salbutamol"></option><option value="Loratadina"></option><option value="Cetirizina"></option>
+  <option value="Ondansetrona"></option><option value="Metoclopramida"></option><option value="Tramadol"></option>
+  <option value="Gabapentina"></option><option value="Carbamazepina"></option><option value="Valproato de Sódio"></option>
+  <option value="Metoprolol"></option><option value="Furosemida"></option><option value="Espironolactona"></option>
+  <option value="Alopurinol"></option><option value="Vitamina D3"></option><option value="Ácido Fólico"></option>
+  <option value="Ferro Quelato"></option><option value="Melatonina"></option><option value="Ômega 3"></option>
+  <option value="Melatonina"></option><option value="DHEA"></option><option value="Progesterona Bioidêntica"></option>
+  <option value="Testosterona Manipulada"></option><option value="Fórmula Magistral"></option>
+</datalist>
+
+<!-- HEADER -->
+<header class="bg-white border-b border-gray-100 sticky top-0 z-20">
+  <div class="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="text-xl">💊</span>
+      <span class="font-bold text-blue-600 text-lg tracking-tight">DoseMed</span>
+    </div>
+    <div x-show="usuario" x-cloak class="flex items-center gap-3">
+      <button x-show="pwaDisponivel" @click="instalarPWA()" title="Instalar como app"
+        class="text-xs text-blue-400 hover:text-blue-600 font-semibold px-2 py-1 rounded-lg border border-blue-200 hover:border-blue-400 transition">
+        📲 Instalar
+      </button>
+      <button x-show="!pwaDisponivel && pwaIsIOS && usuario" @click="alert('No Safari: toque em Compartilhar ↑ → \"Adicionar à Tela de Início\"')" title="Instalar no iPhone"
+        class="text-xs text-blue-400 hover:text-blue-600 font-semibold px-2 py-1 rounded-lg border border-blue-200 hover:border-blue-400 transition">
+        📲 Instalar
+      </button>
+      <button x-show="isAdmin" @click="abaAtiva = abaAtiva === 'admin' ? 'estoque' : 'admin'"
+        class="text-xs font-semibold px-2 py-1 rounded-lg transition"
+        :class="abaAtiva === 'admin' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'">
+        Admin
+      </button>
+      <button @click="abrirEditarPerfil()" class="text-xs text-gray-400 hover:text-blue-500 transition">
+        <span x-text="usuario?.nome"></span> ✏️
+      </button>
+      <button @click="sair()" class="text-xs text-gray-400 hover:text-gray-600 underline">Sair</button>
+    </div>
+  </div>
+</header>
+
+<!-- MODAL BULA (click no medicamento) -->
+<div x-show="bulaAtiva" x-cloak class="fixed inset-0 bg-black/40 z-40 flex items-end sm:items-center justify-center px-0 sm:px-4" @click.self="bulaAtiva = null">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[85vh] overflow-y-auto">
+    <div class="sticky top-0 bg-white border-b border-gray-100 px-5 pt-4 pb-3 flex items-start justify-between">
+      <div>
+        <p class="font-bold text-gray-800 text-base" x-text="bulaAtiva?.principio_ativo"></p>
+        <p class="text-xs text-gray-400" x-text="bulaAtiva?.categoria"></p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0 ml-2">
+        <span x-show="bulaAtiva?.receita" class="text-xs bg-red-50 text-red-500 px-2 py-1 rounded-lg font-medium">Receita</span>
+        <button @click="bulaAtiva = null" class="text-gray-300 hover:text-gray-600 text-xl leading-none">✕</button>
+      </div>
+    </div>
+    <div class="px-5 py-4 space-y-4 text-sm">
+      <div x-show="bulaAtiva?.indicacao">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Indicação</p>
+        <p class="text-gray-700" x-text="bulaAtiva?.indicacao"></p>
+      </div>
+      <div x-show="bulaAtiva?.posologia">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Posologia</p>
+        <p class="text-gray-700" x-text="bulaAtiva?.posologia"></p>
+      </div>
+      <div x-show="bulaAtiva?.dicas?.length">
+        <p class="text-xs font-bold text-blue-500 uppercase tracking-wide mb-1">Dicas práticas</p>
+        <ul class="space-y-1">
+          <template x-for="dica in bulaAtiva?.dicas" :key="dica">
+            <li class="flex gap-2 text-blue-800"><span class="text-blue-300 shrink-0">•</span><span x-text="dica"></span></li>
+          </template>
+        </ul>
+      </div>
+      <div x-show="bulaAtiva?.avisos">
+        <p class="text-xs font-bold text-amber-500 uppercase tracking-wide mb-1">Avisos</p>
+        <p class="text-amber-700" x-text="bulaAtiva?.avisos"></p>
+      </div>
+      <div x-show="bulaAtiva?.contraindicacoes">
+        <p class="text-xs font-bold text-red-400 uppercase tracking-wide mb-1">Contraindicações</p>
+        <p class="text-gray-600" x-text="bulaAtiva?.contraindicacoes"></p>
+      </div>
+
+      <!-- Estado: bula não encontrada na biblioteca -->
+      <div x-show="bulaAtiva?._naoEncontrado" class="text-center py-4">
+        <p class="text-gray-400 text-sm mb-1">Esta bula não está na nossa biblioteca ainda.</p>
+        <p class="text-gray-300 text-xs mb-4">Podemos buscar as informações automaticamente e salvá-las para todos os usuários.</p>
+        <button @click="enriquecerBula(bulaAtiva._nome)" :disabled="bulaCarregando"
+          class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 transition">
+          <span x-text="bulaCarregando ? '⏳ Buscando informações...' : '🔍 Buscar informações'"></span>
+        </button>
+        <p x-show="bulaAtiva?._erro" class="text-red-400 text-xs mt-3" x-text="bulaAtiva?._erro"></p>
+      </div>
+
+      <div x-show="!bulaAtiva?._naoEncontrado" class="bg-gray-50 rounded-xl p-3 text-xs text-gray-400 leading-relaxed">
+        <strong class="text-gray-500">Aviso importante:</strong> O DoseMed é uma ferramenta de controle domiciliar de medicamentos e referência informativa. As informações de bula são de caráter educativo e NÃO substituem a orientação de médico ou farmacêutico. Não altere doses, não inicie nem interrompa tratamentos sem orientação profissional.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR ITEM -->
+<div x-show="modalItem" x-cloak class="fixed inset-0 bg-black/30 z-30 flex items-center justify-center px-4 overflow-y-auto py-6">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" @click.outside="modalItem = null">
+    <h3 class="font-bold text-gray-800 mb-4">Editar medicamento</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Nome *</label>
+        <input x-model="modalItem.nome" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Princípio ativo</label>
+        <input x-model="modalItem.principio_ativo" list="principios" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Dosagem</label>
+          <input x-model="modalItem.miligramas" type="text" placeholder="ex: 500mg" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Qtd. caixas</label>
+          <input x-model.number="modalItem.quantidade" type="number" min="1" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Fabricante</label>
+          <input x-model="modalItem.fabricante" list="fabricantes" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Preço real (R$)</label>
+          <input x-model.number="modalItem.preco_real" type="number" step="0.01" min="0" placeholder="ex: 45.90" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Data de vencimento</label>
+        <input x-model="modalItem.data_vencimento" type="date" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" x-model="modalItem.manipulado" class="rounded" />
+        <span class="text-sm text-gray-600">Medicamento manipulado</span>
+      </label>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button @click="modalItem = null" class="flex-1 border border-gray-200 text-gray-400 py-2.5 rounded-xl text-sm hover:bg-gray-50">Cancelar</button>
+      <button @click="salvarItem()" :disabled="carregando" class="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-40">
+        <span x-text="carregando ? 'Salvando...' : 'Salvar'"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR PERFIL -->
+<div x-show="modalPerfil" x-cloak class="fixed inset-0 bg-black/30 z-30 flex items-center justify-center px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" @click.outside="modalPerfil = false">
+    <h3 class="font-bold text-gray-800 mb-4">Editar perfil</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Nome</label>
+        <input x-model="editPerfil.nome" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">E-mail <span class="text-blue-400 normal-case font-normal">(recuperação de PIN)</span></label>
+        <input x-model="editPerfil.email" type="email" placeholder="seuemail@gmail.com" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Bairro</label>
+        <input x-model="editPerfil.bairro" type="text" placeholder="ex: Jardim América" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Endereço</label>
+        <input x-model="editPerfil.endereco" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Instruções de portaria</label>
+        <input x-model="editPerfil.portaria" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button @click="modalPerfil = false" class="flex-1 border border-gray-200 text-gray-400 py-2.5 rounded-xl text-sm hover:bg-gray-50">Cancelar</button>
+      <button @click="salvarPerfil()" :disabled="carregando" class="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-40">
+        <span x-text="carregando ? 'Salvando...' : 'Salvar'"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<main class="max-w-3xl mx-auto px-5 py-8 space-y-6">
+
+  <!-- TELA DE ACESSO -->
+  <div x-show="!usuario && !mostrarCadastro && !mostrarDefinirPin" x-cloak>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+      <div class="bg-blue-50 rounded-xl px-4 py-3 mb-6 text-xs text-blue-700 leading-relaxed">
+        <strong>O que é o DoseMed?</strong> Uma ferramenta para controlar os medicamentos que você tem em casa, acompanhar validades e consultar informações de referência sobre os remédios. Não é um serviço médico — sempre consulte seu médico ou farmacêutico.
+      </div>
+      <h1 class="text-2xl font-bold text-gray-800 mb-1">Seu estoque de medicamentos</h1>
+      <p class="text-gray-400 text-sm mb-6">Acesse com seu número de telefone.</p>
+      <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Telefone com DDD</label>
+      <div class="flex gap-2 mb-3">
+        <input x-model="telefoneInput" type="tel" placeholder="ex: 11999990001"
+          class="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          @keyup.enter="acessar()" />
+        <button @click="acessar()" :disabled="carregando"
+          class="bg-blue-600 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50">
+          <span x-text="carregando ? '...' : 'Entrar'"></span>
+        </button>
+      </div>
+      <!-- PIN field (aparece após verificar que usuário existe e tem PIN) -->
+      <div x-show="mostrarPin && !mostrarRecuperacao" x-cloak class="mt-3">
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">PIN de acesso</label>
+        <div class="flex gap-2">
+          <input x-model="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••"
+            class="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 tracking-widest text-center text-xl"
+            @keyup.enter="confirmarPin()" />
+          <button @click="confirmarPin()" :disabled="carregando"
+            class="bg-blue-600 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+            <span x-text="carregando ? '...' : 'OK'"></span>
+          </button>
+        </div>
+        <button @click="iniciarRecuperacao()" class="mt-2 text-xs text-blue-400 hover:text-blue-600 underline">
+          Esqueci meu PIN
+        </button>
+      </div>
+
+      <!-- Recuperação de PIN por e-mail -->
+      <div x-show="mostrarRecuperacao" x-cloak class="mt-3 space-y-3">
+        <div x-show="!codigoEnviado">
+          <p class="text-xs text-gray-500 mb-2">Vamos enviar um código de 6 dígitos para o e-mail cadastrado.</p>
+          <div class="flex gap-2">
+            <button @click="enviarCodigoRecuperacao()" :disabled="carregando"
+              class="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+              <span x-text="carregando ? 'Enviando...' : 'Enviar código por e-mail'"></span>
+            </button>
+            <button @click="mostrarRecuperacao = false; codigoEnviado = false" class="border border-gray-200 text-gray-400 px-4 py-2.5 rounded-xl text-sm hover:bg-gray-50">Voltar</button>
+          </div>
+        </div>
+        <div x-show="codigoEnviado" class="space-y-2">
+          <p class="text-xs text-emerald-600 mb-1" x-text="msgRecuperacao"></p>
+          <input x-model="codigoInput" type="text" inputmode="numeric" maxlength="6" placeholder="Código de 6 dígitos"
+            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 text-center text-xl tracking-widest" />
+          <input x-model="novoPinRecuperacao" type="password" inputmode="numeric" maxlength="6" placeholder="Novo PIN (4 dígitos)"
+            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 text-center text-xl tracking-widest" />
+          <div class="flex gap-2">
+            <button @click="redefinirPin()" :disabled="carregando"
+              class="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+              <span x-text="carregando ? 'Salvando...' : 'Salvar novo PIN'"></span>
+            </button>
+            <button @click="mostrarRecuperacao = false; codigoEnviado = false" class="border border-gray-200 text-gray-400 px-4 py-2.5 rounded-xl text-sm hover:bg-gray-50">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <p x-show="erroLogin" x-cloak class="text-red-400 text-xs mt-2" x-text="erroLogin"></p>
+    </div>
+  </div>
+
+  <!-- TELA DEFINIR PIN (pós-cadastro ou pós-login sem PIN) -->
+  <div x-show="mostrarDefinirPin" x-cloak>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+      <p class="text-xs text-blue-500 font-semibold uppercase tracking-wide mb-1">Segurança</p>
+      <h2 class="text-xl font-bold text-gray-800 mb-2">Defina seu PIN</h2>
+      <p class="text-gray-400 text-sm mb-6">Um PIN de 4 dígitos protege seu acesso. Apenas você poderá ver seus medicamentos.</p>
+      <div class="flex gap-2">
+        <input x-model="novoPinInput" type="password" inputmode="numeric" maxlength="6" placeholder="4 dígitos"
+          class="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 tracking-widest text-center text-xl"
+          @keyup.enter="definirPin()" />
+        <button @click="definirPin()" :disabled="carregando"
+          class="bg-blue-600 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+          <span x-text="carregando ? '...' : 'Salvar PIN'"></span>
+        </button>
+      </div>
+      <button @click="pularPin()" class="mt-3 text-xs text-gray-300 hover:text-gray-400 underline w-full text-center">
+        Pular por enquanto
+      </button>
+      <p x-show="erroLogin" x-cloak class="text-red-400 text-xs mt-2" x-text="erroLogin"></p>
+    </div>
+  </div>
+
+  <!-- TELA DE CADASTRO -->
+  <div x-show="mostrarCadastro" x-cloak>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+      <p class="text-xs text-blue-500 font-semibold uppercase tracking-wide mb-1">Primeiro acesso</p>
+      <h2 class="text-xl font-bold text-gray-800 mb-5">Crie seu perfil</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Nome</label>
+          <input x-model="cadastro.nome" type="text" placeholder="Seu nome"
+            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">E-mail <span class="text-blue-400 normal-case font-normal">(para recuperar PIN)</span></label>
+          <input x-model="cadastro.email" type="email" placeholder="seuemail@gmail.com"
+            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Bairro <span class="text-gray-300 normal-case font-normal">(opcional — só para tendências regionais anônimas)</span></label>
+          <input x-model="cadastro.bairro" type="text" placeholder="ex: Jardim América, Centro"
+            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Endereço <span class="text-gray-300 normal-case font-normal">(opcional)</span></label>
+          <input x-model="cadastro.endereco" type="text" placeholder="Rua, número, bairro, cidade"
+            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Instruções de portaria <span class="text-gray-300 normal-case font-normal">(opcional)</span></label>
+          <input x-model="cadastro.portaria" type="text" placeholder="ex: Ligar no interfone 201"
+            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+      </div>
+      <div class="flex gap-2 mt-6">
+        <button @click="mostrarCadastro = false; erroLogin = ''"
+          class="flex-1 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm hover:bg-gray-50">Voltar</button>
+        <button @click="registrar()" :disabled="carregando"
+          class="flex-1 bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+          <span x-text="carregando ? 'Salvando...' : 'Criar perfil'"></span>
+        </button>
+      </div>
+      <p x-show="erroLogin" x-cloak class="text-red-400 text-xs mt-2" x-text="erroLogin"></p>
+    </div>
+  </div>
+
+  <!-- PAINEL PRINCIPAL -->
+  <template x-if="usuario">
+    <div x-cloak>
+
+      <!-- PAINEL ADMIN -->
+      <div x-show="abaAtiva === 'admin'" class="space-y-5">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="font-bold text-gray-800 text-lg">Painel Admin</h2>
+            <div class="flex gap-2">
+              <button @click="abaAtiva === 'admin' ? carregarAdmin() : null" :disabled="adminCarregando"
+                class="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg font-semibold">
+                <span x-text="adminCarregando ? 'Carregando...' : '↺ Atualizar'"></span>
+              </button>
+            </div>
+          </div>
+          <!-- Sub-abas admin -->
+          <div class="flex flex-wrap gap-1 mb-5 border-b border-gray-100 pb-3">
+            <button @click="abaAdmin = 'resumo'" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+              :class="abaAdmin === 'resumo' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Resumo</button>
+            <button @click="abaAdmin = 'insights'; if (!adminInsights) carregarInsights()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+              :class="abaAdmin === 'insights' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Insights</button>
+            <button @click="abaAdmin = 'farmacias'; if (!adminFarmacias) carregarFarmacias()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+              :class="abaAdmin === 'farmacias' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Farmácias</button>
+            <button @click="abaAdmin = 'leads'; if (!adminLeads) carregarLeads()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+              :class="abaAdmin === 'leads' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Leads</button>
+            <button @click="abaAdmin = 'precos'; if (!adminPrecos) carregarPrecos()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+              :class="abaAdmin === 'precos' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Preços</button>
+          </div>
+
+          <!-- ABA RESUMO -->
+          <div x-show="abaAdmin === 'resumo'">
+          <div x-show="!adminDados && !adminCarregando" class="text-center py-8">
+            <button @click="carregarAdmin()"
+              class="bg-indigo-600 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-indigo-700">
+              Carregar dados
+            </button>
+          </div>
+
+          <template x-if="adminDados">
+            <div class="space-y-6">
+              <!-- Counters -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="bg-indigo-50 rounded-xl p-4 text-center">
+                  <p class="text-2xl font-black text-indigo-600" x-text="adminDados.total_usuarios"></p>
+                  <p class="text-xs text-indigo-400 mt-1">Usuários</p>
+                </div>
+                <div class="bg-blue-50 rounded-xl p-4 text-center">
+                  <p class="text-2xl font-black text-blue-600" x-text="adminDados.total_itens_estoque"></p>
+                  <p class="text-xs text-blue-400 mt-1">Itens no estoque</p>
+                </div>
+                <div class="bg-emerald-50 rounded-xl p-4 text-center">
+                  <p class="text-2xl font-black text-emerald-600" x-text="adminDados.total_buscas"></p>
+                  <p class="text-xs text-emerald-400 mt-1">Total buscas</p>
+                </div>
+                <div class="bg-amber-50 rounded-xl p-4 text-center">
+                  <p class="text-2xl font-black text-amber-600" x-text="adminDados.usuarios_unicos_buscas"></p>
+                  <p class="text-xs text-amber-400 mt-1">Usuários ativos</p>
+                </div>
+              </div>
+
+              <!-- Buscas por tipo -->
+              <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Buscas por tipo</p>
+                <div class="flex flex-wrap gap-2">
+                  <template x-for="[tipo, count] in Object.entries(adminDados.por_tipo)" :key="tipo">
+                    <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-sm">
+                      <span x-text="tipo"></span>: <strong x-text="count"></strong>
+                    </span>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Top termos -->
+              <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Termos mais buscados</p>
+                <div class="space-y-1.5">
+                  <template x-for="item in adminDados.top_termos" :key="item.termo">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                        <div class="bg-blue-500 h-2 rounded-full"
+                          :style="'width:' + Math.round(item.count / (adminDados.top_termos[0]?.count||1) * 100) + '%'"></div>
+                      </div>
+                      <span class="text-xs text-gray-600 w-32 truncate" x-text="item.termo"></span>
+                      <span class="text-xs font-bold text-gray-400 w-5 text-right" x-text="item.count"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Top estados -->
+              <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Buscas por estado</p>
+                <div class="flex flex-wrap gap-2">
+                  <template x-for="item in adminDados.top_estados" :key="item.estado">
+                    <span class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg text-sm font-medium">
+                      <span x-text="item.estado"></span>: <strong x-text="item.count"></strong>
+                    </span>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Buscas por dia -->
+              <div x-show="adminDados.por_dia?.length > 0">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Buscas nos últimos 30 dias</p>
+                <canvas id="chartDias" height="80"></canvas>
+              </div>
+            </div>
+          </template>
+          </div><!-- /aba resumo -->
+
+          <!-- ABA INSIGHTS -->
+          <div x-show="abaAdmin === 'insights'">
+            <div x-show="insightsCarregando" class="text-center py-8 text-indigo-400 text-sm">Carregando dados...</div>
+
+            <template x-if="adminInsights">
+              <div class="space-y-5">
+                <!-- Filtros checkbox -->
+                <div class="bg-indigo-50 rounded-xl p-4">
+                  <p class="text-xs font-bold text-indigo-500 uppercase tracking-wide mb-3">Exibir colunas</p>
+                  <div class="flex flex-wrap gap-4">
+                    <label class="flex items-center gap-1.5 cursor-pointer text-sm text-indigo-700">
+                      <input type="checkbox" x-model="insightFiltros.bairro" class="rounded accent-indigo-600" /> Bairro
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer text-sm text-indigo-700">
+                      <input type="checkbox" x-model="insightFiltros.termo" class="rounded accent-indigo-600" /> Termo buscado
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer text-sm text-indigo-700">
+                      <input type="checkbox" x-model="insightFiltros.tipo" class="rounded accent-indigo-600" /> Tipo
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer text-sm text-indigo-700">
+                      <input type="checkbox" x-model="insightFiltros.ticket" class="rounded accent-indigo-600" /> Ticket médio
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer text-sm text-indigo-700">
+                      <input type="checkbox" x-model="insightFiltros.periodo" class="rounded accent-indigo-600" /> Período
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Tabela de buscas por bairro -->
+                <div x-show="adminInsights.buscas?.length > 0">
+                  <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Buscas por bairro</p>
+                  <div class="overflow-x-auto rounded-xl border border-gray-100">
+                    <table class="w-full text-sm">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th x-show="insightFiltros.bairro" class="text-left px-3 py-2 text-xs font-semibold text-gray-500">Bairro</th>
+                          <th x-show="insightFiltros.termo" class="text-left px-3 py-2 text-xs font-semibold text-gray-500">Termo</th>
+                          <th x-show="insightFiltros.tipo" class="text-left px-3 py-2 text-xs font-semibold text-gray-500">Tipo</th>
+                          <th x-show="insightFiltros.periodo" class="text-left px-3 py-2 text-xs font-semibold text-gray-500">Período</th>
+                          <th class="text-right px-3 py-2 text-xs font-semibold text-gray-500">Buscas</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template x-for="row in adminInsights.buscas.slice(0,50)" :key="row.bairro+row.termo+row.periodo">
+                          <tr class="border-t border-gray-50 hover:bg-gray-50">
+                            <td x-show="insightFiltros.bairro" class="px-3 py-2 text-gray-700 font-medium" x-text="row.bairro"></td>
+                            <td x-show="insightFiltros.termo" class="px-3 py-2 text-gray-600 capitalize" x-text="row.termo"></td>
+                            <td x-show="insightFiltros.tipo" class="px-3 py-2">
+                              <span class="text-xs px-2 py-0.5 rounded-full"
+                                :class="row.tipo === 'sintoma' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'"
+                                x-text="row.tipo"></span>
+                            </td>
+                            <td x-show="insightFiltros.periodo" class="px-3 py-2 text-gray-400 text-xs" x-text="row.periodo"></td>
+                            <td class="px-3 py-2 text-right font-bold text-indigo-600" x-text="row.count"></td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Tabela de ticket por bairro -->
+                <div x-show="insightFiltros.ticket && adminInsights.tickets?.length > 0">
+                  <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Ticket médio por bairro</p>
+                  <div class="overflow-x-auto rounded-xl border border-gray-100">
+                    <table class="w-full text-sm">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th x-show="insightFiltros.bairro" class="text-left px-3 py-2 text-xs font-semibold text-gray-500">Bairro</th>
+                          <th class="text-left px-3 py-2 text-xs font-semibold text-gray-500">Medicamento</th>
+                          <th class="text-right px-3 py-2 text-xs font-semibold text-gray-500">Ticket médio</th>
+                          <th class="text-right px-3 py-2 text-xs font-semibold text-gray-500">Amostras</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template x-for="row in adminInsights.tickets.slice(0,30)" :key="row.bairro+row.medicamento">
+                          <tr class="border-t border-gray-50 hover:bg-gray-50">
+                            <td x-show="insightFiltros.bairro" class="px-3 py-2 text-gray-700 font-medium" x-text="row.bairro"></td>
+                            <td class="px-3 py-2 text-gray-600" x-text="row.medicamento"></td>
+                            <td class="px-3 py-2 text-right font-bold text-emerald-600"
+                              x-text="'R$ ' + row.ticket_medio.toFixed(2).replace('.',',')"></td>
+                            <td class="px-3 py-2 text-right text-gray-400 text-xs" x-text="row.amostras"></td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div x-show="!adminInsights.buscas?.length && !adminInsights.tickets?.length"
+                  class="text-center py-8 text-gray-300 text-sm">
+                  Nenhum dado por bairro ainda. Usuários precisam cadastrar o bairro no perfil.
+                </div>
+              </div>
+            </template>
+
+            <div x-show="!adminInsights && !insightsCarregando" class="text-center py-8">
+              <button @click="carregarInsights()"
+                class="bg-indigo-600 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-indigo-700">
+                Carregar insights
+              </button>
+            </div>
+          </div><!-- /aba insights -->
+
+          <!-- ABA FARMÁCIAS -->
+          <div x-show="abaAdmin === 'farmacias'" class="space-y-4">
+            <div class="flex justify-between items-center">
+              <p class="text-xs text-gray-400">Farmácias parceiras cadastradas</p>
+              <button @click="modalFarmacia = {nome:'',cnpj:'',email:'',telefone_contato:'',bairros:'',plano:'lead',ativo:1,atende_manipulado:0}"
+                class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-indigo-700">+ Nova farmácia</button>
+            </div>
+            <div x-show="!adminFarmacias" class="text-center py-6"><button @click="carregarFarmacias()" class="text-xs text-indigo-500 underline">Carregar</button></div>
+            <template x-if="adminFarmacias">
+              <div class="space-y-2">
+                <template x-for="f in adminFarmacias" :key="f.id">
+                  <div class="bg-gray-50 rounded-xl p-4 flex flex-wrap gap-3 items-start justify-between">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <p class="font-semibold text-gray-700 text-sm" x-text="f.nome"></p>
+                        <span class="text-xs px-2 py-0.5 rounded-full font-semibold"
+                          :class="{'bg-indigo-100 text-indigo-700':f.plano==='pro','bg-amber-100 text-amber-700':f.plano==='manipulado','bg-gray-100 text-gray-500':f.plano==='lead','bg-blue-100 text-blue-700':f.plano==='basico'}"
+                          x-text="f.plano.toUpperCase()"></span>
+                        <span x-show="!f.ativo" class="text-xs bg-red-50 text-red-400 px-2 py-0.5 rounded-full">Inativo</span>
+                        <span x-show="f.atende_manipulado" class="text-xs bg-purple-50 text-purple-500 px-2 py-0.5 rounded-full">Manipulado</span>
+                      </div>
+                      <p class="text-xs text-gray-400 mt-0.5" x-text="f.email"></p>
+                      <p class="text-xs text-gray-300 mt-0.5" x-text="'Bairros: ' + (f.bairros || 'todos')"></p>
+                      <div class="flex gap-3 mt-1">
+                        <span class="text-xs text-indigo-500 font-semibold" x-text="f.leads_mes + ' leads este mês'"></span>
+                        <span class="text-xs text-gray-400" x-text="f.total_leads + ' total'"></span>
+                      </div>
+                    </div>
+                    <div class="flex flex-col gap-1 shrink-0">
+                      <button @click="modalFarmacia = {...f}" class="text-xs text-blue-500 hover:text-blue-700">✏️ Editar</button>
+                      <button @click="faturarLeads(f.id, f.nome)" class="text-xs text-emerald-500 hover:text-emerald-700">💰 Faturar leads</button>
+                      <button @click="verRecebimentos(f.id, f.nome)" class="text-xs text-gray-400 hover:text-gray-600">📋 Cobranças</button>
+                    </div>
+                  </div>
+                </template>
+                <div x-show="!adminFarmacias?.length" class="text-center py-8 text-gray-300 text-sm">Nenhuma farmácia cadastrada ainda.</div>
+              </div>
+            </template>
+            <div class="flex justify-center pt-2">
+              <button @click="gerarLeadsManuais()" class="text-xs bg-amber-50 text-amber-600 hover:bg-amber-100 px-4 py-2 rounded-lg font-semibold">⚡ Gerar leads agora (manual)</button>
+            </div>
+          </div><!-- /aba farmácias -->
+
+          <!-- ABA LEADS -->
+          <div x-show="abaAdmin === 'leads'" class="space-y-3">
+            <div class="flex justify-between items-center">
+              <p class="text-xs text-gray-400">Últimos 200 leads gerados</p>
+              <button @click="carregarLeads()" class="text-xs text-indigo-500 underline">↺ Atualizar</button>
+            </div>
+            <div x-show="!adminLeads" class="text-center py-6"><button @click="carregarLeads()" class="text-xs text-indigo-500 underline">Carregar</button></div>
+            <template x-if="adminLeads">
+              <div class="overflow-x-auto rounded-xl border border-gray-100">
+                <table class="w-full text-xs">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="text-left px-3 py-2 font-semibold text-gray-500">Farmácia</th>
+                      <th class="text-left px-3 py-2 font-semibold text-gray-500">Bairro</th>
+                      <th class="text-left px-3 py-2 font-semibold text-gray-500">Medicamento</th>
+                      <th class="text-left px-3 py-2 font-semibold text-gray-500">Tipo</th>
+                      <th class="text-right px-3 py-2 font-semibold text-gray-500">Valor</th>
+                      <th class="text-left px-3 py-2 font-semibold text-gray-500">Status</th>
+                      <th class="text-left px-3 py-2 font-semibold text-gray-500">Data</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="l in adminLeads" :key="l.id">
+                      <tr class="border-t border-gray-50 hover:bg-gray-50">
+                        <td class="px-3 py-2 text-gray-700 font-medium" x-text="l.farmacia_nome"></td>
+                        <td class="px-3 py-2 text-gray-500" x-text="l.bairro || '—'"></td>
+                        <td class="px-3 py-2 text-gray-600">
+                          <span x-text="l.medicamento"></span>
+                          <span x-show="l.manipulado" class="ml-1 text-purple-400">✦</span>
+                        </td>
+                        <td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-500" x-text="l.origem"></span></td>
+                        <td class="px-3 py-2 text-right font-semibold text-emerald-600"
+                          x-text="l.preco_cobrado ? 'R$ '+l.preco_cobrado.toFixed(2).replace('.',',') : '—'"></td>
+                        <td class="px-3 py-2">
+                          <span class="px-1.5 py-0.5 rounded text-xs"
+                            :class="{'bg-blue-50 text-blue-500':l.status==='enviado','bg-green-50 text-green-600':l.status==='pago','bg-gray-100 text-gray-400':l.status==='convertido'}"
+                            x-text="l.status"></span>
+                        </td>
+                        <td class="px-3 py-2 text-gray-400" x-text="l.criado_em || '—'"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+                <div x-show="!adminLeads?.length" class="text-center py-8 text-gray-300 text-sm">Nenhum lead gerado ainda.</div>
+              </div>
+            </template>
+          </div><!-- /aba leads -->
+
+          <!-- ABA PREÇOS -->
+          <div x-show="abaAdmin === 'precos'" class="space-y-3">
+            <p class="text-xs text-gray-400">Valores editáveis — clique no campo para alterar</p>
+            <div x-show="!adminPrecos" class="text-center py-6"><button @click="carregarPrecos()" class="text-xs text-indigo-500 underline">Carregar</button></div>
+            <template x-if="adminPrecos">
+              <div class="space-y-2">
+                <template x-for="cfg in adminPrecos" :key="cfg.chave">
+                  <div class="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
+                    <div class="flex-1">
+                      <p class="text-xs font-semibold text-gray-600" x-text="cfg.chave"></p>
+                      <p class="text-xs text-gray-400" x-text="cfg.descricao"></p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <input x-model="cfg.valor" type="text"
+                        class="w-28 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-right font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                      <button @click="salvarConfig(cfg.chave, cfg.valor)"
+                        class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 font-semibold">✓</button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div><!-- /aba preços -->
+
+        </div>
+      </div>
+
+      <!-- ABAS ESTOQUE / ALARMES / HISTÓRICO -->
+      <div x-show="abaAtiva !== 'admin'" class="flex gap-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-1">
+        <button @click="abaAtiva = 'estoque'" class="flex-1 py-2 text-sm font-semibold rounded-xl transition"
+          :class="abaAtiva === 'estoque' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
+          💊 Estoque
+        </button>
+        <button @click="abaAtiva = 'alarmes'; if (!alarmes) carregarAlarmes()" class="flex-1 py-2 text-sm font-semibold rounded-xl transition"
+          :class="abaAtiva === 'alarmes' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
+          ⏰ Alarmes
+          <span x-show="alarmes?.length" class="ml-1 text-xs bg-blue-100 text-blue-600 px-1.5 rounded-full"
+            :class="abaAtiva==='alarmes' ? 'bg-white/30 text-white' : ''"
+            x-text="alarmes?.filter(a=>a.ativo).length"></span>
+        </button>
+        <button @click="abaAtiva = 'historico'; if (!historicoDados) carregarHistorico()" class="flex-1 py-2 text-sm font-semibold rounded-xl transition"
+          :class="abaAtiva === 'historico' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
+          📋 Histórico
+        </button>
+      </div>
+
+      <!-- PAINEL ESTOQUE -->
+      <div x-show="abaAtiva === 'estoque'" class="space-y-5">
+
+        <!-- DISCLAIMER / PROPÓSITO (só aparece uma vez, pode fechar) -->
+        <div x-show="!disclaimerFechado" class="bg-blue-50 border border-blue-100 rounded-2xl p-4">
+          <div class="flex gap-3 items-start">
+            <span class="text-blue-400 text-lg shrink-0 mt-0.5">ℹ️</span>
+            <div class="flex-1">
+              <p class="text-sm font-semibold text-blue-700 mb-1">Sobre o DoseMed</p>
+              <p class="text-xs text-blue-600 leading-relaxed">
+                Esta ferramenta serve para <strong>controlar os medicamentos que você tem em casa</strong> e acompanhar validades. As informações de bula são de referência educativa e <strong>não substituem prescrição ou orientação médica</strong>. Nunca altere doses ou interrompa tratamentos sem consultar seu médico ou farmacêutico. Em caso de emergência, ligue 192 (SAMU).
+              </p>
+            </div>
+            <button @click="disclaimerFechado = true; localStorage.setItem('dm_disc', '1')" class="text-blue-300 hover:text-blue-500 text-lg leading-none shrink-0">✕</button>
+          </div>
+        </div>
+
+        <!-- DICA BAIRRO -->
+        <div x-show="usuario && !usuario.bairro" class="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 flex gap-2 items-center">
+          <span class="text-amber-400 shrink-0">📍</span>
+          <p class="text-xs text-amber-700 flex-1">Adicione seu <strong>bairro</strong> no perfil para receber ofertas de farmácias próximas quando seus remédios estiverem vencendo.</p>
+          <button @click="abrirEditarPerfil()" class="text-xs font-semibold text-amber-600 hover:text-amber-800 underline shrink-0">Adicionar</button>
+        </div>
+
+        <!-- RESUMO FINANCEIRO -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Prejuízo acumulado</p>
+            <p class="text-3xl font-black mt-1" :class="prejuizoAcumulado > 0 ? 'text-red-500' : 'text-gray-300'"
+               x-text="'R$ ' + prejuizoAcumulado.toFixed(2).replace('.', ',')"></p>
+            <p class="text-xs text-gray-300 mt-1">Medicamentos vencidos</p>
+          </div>
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Em risco</p>
+            <p class="text-3xl font-black mt-1" :class="valorEmRisco > 0 ? 'text-amber-500' : 'text-gray-300'"
+               x-text="'R$ ' + valorEmRisco.toFixed(2).replace('.', ',')"></p>
+            <p class="text-xs text-gray-300 mt-1">Vencem em até 30 dias</p>
+          </div>
+        </div>
+
+        <!-- ENDEREÇO / PORTARIA -->
+        <div x-show="usuario.endereco || usuario.instrucoes_portaria"
+             class="bg-blue-50 rounded-xl px-4 py-3 text-sm text-blue-700 flex gap-2 items-start">
+          <span>📍</span>
+          <div class="flex-1">
+            <p class="font-medium" x-text="usuario.endereco"></p>
+            <p class="text-blue-400 text-xs mt-0.5" x-text="usuario.instrucoes_portaria"></p>
+          </div>
+        </div>
+
+        <!-- FORMULÁRIO ADICIONAR -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-700">Adicionar medicamento</h3>
+            <label class="cursor-pointer flex items-center gap-1.5 bg-gray-50 border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition text-gray-500 hover:text-blue-600 text-xs font-semibold px-3 py-2 rounded-xl">
+              <span x-text="reconhecendo ? '⏳ Analisando...' : '📷 Foto da caixa'"></span>
+              <input type="file" accept="image/*" capture="environment" class="hidden" @change="reconhecerImagem($event)" :disabled="reconhecendo" />
+            </label>
+          </div>
+
+          <div x-show="previewUrl" x-cloak class="mb-3 flex gap-3 items-start bg-gray-50 rounded-xl p-3">
+            <img :src="previewUrl" class="w-16 h-16 object-cover rounded-lg border border-gray-200 shrink-0" />
+            <div class="text-xs text-gray-500 flex-1">
+              <p class="font-semibold text-gray-700 mb-0.5">Imagem analisada</p>
+              <p x-show="erroReconhecimento" class="text-red-400" x-text="erroReconhecimento"></p>
+              <p x-show="!erroReconhecimento && !reconhecendo" class="text-emerald-600">Campos preenchidos automaticamente. Confira e ajuste.</p>
+              <button @click="previewUrl = ''; erroReconhecimento = ''" class="mt-1 text-gray-300 hover:text-gray-500 underline">Fechar</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Nome do medicamento *</label>
+              <input x-model="novoMed.nome" type="text" placeholder="ex: Paracetamol, Insulina NPH"
+                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Princípio ativo</label>
+              <input x-model="novoMed.principioAtivo" list="principios" type="text" placeholder="ex: Paracetamol"
+                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Dosagem</label>
+              <input x-model="novoMed.miligramas" type="text" placeholder="ex: 500mg"
+                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Fabricante</label>
+              <input x-model="novoMed.fabricante" list="fabricantes" type="text" placeholder="Selecione ou digite"
+                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Preço real (R$) <span class="text-gray-300 font-normal normal-case">opcional</span></label>
+              <input x-model.number="novoMed.precoReal" type="number" step="0.01" min="0" placeholder="ex: 45.90"
+                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Qtd. de caixas</label>
+              <input x-model.number="novoMed.quantidade" type="number" min="1"
+                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Data de vencimento</label>
+              <input x-model="novoMed.validade" type="date"
+                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" x-model="novoMed.manipulado" class="rounded" />
+                <span class="text-sm text-gray-500">Medicamento manipulado / fórmula magistral</span>
+              </label>
+            </div>
+          </div>
+
+          <button @click="adicionarMedicamento()" :disabled="carregando || !novoMed.nome.trim()"
+            class="mt-4 w-full bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-40">
+            <span x-text="carregando ? 'Adicionando...' : 'Adicionar ao estoque'"></span>
+          </button>
+
+          <div x-show="mensagemWebhook" x-cloak class="mt-3 text-sm px-4 py-2.5 rounded-xl"
+               :class="{'bg-yellow-50 text-yellow-700': mensagemWebhook?.includes('já tem') || mensagemWebhook?.includes('Atenção'), 'bg-green-50 text-green-700': mensagemWebhook?.includes('sucesso')}"
+               x-text="mensagemWebhook"></div>
+          <div x-show="alertaPA" x-cloak class="mt-2 text-sm px-4 py-2.5 rounded-xl bg-orange-50 text-orange-700" x-text="alertaPA"></div>
+        </div>
+
+        <!-- BARRA DE BUSCA + EXPORTAR -->
+        <div class="flex gap-2 items-center">
+          <div class="flex-1 relative">
+            <input x-model="busca" type="text"
+              placeholder="Nome, princípio ativo, fabricante ou sintoma (ex: dor de garganta)..."
+              class="w-full border-2 border-blue-200 rounded-2xl pl-10 pr-8 py-3 text-sm bg-white shadow-sm focus:outline-none focus:border-blue-500 focus:shadow-md transition-all placeholder-gray-400"
+              @input="logBuscaDebounced()" />
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400 text-base">🔍</span>
+            <button x-show="busca" @click="busca = ''" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-sm">✕</button>
+          </div>
+          <a :href="'/exportar/' + telefoneAtual" target="_blank"
+             class="flex items-center gap-1.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-500 hover:text-gray-700 text-xs font-semibold px-3 py-3 rounded-xl transition whitespace-nowrap">
+            📄 PDF
+          </a>
+        </div>
+
+        <div x-show="busca.trim()" x-cloak class="text-xs text-gray-400 -mt-3 px-1">
+          <span x-text="totalFiltrado + ' medicamento(s) encontrado(s)'"></span>
+          <span x-show="sintomatico" class="text-blue-400 ml-1">· busca por sintoma</span>
+        </div>
+
+        <!-- GRID DE STATUS -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <template x-for="grupo in ['vencidos','atencao','ok']" :key="grupo">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div class="flex items-center gap-2 mb-4">
+                <span class="w-2.5 h-2.5 rounded-full inline-block"
+                  :class="{'bg-red-400':grupo==='vencidos','bg-amber-400':grupo==='atencao','bg-emerald-400':grupo==='ok'}"></span>
+                <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wide"
+                  x-text="{'vencidos':'Vencidos','atencao':'Atenção','ok':'Em dia'}[grupo]"></h4>
+                <span class="ml-auto text-xs font-bold px-2 py-0.5 rounded-full"
+                  :class="{'bg-red-50 text-red-400':grupo==='vencidos','bg-amber-50 text-amber-500':grupo==='atencao','bg-emerald-50 text-emerald-500':grupo==='ok'}"
+                  x-text="estoqueFiltrado[grupo]?.length ?? 0"></span>
+              </div>
+
+              <p x-show="!estoqueFiltrado[grupo]?.length" class="text-xs text-gray-300 italic"
+                x-text="busca.trim() ? 'Sem resultados' : {'vencidos':'Nenhum vencido','atencao':'Tudo tranquilo','ok':'Nenhum item'}[grupo]"></p>
+
+              <template x-for="item in estoqueFiltrado[grupo]" :key="item.id">
+                <div class="border-l-2 pl-3 mb-4 relative cursor-pointer group"
+                  :class="{'border-red-200':grupo==='vencidos','border-amber-200':grupo==='atencao','border-emerald-100':grupo==='ok'}"
+                  @click="verBula(item)">
+
+                  <div class="flex items-start gap-1 flex-wrap pr-12">
+                    <p class="text-sm font-semibold text-gray-700 group-hover:text-blue-600 transition" x-text="item.nome"></p>
+                    <span x-show="item.manipulado" class="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded font-medium">Manipulado</span>
+                    <span x-show="item.iniciado" class="text-xs bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-medium">Aberto ~70%</span>
+                  </div>
+
+                  <p x-show="item.principio_ativo" class="text-xs text-gray-400 mt-0.5" x-text="item.principio_ativo"></p>
+                  <p x-show="item.miligramas" class="text-xs text-gray-400" x-text="item.miligramas"></p>
+                  <p x-show="item.fabricante" class="text-xs text-gray-300" x-text="item.fabricante"></p>
+                  <p x-show="item.quantidade > 1" class="text-xs text-blue-400 font-medium" x-text="item.quantidade + ' caixas'"></p>
+                  <p x-show="item.preco_real" class="text-xs text-gray-400 font-medium"
+                     x-text="'R$ ' + Number(item.preco_real).toFixed(2).replace('.', ',')"></p>
+                  <p class="text-xs mt-0.5"
+                    :class="{'text-red-400':grupo==='vencidos','text-amber-500':grupo==='atencao','text-gray-300':grupo==='ok'}">
+                    <span x-show="grupo==='vencidos' && item.data_vencimento">Venceu: <span x-text="formatarData(item.data_vencimento)"></span></span>
+                    <span x-show="grupo!=='vencidos' && item.data_vencimento">Vence: <span x-text="formatarData(item.data_vencimento)"></span></span>
+                    <span x-show="!item.data_vencimento">Sem validade informada</span>
+                  </p>
+
+                  <!-- hint bula -->
+                  <p class="text-xs text-blue-300 group-hover:text-blue-500 transition mt-0.5">📋 ver bula</p>
+
+                  <div class="absolute top-0 right-0 flex flex-col gap-1 items-end" @click.stop>
+                    <div class="flex gap-1">
+                      <button @click="abrirEditarItem(item)" class="text-gray-300 hover:text-blue-500 transition text-xs p-1" title="Editar">✏️</button>
+                      <button @click="excluirItem(item.id)" class="text-gray-300 hover:text-red-500 transition text-xs p-1" title="Excluir">🗑️</button>
+                    </div>
+                    <button @click="iniciarMedicamento(item.id)"
+                      class="text-xs transition leading-tight text-right px-1.5 py-0.5 rounded-md"
+                      :class="item.iniciado ? 'text-amber-600 bg-amber-50 font-semibold' : 'text-gray-300 hover:text-amber-500'"
+                      :title="item.iniciado ? 'Aberto — ~70% restante estimado' : 'Marcar como aberto/iniciado'">
+                      <span x-text="item.iniciado ? '📦 Aberto' : '📦 Marcar aberto'"></span>
+                    </button>
+                    <button @click="consumirItem(item.id, item.nome)"
+                      class="text-xs text-gray-300 hover:text-emerald-600 transition leading-tight text-right">
+                      ✓ Consumido
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+
+      </div><!-- /painel estoque -->
+
+      <!-- PAINEL ALARMES -->
+      <div x-show="abaAtiva === 'alarmes'" class="space-y-4">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h2 class="font-bold text-gray-800 text-lg">Alarmes de remédio</h2>
+              <p class="text-xs text-gray-400 mt-0.5">Notificação push no horário certo, mesmo com a tela fechada</p>
+            </div>
+            <div class="flex gap-2">
+              <button x-show="pushStatus === 'granted'" @click="testarPush()"
+                class="text-xs bg-gray-100 text-gray-500 hover:bg-gray-200 px-3 py-1.5 rounded-lg font-semibold transition" title="Testar notificação">
+                🔔 Testar
+              </button>
+              <button @click="novoAlarme = {nome_med:'',horario:'',freq:'',dias:{1:true,2:true,3:true,4:true,5:true,6:true,7:true}}"
+                class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-blue-700">+ Novo</button>
+            </div>
+          </div>
+
+          <!-- Status permissão push -->
+          <div x-show="pushStatus !== 'granted'" class="mb-4 rounded-xl p-4 flex gap-3 items-start"
+            :class="pushStatus === 'denied' ? 'bg-red-50' : 'bg-amber-50'">
+            <span class="text-xl shrink-0" x-text="pushStatus === 'denied' ? '🚫' : '🔔'"></span>
+            <div class="flex-1">
+              <p class="text-sm font-semibold" :class="pushStatus === 'denied' ? 'text-red-700' : 'text-amber-700'"
+                x-text="pushStatus === 'denied' ? 'Notificações bloqueadas neste navegador' : 'Ative as notificações para receber os alarmes'"></p>
+              <p class="text-xs mt-1" :class="pushStatus === 'denied' ? 'text-red-500' : 'text-amber-600'"
+                x-text="pushStatus === 'denied' ? 'Vá em Configurações do navegador → Notificações → Permitir para este site.' : 'Os alarmes são salvos, mas você só receberá quando ativar.'"></p>
+              <button x-show="pushStatus !== 'denied'" @click="ativarNotificacoes()" :disabled="pushCarregando"
+                class="mt-2 text-xs bg-amber-500 text-white px-4 py-1.5 rounded-lg font-semibold hover:bg-amber-600 disabled:opacity-50">
+                <span x-text="pushCarregando ? 'Ativando...' : 'Ativar notificações'"></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Formulário novo alarme -->
+          <div x-show="novoAlarme" x-cloak class="mb-5 bg-blue-50 rounded-xl p-4 space-y-3">
+            <p class="text-xs font-bold text-blue-600 uppercase tracking-wide">Novo alarme</p>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="col-span-2">
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Medicamento</label>
+                <input x-model="novoAlarme.nome_med" type="text" list="meds-list" placeholder="Nome do remédio"
+                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                <datalist id="meds-list">
+                  <template x-for="item in [...estoque.ok,...estoque.atencao,...estoque.vencidos]" :key="item.id">
+                    <option :value="(item.nome === 'Medicamento Genérico' || !item.nome) ? (item.principio_ativo || item.nome) : item.nome"></option>
+                  </template>
+                </datalist>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Frequência</label>
+                <select x-model="novoAlarme.freq" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                  <option value="">Horário fixo</option>
+                  <option value="4">De 4 em 4 horas</option>
+                  <option value="6">De 6 em 6 horas</option>
+                  <option value="8">De 8 em 8 horas</option>
+                  <option value="12">De 12 em 12 horas</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                  <span x-text="novoAlarme.freq ? '1ª dose (BRT)' : 'Horário (BRT)'"></span>
+                </label>
+                <input x-model="novoAlarme.horario" type="time"
+                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Dias da semana</label>
+                <div class="flex gap-1 flex-wrap mt-1">
+                  <template x-for="[num, label] in [[1,'S'],[2,'T'],[3,'Q'],[4,'Q'],[5,'S'],[6,'S'],[7,'D']]" :key="num">
+                    <button @click="novoAlarme.dias[num] = !novoAlarme.dias[num]"
+                      class="w-7 h-7 text-xs rounded-full font-bold transition"
+                      :class="novoAlarme.dias[num] ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'"
+                      x-text="label"></button>
+                  </template>
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button @click="novoAlarme = null" class="flex-1 border border-gray-200 text-gray-400 py-2 rounded-xl text-sm hover:bg-gray-50">Cancelar</button>
+              <button @click="salvarAlarme()" :disabled="!novoAlarme.nome_med || !novoAlarme.horario || carregando"
+                class="flex-1 bg-blue-600 text-white py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-40">
+                <span x-text="carregando ? 'Salvando...' : 'Salvar alarme'"></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Lista de alarmes -->
+          <div x-show="!alarmes" class="text-center py-6">
+            <button @click="carregarAlarmes()" class="text-xs text-blue-500 underline">Carregar alarmes</button>
+          </div>
+          <template x-if="alarmes">
+            <div class="space-y-2">
+              <div x-show="!alarmes.length" class="text-center py-8">
+                <p class="text-gray-300 text-sm">Nenhum alarme cadastrado.</p>
+                <p class="text-gray-200 text-xs mt-1">Clique em "+ Novo" para criar o primeiro.</p>
+              </div>
+              <template x-for="a in alarmes" :key="a.id">
+                <div class="flex items-center gap-4 bg-gray-50 rounded-xl px-4 py-3" :class="!a.ativo ? 'opacity-50' : ''">
+                  <div class="text-2xl font-black text-blue-600 w-14 shrink-0 text-center" x-text="a.horario"></div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-gray-700 truncate" x-text="a.nome_med"></p>
+                    <p class="text-xs text-gray-400 mt-0.5" x-text="formatarDias(a.dias)"></p>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button @click="toggleAlarme(a)"
+                      class="relative w-10 h-5 rounded-full transition"
+                      :class="a.ativo ? 'bg-blue-500' : 'bg-gray-200'">
+                      <span class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all"
+                        :class="a.ativo ? 'left-5' : 'left-0.5'"></span>
+                    </button>
+                    <button @click="excluirAlarme(a.id)" class="text-gray-300 hover:text-red-500 transition text-sm">🗑️</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <!-- Dica bairro -->
+          <div x-show="usuario && !usuario.bairro" class="mt-4 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 flex gap-2 items-start">
+            <span class="text-amber-400 shrink-0">📍</span>
+            <div class="text-xs text-amber-700">
+              <strong>Dica:</strong> Cadastre seu bairro no perfil (clique no seu nome no topo) para que farmácias parceiras próximas recebam alertas sobre seus medicamentos.
+            </div>
+          </div>
+        </div>
+      </div><!-- /painel alarmes -->
+
+      <!-- PAINEL HISTÓRICO -->
+      <div x-show="abaAtiva === 'historico'" class="space-y-4">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h2 class="font-bold text-gray-800 text-lg">Histórico de consumo</h2>
+              <p class="text-xs text-gray-400 mt-0.5">Medicamentos que você terminou antes de vencerem</p>
+            </div>
+            <button @click="carregarHistorico()" :disabled="historicoCarregando"
+              class="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg font-semibold">
+              <span x-text="historicoCarregando ? 'Carregando...' : '↺ Atualizar'"></span>
+            </button>
+          </div>
+
+          <div x-show="historicoCarregando" class="text-center py-8 text-gray-300 text-sm">Carregando...</div>
+
+          <template x-if="historicoDados && !historicoCarregando">
+            <div>
+              <!-- Resumo -->
+              <div class="grid grid-cols-2 gap-3 mb-5">
+                <div class="bg-emerald-50 rounded-xl p-4 text-center">
+                  <p class="text-2xl font-black text-emerald-600" x-text="historicoDados.total_consumidos"></p>
+                  <p class="text-xs text-emerald-400 mt-1">Medicamentos consumidos</p>
+                </div>
+                <div class="bg-blue-50 rounded-xl p-4 text-center">
+                  <p class="text-2xl font-black text-blue-600"
+                     x-text="'R$ ' + historicoDados.total_valor_consumido.toFixed(2).replace('.',',')"></p>
+                  <p class="text-xs text-blue-400 mt-1">Valor aproveitado</p>
+                </div>
+              </div>
+
+              <!-- Sem histórico -->
+              <div x-show="!historicoDados.por_mes?.length" class="text-center py-8">
+                <p class="text-gray-300 text-sm">Nenhum medicamento consumido ainda.</p>
+                <p class="text-gray-200 text-xs mt-1">Quando terminar um remédio antes de vencer, marque como "Consumido" no estoque.</p>
+              </div>
+
+              <!-- Por mês -->
+              <template x-for="grupo in historicoDados.por_mes" :key="grupo.mes">
+                <div class="mb-5">
+                  <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wide"
+                       x-text="grupo.mes === '?' ? 'Data desconhecida' : formatarMes(grupo.mes)"></p>
+                    <span class="text-xs text-emerald-500 font-semibold"
+                          x-text="'R$ ' + grupo.valor.toFixed(2).replace('.',',')"></span>
+                  </div>
+                  <div class="space-y-2">
+                    <template x-for="item in grupo.itens" :key="item.id">
+                      <div class="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-2.5">
+                        <span class="text-emerald-400 text-lg shrink-0">✓</span>
+                        <div class="flex-1 min-w-0">
+                          <p class="text-sm font-semibold text-gray-700 truncate" x-text="item.nome"></p>
+                          <p class="text-xs text-gray-400" x-text="item.principio_ativo || item.miligramas || ''"></p>
+                        </div>
+                        <div class="text-right shrink-0">
+                          <p x-show="item.preco_real || item.preco_estimado" class="text-xs font-semibold text-gray-500"
+                             x-text="'R$ ' + ((item.preco_real || item.preco_estimado) * item.quantidade).toFixed(2).replace('.',',')"></p>
+                          <p class="text-xs text-gray-300" x-text="item.data_consumo ? formatarData(item.data_consumo) : 'data ?'"></p>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div><!-- /painel histórico -->
+    </div>
+  </template>
+
+</main>
+
+<!-- FAB — adicionar medicamento -->
+<template x-if="usuario && abaAtiva === 'estoque'">
+  <button @click="abrirFormAdicionar()"
+    class="fixed bottom-6 right-6 z-30 w-14 h-14 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-full shadow-lg shadow-blue-200 flex items-center justify-center text-2xl transition-all"
+    title="Adicionar medicamento">
+    +
+  </button>
+</template>
+
+<script>
+function dosemed() {
+  return {
+    telefoneInput: '', telefoneAtual: '', usuario: null,
+    estoque: { vencidos: [], atencao: [], ok: [] },
+    prejuizoAcumulado: 0, valorEmRisco: 0,
+    novoMed: { nome: '', principioAtivo: '', miligramas: '', fabricante: '', validade: '', quantidade: 1, manipulado: false, precoReal: null },
+    carregando: false, erroLogin: '', mensagemWebhook: '', alertaPA: '',
+    reconhecendo: false, previewUrl: '', erroReconhecimento: '',
+    mostrarCadastro: false, cadastro: { nome: '', email: '', bairro: '', endereco: '', portaria: '' },
+    modalItem: null, modalPerfil: false, editPerfil: { nome: '', email: '', bairro: '', endereco: '', portaria: '' },
+    mostrarLGPD: false, lgpdAceito: false,
+    busca: '',
+    // PIN / recuperação
+    mostrarPin: false, mostrarDefinirPin: false, pinInput: '', novoPinInput: '',
+    mostrarRecuperacao: false, codigoEnviado: false, codigoInput: '', novoPinRecuperacao: '', msgRecuperacao: '',
+    // bulas
+    bulasIndex: [],
+    bulaAtiva: null, bulaCarregando: false,
+    // admin
+    isAdmin: false, temEmail: false, abaAtiva: 'estoque', abaAdmin: 'resumo', adminDados: null, adminCarregando: false,
+    adminInsights: null, insightsCarregando: false,
+    insightFiltros: { bairro: true, termo: true, tipo: true, ticket: true, periodo: true },
+    adminFarmacias: null, adminLeads: null, adminPrecos: null,
+    modalFarmacia: null,
+    // disclaimer
+    disclaimerFechado: false,
+    // histórico
+    historicoDados: null, historicoCarregando: false,
+    // alarmes
+    alarmes: null, novoAlarme: null,
+    pushStatus: Notification?.permission ?? 'default',
+    pushCarregando: false,
+    // PWA
+    pwaDisponivel: false,
+    pwaIsIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream,
+    // log debounce
+    _logTimeout: null,
+
+    get estoqueFiltrado() {
+      const q = this.busca.trim().toLowerCase();
+      if (!q) return this.estoque;
+
+      // Tokeniza a query: palavras com 3+ letras para matching semântico
+      const tokens = q.split(/\s+/).filter(t => t.length >= 3);
+      const matchQ = (str) => str.includes(q) || tokens.some(t => str.includes(t));
+
+      // Encontra princípios ativos via sintomas na biblioteca
+      const pasPorSintoma = new Set();
+      for (const b of this.bulasIndex) {
+        const sint = (b.sintomas || []).map(s => s.toLowerCase());
+        const nomes = (b.nomes || []).map(n => n.toLowerCase());
+        const pa = (b.principio_ativo || '').toLowerCase();
+        if (sint.some(s => matchQ(s)) || nomes.some(n => matchQ(n)) || matchQ(pa)) {
+          pasPorSintoma.add(pa);
+          nomes.forEach(n => pasPorSintoma.add(n));
+        }
+      }
+
+      const match = item => {
+        const campos = [item.nome, item.principio_ativo, item.fabricante, item.miligramas]
+          .map(c => (c || '').toLowerCase());
+        if (campos.some(c => c.includes(q))) return true;
+        if (pasPorSintoma.size > 0) {
+          const pa = (item.principio_ativo || '').toLowerCase();
+          const nome = (item.nome || '').toLowerCase();
+          return pasPorSintoma.has(pa) || [...pasPorSintoma].some(p => nome.includes(p) || pa.includes(p));
+        }
+        return false;
+      };
+
+      return {
+        vencidos: this.estoque.vencidos.filter(match),
+        atencao: this.estoque.atencao.filter(match),
+        ok: this.estoque.ok.filter(match)
+      };
+    },
+
+    get totalFiltrado() {
+      const e = this.estoqueFiltrado;
+      return (e.vencidos?.length||0) + (e.atencao?.length||0) + (e.ok?.length||0);
+    },
+
+    get sintomatico() {
+      if (!this.busca.trim()) return false;
+      const q = this.busca.trim().toLowerCase();
+      return this.bulasIndex.some(b =>
+        (b.sintomas||[]).some(s => s.toLowerCase().includes(q))
+      );
+    },
+
+    init() {
+      this.disclaimerFechado = localStorage.getItem('dm_disc') === '1';
+      this.carregarBulasIndex();
+      window.addEventListener('beforeinstallprompt', () => { this.pwaDisponivel = true; });
+      window.addEventListener('appinstalled', () => { this.pwaDisponivel = false; });
+    },
+
+    instalarPWA() {
+      if (window._pwaPrompt) { window._pwaPrompt.prompt(); window._pwaPrompt = null; this.pwaDisponivel = false; }
+    },
+
+    async aceitarLGPD() {
+      this.lgpdAceito = true;
+      this.mostrarLGPD = false;
+      if (this.telefoneAtual) {
+        fetch(`/usuario/${encodeURIComponent(this.telefoneAtual)}/aceitar-lgpd`, { method: 'POST' }).catch(() => {});
+      }
+    },
+
+    async carregarBulasIndex() {
+      try {
+        const r = await fetch('/bulas-index');
+        if (r.ok) this.bulasIndex = await r.json();
+      } catch {}
+    },
+
+    formatarData(iso) {
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    },
+
+    formatarMes(ym) {
+      if (!ym || ym === '?') return 'Data desconhecida';
+      const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      const [y, m] = ym.split('-');
+      return `${meses[parseInt(m,10)-1]} ${y}`;
+    },
+
+    async carregarHistorico() {
+      this.historicoCarregando = true;
+      try {
+        const r = await fetch(`/historico/${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) this.historicoDados = await r.json();
+      } catch {}
+      this.historicoCarregando = false;
+    },
+
+    async acessar() {
+      this.erroLogin = ''; this.mostrarPin = false;
+      const tel = this.telefoneInput.trim();
+      if (!tel) { this.erroLogin = 'Informe o telefone.'; return; }
+      this.carregando = true;
+      try {
+        const r = await fetch(`/usuario/${encodeURIComponent(tel)}`);
+        if (r.status === 404) { this.mostrarCadastro = true; this.carregando = false; return; }
+        if (!r.ok) { this.erroLogin = 'Erro ao acessar.'; this.carregando = false; return; }
+        const data = await r.json();
+        this.telefoneAtual = tel;
+        this.temEmail = data.tem_email || false;
+        if (!data.aceite_lgpd) this.mostrarLGPD = true;
+        if (data.tem_pin) {
+          this.mostrarPin = true;
+          this.carregando = false;
+          return;
+        }
+        // Sem PIN — entra direto mas pede definir
+        await this.buscarDashboard();
+        this.mostrarDefinirPin = true;
+      } catch { this.erroLogin = 'Erro de conexão.'; }
+      this.carregando = false;
+    },
+
+    async confirmarPin() {
+      this.erroLogin = '';
+      const pin = this.pinInput.replace(/\D/g, '');
+      if (!pin) { this.erroLogin = 'Digite o PIN.'; return; }
+      this.carregando = true;
+      try {
+        const r = await fetch('/auth/verificar-pin', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefone: this.telefoneAtual, pin })
+        });
+        if (!r.ok) { this.erroLogin = 'PIN incorreto.'; this.pinInput = ''; this.carregando = false; return; }
+        this.mostrarPin = false;
+        await this.buscarDashboard();
+      } catch { this.erroLogin = 'Erro de conexão.'; }
+      this.carregando = false;
+    },
+
+    async definirPin() {
+      this.erroLogin = '';
+      const pin = this.novoPinInput.replace(/\D/g, '');
+      if (pin.length < 4) { this.erroLogin = 'PIN deve ter ao menos 4 dígitos.'; return; }
+      this.carregando = true;
+      try {
+        await fetch('/auth/definir-pin', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefone: this.telefoneAtual, pin })
+        });
+        this.mostrarDefinirPin = false;
+      } catch {}
+      this.carregando = false;
+    },
+
+    pularPin() {
+      this.mostrarDefinirPin = false;
+    },
+
+    async registrar() {
+      this.erroLogin = '';
+      if (!this.cadastro.nome.trim()) { this.erroLogin = 'Informe seu nome.'; return; }
+      this.carregando = true;
+      try {
+        const r = await fetch('/usuario', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefone: this.telefoneInput.trim(), nome: this.cadastro.nome,
+            email: this.cadastro.email || null,
+            bairro: this.cadastro.bairro || null,
+            endereco_completo: this.cadastro.endereco, instrucoes_portaria: this.cadastro.portaria,
+            aceite_lgpd: this.lgpdAceito })
+        });
+        if (!r.ok) { const d = await r.json(); this.erroLogin = d.detail || 'Erro.'; this.carregando = false; return; }
+        this.telefoneAtual = this.telefoneInput.trim();
+        this.mostrarCadastro = false;
+        await this.buscarDashboard();
+        this.mostrarDefinirPin = true;
+      } catch { this.erroLogin = 'Erro de conexão.'; }
+      this.carregando = false;
+    },
+
+    async buscarDashboard() {
+      this.carregando = true;
+      try {
+        const r = await fetch(`/dashboard/${encodeURIComponent(this.telefoneAtual)}`);
+        if (!r.ok) { this.carregando = false; return; }
+        const data = await r.json();
+        this.usuario = data.usuario;
+        this.isAdmin = data.usuario.is_admin || false;
+        this.estoque = data.estoque;
+        this.prejuizoAcumulado = data.prejuizo_acumulado;
+        this.valorEmRisco = data.valor_em_risco;
+      } catch {}
+      this.carregando = false;
+    },
+
+    async adicionarMedicamento() {
+      this.mensagemWebhook = ''; this.alertaPA = '';
+      if (!this.novoMed.nome.trim()) return;
+      this.carregando = true;
+      try {
+        const r = await fetch('/webhook', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telefone: this.telefoneAtual, medicamento: this.novoMed.nome,
+            principio_ativo: this.novoMed.principioAtivo || null,
+            miligramas: this.novoMed.miligramas || null,
+            fabricante: this.novoMed.fabricante || null,
+            validade: this.novoMed.validade || null,
+            quantidade: this.novoMed.quantidade || 1,
+            manipulado: this.novoMed.manipulado || false,
+            preco_real: this.novoMed.precoReal || null
+          })
+        });
+        const data = await r.json();
+        this.mensagemWebhook = data.mensagem;
+        this.alertaPA = data.alerta_principio_ativo || '';
+        if (data.mensagem?.includes('sucesso')) {
+          this.novoMed = { nome: '', principioAtivo: '', miligramas: '', fabricante: '', validade: '', quantidade: 1, manipulado: false, precoReal: null };
+          await this.buscarDashboard();
+        }
+      } catch { this.mensagemWebhook = 'Erro ao adicionar.'; }
+      this.carregando = false;
+    },
+
+    async reconhecerImagem(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      this.previewUrl = URL.createObjectURL(file);
+      this.erroReconhecimento = '';
+      this.reconhecendo = true;
+      try {
+        const form = new FormData();
+        form.append('arquivo', file);
+        const r = await fetch('/reconhecer-imagem', { method: 'POST', body: form });
+        if (!r.ok) {
+          const d = await r.json();
+          this.erroReconhecimento = d.detail || 'Erro ao analisar imagem.';
+          this.reconhecendo = false; return;
+        }
+        const d = await r.json();
+        if (d.nome_medicamento) this.novoMed.nome = d.nome_medicamento;
+        if (d.principio_ativo) this.novoMed.principioAtivo = d.principio_ativo;
+        if (d.miligramas) this.novoMed.miligramas = d.miligramas;
+        if (d.fabricante) this.novoMed.fabricante = d.fabricante;
+      } catch { this.erroReconhecimento = 'Erro de conexão ao analisar imagem.'; }
+      this.reconhecendo = false;
+      event.target.value = '';
+    },
+
+    async verBula(item) {
+      const termo = item.principio_ativo || item.nome;
+      // Log
+      this.logBusca('bula', termo);
+      this.bulaCarregando = true;
+      try {
+        let r = await fetch(`/bulas/${encodeURIComponent(termo)}`);
+        if (!r.ok && item.nome !== termo) {
+          r = await fetch(`/bulas/${encodeURIComponent(item.nome)}`);
+        }
+        if (r.ok) {
+          this.bulaAtiva = await r.json();
+        } else {
+          // Bula não encontrada — oferecer enriquecimento usando PA como termo principal
+          const termoBusca = item.principio_ativo || item.nome;
+          this.bulaAtiva = {
+            _naoEncontrado: true,
+            _nome: termoBusca,
+            _principio_ativo: item.principio_ativo || null,
+            _fabricante: item.fabricante || null,
+            principio_ativo: termoBusca,
+            categoria: 'Não encontrado na biblioteca',
+            indicacao: null, posologia: null, avisos: null, contraindicacoes: null, dicas: []
+          };
+        }
+      } catch {}
+      this.bulaCarregando = false;
+    },
+
+    async enriquecerBula(nome) {
+      this.bulaCarregando = true;
+      try {
+        const r = await fetch('/bulas/enriquecer', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nome,
+            principio_ativo: this.bulaAtiva?._principio_ativo || null,
+            fabricante: this.bulaAtiva?._fabricante || null,
+            usuario_id: this.telefoneAtual
+          })
+        });
+        if (r.ok) {
+          this.bulaAtiva = await r.json();
+          // Atualiza o índice local
+          await this.carregarBulasIndex();
+        } else {
+          const d = await r.json();
+          this.bulaAtiva._erro = d.detail || 'Não foi possível buscar informações.';
+        }
+      } catch { this.bulaAtiva._erro = 'Erro de conexão.'; }
+      this.bulaCarregando = false;
+    },
+
+    async iniciarMedicamento(id) {
+      try {
+        const r = await fetch(`/estoque/${id}/iniciar`, { method: 'POST' });
+        if (r.ok) await this.buscarDashboard();
+      } catch {}
+    },
+
+    async carregarFarmacias() {
+      try {
+        const r = await fetch(`/admin/farmacias?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) this.adminFarmacias = await r.json();
+      } catch {}
+    },
+
+    async salvarFarmacia() {
+      if (!this.modalFarmacia) return;
+      this.carregando = true;
+      try {
+        const isNew = !this.modalFarmacia.id;
+        const url = isNew
+          ? `/admin/farmacias?telefone=${encodeURIComponent(this.telefoneAtual)}`
+          : `/admin/farmacias/${this.modalFarmacia.id}?telefone=${encodeURIComponent(this.telefoneAtual)}`;
+        const method = isNew ? 'POST' : 'PUT';
+        const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.modalFarmacia) });
+        if (r.ok) { this.modalFarmacia = null; await this.carregarFarmacias(); }
+        else { const d = await r.json(); alert(d.detail || 'Erro ao salvar.'); }
+      } catch { alert('Erro de conexão.'); }
+      this.carregando = false;
+    },
+
+    async faturarLeads(id, nome) {
+      if (!confirm(`Gerar cobrança Asaas pelos leads do mês para ${nome}?`)) return;
+      this.carregando = true;
+      try {
+        const r = await fetch(`/admin/farmacias/${id}/faturar-leads?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
+        const d = await r.json();
+        alert(r.ok ? `${d.mensagem} — ${d.total_leads} leads — R$ ${(d.valor||0).toFixed(2)}` : (d.detail || 'Erro.'));
+        if (r.ok) await this.carregarLeads();
+      } catch { alert('Erro de conexão.'); }
+      this.carregando = false;
+    },
+
+    async verRecebimentos(id, nome) {
+      try {
+        const r = await fetch(`/admin/recebimentos/${id}?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        const d = await r.json();
+        if (r.ok && d.cobrancas?.length) {
+          const lista = d.cobrancas.map(c => `${c.dueDate} | R$ ${c.value} | ${c.status} | ${c.description || ''}`).join('\n');
+          alert(`Cobranças — ${nome}:\n\n${lista}`);
+        } else { alert(`Nenhuma cobrança encontrada para ${nome}.`); }
+      } catch { alert('Erro ao buscar cobranças.'); }
+    },
+
+    async gerarLeadsManuais() {
+      if (!confirm('Gerar leads manualmente agora para todos os medicamentos próximos do vencimento?')) return;
+      this.carregando = true;
+      try {
+        const r = await fetch(`/admin/leads/gerar-manual?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
+        const d = await r.json();
+        alert(`${d.leads_gerados} leads gerados.`);
+        await this.carregarLeads();
+      } catch { alert('Erro.'); }
+      this.carregando = false;
+    },
+
+    async carregarLeads() {
+      try {
+        const r = await fetch(`/admin/leads?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) this.adminLeads = await r.json();
+      } catch {}
+    },
+
+    async carregarPrecos() {
+      try {
+        const r = await fetch(`/admin/configuracoes?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) this.adminPrecos = await r.json();
+      } catch {}
+    },
+
+    async salvarConfig(chave, valor) {
+      try {
+        const r = await fetch(`/admin/configuracoes/${chave}?telefone=${encodeURIComponent(this.telefoneAtual)}`,
+          { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valor }) });
+        if (!r.ok) alert('Erro ao salvar.');
+      } catch { alert('Erro de conexão.'); }
+    },
+
+    async carregarInsights() {
+      this.insightsCarregando = true;
+      try {
+        const r = await fetch(`/admin/insights?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) this.adminInsights = await r.json();
+      } catch {}
+      this.insightsCarregando = false;
+    },
+
+    abrirEditarItem(item) { this.modalItem = { ...item }; },
+
+    async salvarItem() {
+      if (!this.modalItem) return;
+      this.carregando = true;
+      try {
+        const r = await fetch(`/estoque/${this.modalItem.id}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nome_medicamento: this.modalItem.nome,
+            principio_ativo: this.modalItem.principio_ativo || null,
+            miligramas: this.modalItem.miligramas || null,
+            fabricante: this.modalItem.fabricante || null,
+            validade: this.modalItem.data_vencimento || null,
+            quantidade: this.modalItem.quantidade || 1,
+            manipulado: this.modalItem.manipulado || false,
+            preco_real: this.modalItem.preco_real || null
+          })
+        });
+        if (r.ok) { this.modalItem = null; await this.buscarDashboard(); }
+      } catch {}
+      this.carregando = false;
+    },
+
+    async excluirItem(id) {
+      if (!confirm('Remover este medicamento do estoque?')) return;
+      this.carregando = true;
+      try { await fetch(`/estoque/${id}`, { method: 'DELETE' }); await this.buscarDashboard(); } catch {}
+      this.carregando = false;
+    },
+
+    async consumirItem(id, nome) {
+      if (!confirm(`"${nome}" acabou antes de vencer? Será marcado como consumido.`)) return;
+      this.carregando = true;
+      try { await fetch(`/estoque/${id}/consumir`, { method: 'POST' }); await this.buscarDashboard(); } catch {}
+      this.carregando = false;
+    },
+
+    abrirEditarPerfil() {
+      this.editPerfil = { nome: this.usuario.nome||'', email: this.usuario.email||'', bairro: this.usuario.bairro||'', endereco: this.usuario.endereco||'', portaria: this.usuario.instrucoes_portaria||'' };
+      this.modalPerfil = true;
+    },
+
+    async salvarPerfil() {
+      this.carregando = true;
+      try {
+        const r = await fetch(`/usuario/${encodeURIComponent(this.telefoneAtual)}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome: this.editPerfil.nome, email: this.editPerfil.email || null, bairro: this.editPerfil.bairro || null, endereco_completo: this.editPerfil.endereco, instrucoes_portaria: this.editPerfil.portaria })
+        });
+        if (r.ok) { this.modalPerfil = false; await this.buscarDashboard(); }
+      } catch {}
+      this.carregando = false;
+    },
+
+    iniciarRecuperacao() {
+      if (!this.temEmail) {
+        this.erroLogin = 'Você não tem e-mail cadastrado. Entre no perfil e adicione um e-mail para poder recuperar o PIN.';
+        return;
+      }
+      this.mostrarRecuperacao = true;
+      this.codigoEnviado = false;
+      this.codigoInput = '';
+      this.novoPinRecuperacao = '';
+      this.msgRecuperacao = '';
+      this.erroLogin = '';
+    },
+
+    async enviarCodigoRecuperacao() {
+      this.erroLogin = '';
+      this.carregando = true;
+      try {
+        const r = await fetch('/auth/recuperar-pin', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefone: this.telefoneAtual })
+        });
+        const d = await r.json();
+        if (!r.ok) { this.erroLogin = d.detail || 'Erro ao enviar código.'; this.carregando = false; return; }
+        this.codigoEnviado = true;
+        // dev mode: código retornado diretamente
+        this.msgRecuperacao = d.codigo
+          ? `Modo dev — código: ${d.codigo}`
+          : (d.mensagem || 'Código enviado para o e-mail cadastrado.');
+      } catch { this.erroLogin = 'Erro de conexão.'; }
+      this.carregando = false;
+    },
+
+    async redefinirPin() {
+      this.erroLogin = '';
+      const codigo = this.codigoInput.replace(/\D/g, '');
+      const pin = this.novoPinRecuperacao.replace(/\D/g, '');
+      if (!codigo || codigo.length !== 6) { this.erroLogin = 'Digite o código de 6 dígitos.'; return; }
+      if (pin.length < 4) { this.erroLogin = 'PIN deve ter ao menos 4 dígitos.'; return; }
+      this.carregando = true;
+      try {
+        const r = await fetch('/auth/verificar-codigo', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefone: this.telefoneAtual, codigo, novo_pin: pin })
+        });
+        const d = await r.json();
+        if (!r.ok) { this.erroLogin = d.detail || 'Código inválido ou expirado.'; this.carregando = false; return; }
+        this.mostrarRecuperacao = false;
+        this.mostrarPin = false;
+        await this.buscarDashboard();
+      } catch { this.erroLogin = 'Erro de conexão.'; }
+      this.carregando = false;
+    },
+
+    logBusca(tipo, termo) {
+      if (!termo || !this.telefoneAtual) return;
+      fetch('/log-busca', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, termo, usuario_id: this.telefoneAtual })
+      }).catch(() => {});
+    },
+
+    logBuscaDebounced() {
+      clearTimeout(this._logTimeout);
+      this._logTimeout = setTimeout(() => {
+        if (this.busca.trim().length >= 3) {
+          const tipo = this.sintomatico ? 'sintoma' : 'medicamento';
+          this.logBusca(tipo, this.busca.trim());
+        }
+      }, 1500);
+    },
+
+    async carregarAdmin() {
+      this.adminCarregando = true;
+      try {
+        const r = await fetch(`/admin/relatorios?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) {
+          this.adminDados = await r.json();
+          // Renderiza chart após DOM atualizar
+          this.$nextTick(() => this.renderizarChart());
+        }
+      } catch {}
+      this.adminCarregando = false;
+    },
+
+    renderizarChart() {
+      if (!this.adminDados?.por_dia?.length) return;
+      const el = document.getElementById('chartDias');
+      if (!el) return;
+      if (el._chartInstance) el._chartInstance.destroy();
+      el._chartInstance = new Chart(el, {
+        type: 'bar',
+        data: {
+          labels: this.adminDados.por_dia.map(d => d.data.slice(5)),
+          datasets: [{
+            label: 'Buscas',
+            data: this.adminDados.por_dia.map(d => d.count),
+            backgroundColor: '#818cf8',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+      });
+    },
+
+    abrirFormAdicionar() {
+      // Scrolla suavemente até o formulário de adicionar e foca o campo nome
+      const el = document.querySelector('input[x-model="novoMed.nome"]');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => el.focus(), 350);
+      }
+    },
+
+    async testarPush() {
+      try {
+        const r = await fetch(`/push/testar?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
+        if (!r.ok) { const d = await r.json(); alert(d.detail || 'Erro ao testar.'); }
+      } catch { alert('Erro de conexão.'); }
+    },
+
+    // --- Alarmes ---
+
+    async carregarAlarmes() {
+      try {
+        const r = await fetch(`/alarmes/${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) this.alarmes = await r.json();
+      } catch {}
+    },
+
+    _calcHorarios(primeiro, freqHoras) {
+      const [h, m] = primeiro.split(':').map(Number);
+      const count = 24 / freqHoras;
+      return Array.from({ length: count }, (_, i) => {
+        const tot = (h * 60 + m + i * freqHoras * 60) % 1440;
+        return `${String(Math.floor(tot / 60)).padStart(2,'0')}:${String(tot % 60).padStart(2,'0')}`;
+      });
+    },
+
+    async salvarAlarme() {
+      if (!this.novoAlarme?.nome_med || !this.novoAlarme?.horario) return;
+      this.carregando = true;
+      const dias = Object.entries(this.novoAlarme.dias).filter(([,v]) => v).map(([k]) => k).join(',') || '1,2,3,4,5,6,7';
+      const freq = parseInt(this.novoAlarme.freq) || 0;
+      const horarios = freq ? this._calcHorarios(this.novoAlarme.horario, freq) : [this.novoAlarme.horario];
+      try {
+        const novos = [];
+        for (const horario of horarios) {
+          const r = await fetch('/alarmes', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ telefone: this.telefoneAtual, nome_med: this.novoAlarme.nome_med, horario, dias })
+          });
+          if (r.ok) novos.push(await r.json());
+        }
+        if (novos.length) {
+          this.alarmes = [...(this.alarmes || []), ...novos];
+          this.novoAlarme = null;
+          if (this.pushStatus === 'granted') await this._registrarPush();
+          else await this.ativarNotificacoes();
+        }
+      } catch {}
+      this.carregando = false;
+    },
+
+    async toggleAlarme(a) {
+      try {
+        const r = await fetch(`/alarmes/${a.id}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefone: this.telefoneAtual, nome_med: a.nome_med, horario: a.horario, dias: a.dias, ativo: a.ativo ? 0 : 1 })
+        });
+        if (r.ok) { const u = await r.json(); Object.assign(a, u); }
+      } catch {}
+    },
+
+    async excluirAlarme(id) {
+      if (!confirm('Remover este alarme?')) return;
+      try {
+        const r = await fetch(`/alarmes/${id}`, { method: 'DELETE' });
+        if (r.ok) this.alarmes = this.alarmes.filter(a => a.id !== id);
+      } catch {}
+    },
+
+    formatarDias(dias) {
+      if (!dias) return 'Todos os dias';
+      const nomes = { '1':'Seg','2':'Ter','3':'Qua','4':'Qui','5':'Sex','6':'Sáb','7':'Dom' };
+      const lista = dias.split(',').map(d => nomes[d] || d);
+      if (lista.length === 7) return 'Todos os dias';
+      if (JSON.stringify(lista) === JSON.stringify(['Seg','Ter','Qua','Qui','Sex'])) return 'Dias úteis';
+      return lista.join(' · ');
+    },
+
+    // --- Push Notifications ---
+
+    async ativarNotificacoes() {
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        alert('Seu navegador não suporta notificações push.'); return;
+      }
+      this.pushCarregando = true;
+      try {
+        const perm = await Notification.requestPermission();
+        this.pushStatus = perm;
+        if (perm === 'granted') await this._registrarPush();
+      } catch (e) { console.error(e); }
+      this.pushCarregando = false;
+    },
+
+    async _registrarPush() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.warn('Push não disponível (requer HTTPS).');
+        return;
+      }
+      try {
+        const r = await fetch('/push/vapid-public-key');
+        if (!r.ok) return;
+        const { key } = await r.json();
+
+        const sw = await navigator.serviceWorker.ready;
+        const sub = await sw.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: _urlB64ToUint8Array(key)
+        });
+        const j = sub.toJSON();
+        await fetch('/push/subscribe', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telefone: this.telefoneAtual,
+            endpoint: j.endpoint,
+            p256dh: j.keys.p256dh,
+            auth: j.keys.auth
+          })
+        });
+      } catch (e) { console.error('Push subscribe:', e); }
+    },
+
+    sair() {
+      this.usuario = null; this.telefoneAtual = ''; this.telefoneInput = '';
+      this.estoque = { vencidos: [], atencao: [], ok: [] };
+      this.prejuizoAcumulado = 0; this.valorEmRisco = 0;
+      this.mostrarCadastro = false; this.cadastro = { nome: '', email: '', bairro: '', endereco: '', portaria: '' };
+      this.mensagemWebhook = ''; this.alertaPA = ''; this.modalItem = null; this.modalPerfil = false;
+      this.busca = ''; this.bulaAtiva = null; this.isAdmin = false;
+      this.abaAtiva = 'estoque'; this.abaAdmin = 'resumo'; this.adminDados = null; this.adminInsights = null;
+      this.adminFarmacias = null; this.adminLeads = null; this.adminPrecos = null; this.modalFarmacia = null;
+      this.mostrarPin = false; this.mostrarDefinirPin = false; this.pinInput = ''; this.novoPinInput = '';
+      this.mostrarRecuperacao = false; this.codigoEnviado = false; this.codigoInput = ''; this.novoPinRecuperacao = ''; this.msgRecuperacao = '';
+      this.mostrarLGPD = false; this.lgpdAceito = false;
+      this.historicoDados = null; this.historicoCarregando = false;
+      this.alarmes = null; this.novoAlarme = null;
+    }
+  }
+}
+</script>
+
+<!-- MODAL FARMÁCIA -->
+<div x-show="modalFarmacia" x-cloak class="fixed inset-0 bg-black/40 z-40 flex items-center justify-center px-4 overflow-y-auto py-6">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" @click.outside="modalFarmacia = null">
+    <h3 class="font-bold text-gray-800 mb-4" x-text="modalFarmacia?.id ? 'Editar farmácia' : 'Nova farmácia'"></h3>
+    <div class="space-y-3">
+      <div><label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Nome *</label>
+        <input x-model="modalFarmacia.nome" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" /></div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">CNPJ <span class="text-indigo-400 normal-case font-normal">(obrigatório para cobranças PIX)</span></label>
+          <input x-model="modalFarmacia.cnpj" type="text" placeholder="00.000.000/0001-00" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" /></div>
+        <div><label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Telefone</label>
+          <input x-model="modalFarmacia.telefone_contato" type="tel" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" /></div>
+      </div>
+      <div><label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">E-mail *</label>
+        <input x-model="modalFarmacia.email" type="email" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" /></div>
+      <div><label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Bairros <span class="text-gray-300 normal-case font-normal">(separados por vírgula — vazio = todos)</span></label>
+        <input x-model="modalFarmacia.bairros" type="text" placeholder="Centro, JD América, Setor Norte" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" /></div>
+      <div><label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Plano</label>
+        <select x-model="modalFarmacia.plano" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+          <option value="lead">Lead (por lead recebido)</option>
+          <option value="basico">Básico (assinatura mensal)</option>
+          <option value="pro">Pro (assinatura mensal)</option>
+          <option value="manipulado">Manipulação (assinatura mensal)</option>
+        </select></div>
+      <div class="flex gap-4">
+        <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+          <input type="checkbox" :checked="modalFarmacia.ativo" @change="modalFarmacia.ativo = $event.target.checked ? 1 : 0" class="rounded" /> Ativa
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+          <input type="checkbox" :checked="modalFarmacia.atende_manipulado" @change="modalFarmacia.atende_manipulado = $event.target.checked ? 1 : 0" class="rounded" /> Atende manipulado
+        </label>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button @click="modalFarmacia = null" class="flex-1 border border-gray-200 text-gray-400 py-2.5 rounded-xl text-sm hover:bg-gray-50">Cancelar</button>
+      <button @click="salvarFarmacia()" :disabled="carregando" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-40">
+        <span x-text="carregando ? 'Salvando...' : 'Salvar'"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LGPD -->
+<div x-show="mostrarLGPD" x-cloak class="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center px-0 sm:px-4">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg p-6 sm:p-8">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="text-2xl">🔒</span>
+      <h2 class="font-bold text-gray-800 text-lg">Privacidade e uso dos dados</h2>
+    </div>
+    <div class="text-sm text-gray-600 space-y-3 mb-6 leading-relaxed max-h-60 overflow-y-auto pr-1">
+      <p>O <strong>DoseMed</strong> coleta e armazena apenas as informações necessárias para o funcionamento do serviço, em conformidade com a <strong>LGPD (Lei 13.709/2018)</strong>.</p>
+      <p><strong>O que coletamos:</strong></p>
+      <ul class="list-disc pl-4 space-y-1 text-gray-500">
+        <li>Número de telefone (identificação única)</li>
+        <li>Nome, e-mail (opcional) e bairro (opcional)</li>
+        <li>Medicamentos que você cadastra no estoque</li>
+        <li>Termos buscados (para melhorar o serviço)</li>
+      </ul>
+      <p><strong>O que NÃO fazemos:</strong></p>
+      <ul class="list-disc pl-4 space-y-1 text-gray-500">
+        <li>Não compartilhamos seus dados pessoais com terceiros sem consentimento</li>
+        <li>Não usamos endereço completo em analytics — apenas bairro para tendências regionais anônimas</li>
+        <li>Não vendemos seus dados</li>
+      </ul>
+      <p><strong>Seus direitos (LGPD):</strong> Você pode solicitar acesso, correção ou exclusão dos seus dados a qualquer momento pelo suporte.</p>
+      <p class="text-xs text-gray-400">As informações de bula são de caráter educativo e <strong>não substituem orientação médica</strong>. Em emergências, ligue 192 (SAMU) ou 193 (Bombeiros).</p>
+    </div>
+    <button @click="aceitarLGPD()"
+      class="w-full bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 transition">
+      Entendi e aceito — continuar
+    </button>
+    <p class="text-xs text-center text-gray-300 mt-2">Ao continuar, você concorda com os termos acima.</p>
+  </div>
+</div>
+
+</body>
+</html>

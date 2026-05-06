@@ -1,0 +1,37 @@
+{
+  "name": "DoseMed — Seu Estoque Digital",
+  "short_name": "DoseMed",
+  "description": "Controle seus medicamentos em casa, acompanhe validades e consulte bulas.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#2563eb",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Meu estoque",
+      "url": "/",
+      "description": "Abrir estoque de medicamentos"
+    }
+  ]
+}

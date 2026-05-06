@@ -1,0 +1,5 @@
+.env
+dosemed.log
+dosemed.db
+__pycache__/
+*.pyc

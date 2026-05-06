@@ -1,0 +1,1571 @@
+[
+  {
+    "nomes": [
+      "Paracetamol",
+      "Tylenol",
+      "Dorflex",
+      "Paraci"
+    ],
+    "principio_ativo": "Paracetamol",
+    "categoria": "Analgésico / Antipirético",
+    "indicacao": "Dor leve a moderada (cabeça, muscular, dental), febre.",
+    "posologia": "500 a 1000mg a cada 4 a 6 horas. Máximo 4g por dia (adultos).",
+    "contraindicacoes": "Doença hepática grave. Hipersensibilidade ao paracetamol.",
+    "avisos": "Não ultrapassar a dose máxima. Evitar consumo de álcool. Cuidado com outros produtos que já contêm paracetamol.",
+    "receita": false,
+    "sintomas": [
+      "dor de cabeça",
+      "cefaleia",
+      "febre",
+      "dor muscular",
+      "dor dental",
+      "dor de dente",
+      "gripado",
+      "resfriado",
+      "mal-estar",
+      "dor de garganta",
+      "garganta"
+    ],
+    "dicas": [
+      "Não tomar mais que 4g por dia (8 comprimidos de 500mg)",
+      "Evitar álcool durante o uso",
+      "Verificar se outros medicamentos que toma já contêm paracetamol",
+      "Preferir tomar com água, pode ser com ou sem alimento"
+    ]
+  },
+  {
+    "nomes": [
+      "Ibuprofeno",
+      "Advil",
+      "Motrin",
+      "Ibuflam",
+      "Alivium"
+    ],
+    "principio_ativo": "Ibuprofeno",
+    "categoria": "Anti-inflamatório / Analgésico / Antipirético",
+    "indicacao": "Dor, inflamação, febre. Cólicas menstruais, dor de dente, artrite.",
+    "posologia": "400 a 600mg a cada 6 a 8 horas, com alimento. Máximo 2400mg/dia.",
+    "contraindicacoes": "Úlcera péptica ativa, insuficiência renal grave, último trimestre de gravidez, alergia a AINEs.",
+    "avisos": "Tomar sempre com alimento para proteger o estômago. Aumenta risco de sangramento gastrointestinal.",
+    "receita": false,
+    "sintomas": [
+      "inflamação",
+      "dor",
+      "febre",
+      "cólica menstrual",
+      "dor de dente",
+      "artrite",
+      "dor muscular",
+      "dor nas costas",
+      "inchaço inflamatório",
+      "dor articular",
+      "dor de garganta",
+      "garganta inflamada",
+      "faringite",
+      "amigdalite",
+      "inflamação na garganta"
+    ],
+    "dicas": [
+      "Sempre tomar com alimento ou leite",
+      "Não usar por mais de 3 dias para febre sem orientação médica",
+      "Evitar se tiver gastrite, úlcera ou doença renal",
+      "Não combinar com outros anti-inflamatórios"
+    ]
+  },
+  {
+    "nomes": [
+      "Dipirona",
+      "Novalgina",
+      "Analgex",
+      "Magnopyrol"
+    ],
+    "principio_ativo": "Dipirona Sódica (Metamizol)",
+    "categoria": "Analgésico / Antipirético / Antiespasmódico",
+    "indicacao": "Dor intensa, febre alta, cólicas (renal, biliar, intestinal).",
+    "posologia": "500 a 1000mg a cada 6 a 8 horas. Máximo 4g/dia.",
+    "contraindicacoes": "Agranulocitose prévia por dipirona, hipersensibilidade. Não usar em crianças menores de 3 meses.",
+    "avisos": "Pode causar queda na pressão arterial se administrado em injeção rápida. Raro mas grave: agranulocitose.",
+    "receita": false,
+    "sintomas": [
+      "dor intensa",
+      "febre alta",
+      "cólica renal",
+      "cólica biliar",
+      "cólica intestinal",
+      "espasmo",
+      "dor abdominal",
+      "cólica",
+      "dor de garganta",
+      "garganta"
+    ],
+    "dicas": [
+      "Pode ser tomada com ou sem alimento",
+      "Não ultrapassar 4 comprimidos de 500mg por dia",
+      "Se aparecer erupção na pele ou falta de ar, suspender e procurar médico",
+      "Não usar cronicamente sem acompanhamento médico"
+    ]
+  },
+  {
+    "nomes": [
+      "Amoxicilina",
+      "Amoxil",
+      "Amoxiclave",
+      "Clavulin"
+    ],
+    "principio_ativo": "Amoxicilina",
+    "categoria": "Antibiótico (Penicilina)",
+    "indicacao": "Infecções bacterianas: otite, sinusite, amigdalite, pneumonia, infecções urinárias.",
+    "posologia": "250 a 500mg a cada 8 horas ou 875mg a cada 12 horas, por 7 a 10 dias.",
+    "contraindicacoes": "Alergia à penicilina ou cefalosporinas.",
+    "avisos": "Completar o tratamento mesmo com melhora dos sintomas. Pode causar diarreia.",
+    "receita": true,
+    "sintomas": [
+      "infecção",
+      "otite",
+      "sinusite",
+      "amigdalite",
+      "pneumonia",
+      "infecção urinária",
+      "dor de garganta",
+      "infecção bacteriana",
+      "ouvido inflamado",
+      "garganta",
+      "garganta inflamada",
+      "faringite",
+      "tonsilite",
+      "inflamação na garganta"
+    ],
+    "dicas": [
+      "Completar sempre o ciclo completo do antibiótico, mesmo sentindo melhora",
+      "Pode ser tomada com ou sem alimento",
+      "Se surgir diarreia intensa, comunicar ao médico",
+      "Nunca usar antibiótico sem prescrição médica",
+      "Guardar na geladeira se for suspensão (xarope)"
+    ]
+  },
+  {
+    "nomes": [
+      "Azitromicina",
+      "Zithromax",
+      "Azitrocin",
+      "Azimed"
+    ],
+    "principio_ativo": "Azitromicina",
+    "categoria": "Antibiótico (Macrolídeo)",
+    "indicacao": "Infecções respiratórias, sinusite, pneumonia atípica, ISTs (clamídia).",
+    "posologia": "500mg/dia por 3 a 5 dias (adultos). Dose única de 1g para clamídia.",
+    "contraindicacoes": "Alergia a macrolídeos, arritmia cardíaca QT prolongado.",
+    "avisos": "Pode prolongar o intervalo QT. Interação com antiácidos (tomar 2h separados).",
+    "receita": true,
+    "sintomas": [
+      "infecção respiratória",
+      "pneumonia",
+      "sinusite",
+      "garganta",
+      "infecção sexualmente transmissível",
+      "bronquite",
+      "infecção por clamídia",
+      "dor de garganta",
+      "garganta inflamada",
+      "faringite",
+      "amigdalite",
+      "inflamação na garganta"
+    ],
+    "dicas": [
+      "Tomar no mesmo horário todos os dias",
+      "Separar 2 horas de antiácidos",
+      "Não interromper antes do prazo prescrito",
+      "Nunca usar antibiótico sem prescrição médica"
+    ]
+  },
+  {
+    "nomes": [
+      "Ciprofloxacino",
+      "Cipro",
+      "Ciflox"
+    ],
+    "principio_ativo": "Ciprofloxacino",
+    "categoria": "Antibiótico (Fluoroquinolona)",
+    "indicacao": "Infecções urinárias, infecções intestinais, pneumonia hospitalar.",
+    "posologia": "250 a 500mg a cada 12 horas por 7 a 14 dias, conforme indicação.",
+    "contraindicacoes": "Menores de 18 anos (risco tendíneo), gravidez, hipersensibilidade a quinolonas.",
+    "avisos": "Risco de tendinite e ruptura de tendão. Evitar exposição ao sol. Não tomar com laticínios ou antiácidos.",
+    "receita": true,
+    "sintomas": [
+      "infecção urinária",
+      "cistite",
+      "diarreia infecciosa",
+      "infecção intestinal",
+      "pneumonia",
+      "ardência ao urinar"
+    ],
+    "dicas": [
+      "Tomar com bastante água",
+      "Evitar sol e usar protetor solar",
+      "Não tomar com leite, queijo, antiácidos ou suplementos de cálcio/ferro",
+      "Reportar qualquer dor no tendão (especialmente calcanhar)"
+    ]
+  },
+  {
+    "nomes": [
+      "Metformina",
+      "Glifage",
+      "Glucoformin",
+      "Diaformin"
+    ],
+    "principio_ativo": "Cloridrato de Metformina",
+    "categoria": "Antidiabético (Biguanida)",
+    "indicacao": "Diabetes tipo 2, resistência à insulina, síndrome metabólica.",
+    "posologia": "500 a 2550mg/dia, divididos em 2 a 3 tomadas, com as refeições.",
+    "contraindicacoes": "Insuficiência renal (ClCr < 30), insuficiência hepática, alcoolismo.",
+    "avisos": "Suspender antes de exames com contraste iodado. Pode causar déficit de vitamina B12 em uso prolongado. Raro: acidose lática.",
+    "receita": true,
+    "sintomas": [
+      "diabetes",
+      "açúcar alto",
+      "glicemia alta",
+      "resistência à insulina",
+      "diabetes tipo 2",
+      "pré-diabetes"
+    ],
+    "dicas": [
+      "Tomar sempre com as refeições para reduzir náusea e diarreia",
+      "Não interromper sem orientação médica",
+      "Avisar médico antes de exames com contraste",
+      "Monitorar B12 anualmente em uso prolongado",
+      "Monitorar glicemia regularmente"
+    ]
+  },
+  {
+    "nomes": [
+      "Atorvastatina",
+      "Lipitor",
+      "Citalor",
+      "Atorlip"
+    ],
+    "principio_ativo": "Atorvastatina Cálcica",
+    "categoria": "Hipolipemiante (Estatina)",
+    "indicacao": "Colesterol alto (LDL elevado), prevenção cardiovascular.",
+    "posologia": "10 a 80mg uma vez ao dia, preferencialmente à noite.",
+    "contraindicacoes": "Doença hepática ativa, gravidez, amamentação.",
+    "avisos": "Monitorar enzimas hepáticas. Risco de miopatia (dor muscular). Avisar o médico se sentir dores musculares fortes.",
+    "receita": true,
+    "sintomas": [
+      "colesterol alto",
+      "LDL elevado",
+      "dislipidemia",
+      "risco cardiovascular",
+      "triglicerídeos",
+      "aterosclerose"
+    ],
+    "dicas": [
+      "Tomar preferencialmente à noite (fígado produz mais colesterol à noite)",
+      "Evitar suco de toranja (grapefruit)",
+      "Comunicar imediatamente dores musculares fortes ou fraqueza",
+      "Não interromper sem orientação do médico",
+      "Fazer exame de sangue periodicamente"
+    ]
+  },
+  {
+    "nomes": [
+      "Sinvastatina",
+      "Zocor",
+      "Sinvastacor",
+      "Vaslip"
+    ],
+    "principio_ativo": "Sinvastatina",
+    "categoria": "Hipolipemiante (Estatina)",
+    "indicacao": "Colesterol alto, prevenção de doenças cardiovasculares.",
+    "posologia": "20 a 40mg uma vez ao dia, à noite.",
+    "contraindicacoes": "Doença hepática ativa, gravidez, uso de alguns antifúngicos ou antibióticos.",
+    "avisos": "Evitar suco de toranja (grapefruit). Risco de miopatia. Limite 20mg com amiodarona.",
+    "receita": true,
+    "sintomas": [
+      "colesterol alto",
+      "prevenção cardiovascular",
+      "LDL elevado",
+      "dislipidemia"
+    ],
+    "dicas": [
+      "Tomar à noite",
+      "Evitar suco de grapefruit (toranja)",
+      "Relatar dores musculares ao médico",
+      "Não interromper sem orientação médica"
+    ]
+  },
+  {
+    "nomes": [
+      "Losartana",
+      "Cozaar",
+      "Losartan",
+      "Aradois"
+    ],
+    "principio_ativo": "Losartana Potássica",
+    "categoria": "Anti-hipertensivo (BRA)",
+    "indicacao": "Hipertensão arterial, proteção renal em diabéticos, insuficiência cardíaca.",
+    "posologia": "50 a 100mg uma vez ao dia.",
+    "contraindicacoes": "Gravidez (especialmente 2º e 3º trimestre), hipercalemia grave.",
+    "avisos": "Monitorar potássio e função renal. Não combinar com IECAs sem orientação. Pode causar tontura nas primeiras doses.",
+    "receita": true,
+    "sintomas": [
+      "pressão alta",
+      "hipertensão",
+      "pressão arterial elevada",
+      "insuficiência cardíaca",
+      "proteção renal",
+      "diabetes com pressão alta"
+    ],
+    "dicas": [
+      "Tomar no mesmo horário todos os dias",
+      "Evitar sal em excesso na dieta",
+      "Nas primeiras doses, levantar devagar para evitar tontura",
+      "Não interromper o tratamento mesmo se sentir bem",
+      "Monitorar pressão regularmente"
+    ]
+  },
+  {
+    "nomes": [
+      "Enalapril",
+      "Renitec",
+      "Eupressin",
+      "Vasopril"
+    ],
+    "principio_ativo": "Maleato de Enalapril",
+    "categoria": "Anti-hipertensivo (IECA)",
+    "indicacao": "Hipertensão, insuficiência cardíaca, proteção renal.",
+    "posologia": "5 a 40mg por dia, em 1 ou 2 tomadas.",
+    "contraindicacoes": "Gravidez, angioedema prévio por IECA, estenose bilateral de artéria renal.",
+    "avisos": "Tosse seca é efeito colateral comum (10-15% dos pacientes). Monitorar potássio e função renal.",
+    "receita": true,
+    "sintomas": [
+      "pressão alta",
+      "hipertensão",
+      "insuficiência cardíaca",
+      "proteção renal"
+    ],
+    "dicas": [
+      "Tosse seca persistente é efeito colateral esperado — avisar o médico se incomodar",
+      "Tomar no mesmo horário todos os dias",
+      "Evitar sal em excesso",
+      "Não interromper sem orientação médica",
+      "Pode causar tontura nas primeiras doses"
+    ]
+  },
+  {
+    "nomes": [
+      "Amlodipino",
+      "Norvasc",
+      "Amloratio",
+      "Pressat"
+    ],
+    "principio_ativo": "Besilato de Amlodipino",
+    "categoria": "Anti-hipertensivo (Bloqueador de Canal de Cálcio)",
+    "indicacao": "Hipertensão arterial, angina estável.",
+    "posologia": "5 a 10mg uma vez ao dia.",
+    "contraindicacoes": "Hipersensibilidade a dihidropiridinas.",
+    "avisos": "Pode causar edema nos tornozelos, rubor facial, cefaleia. Geralmente bem tolerado.",
+    "receita": true,
+    "sintomas": [
+      "pressão alta",
+      "hipertensão",
+      "angina",
+      "dor no peito",
+      "pressão arterial elevada"
+    ],
+    "dicas": [
+      "Pode ser tomado em qualquer horário, mas sempre no mesmo",
+      "Inchaço nos tornozelos é efeito colateral comum mas benigno",
+      "Não interromper sem orientação médica",
+      "Pode demorar algumas semanas para atingir efeito máximo"
+    ]
+  },
+  {
+    "nomes": [
+      "Omeprazol",
+      "Losec",
+      "Peprazol",
+      "Omezol"
+    ],
+    "principio_ativo": "Omeprazol",
+    "categoria": "Inibidor da Bomba de Prótons (IBP)",
+    "indicacao": "Úlcera gástrica, esofagite por refluxo (DRGE), gastrite, proteção gástrica com AINEs.",
+    "posologia": "20 a 40mg uma vez ao dia, em jejum, 30 minutos antes da refeição.",
+    "contraindicacoes": "Hipersensibilidade a benzimidazóis.",
+    "avisos": "Uso prolongado pode causar déficit de magnésio, B12 e risco de fraturas. Não usar cronicamente sem indicação médica.",
+    "receita": false,
+    "sintomas": [
+      "refluxo",
+      "azia",
+      "gastrite",
+      "úlcera",
+      "queimação no estômago",
+      "DRGE",
+      "dor estomacal",
+      "acidez",
+      "queimação"
+    ],
+    "dicas": [
+      "Tomar em jejum, 30 minutos antes da primeira refeição do dia",
+      "Não usar por mais de 14 dias seguidos sem orientação médica",
+      "Engolir inteiro, sem mastigar",
+      "Uso prolongado exige monitoramento de magnésio e vitamina B12"
+    ]
+  },
+  {
+    "nomes": [
+      "Pantoprazol",
+      "Pantozol",
+      "Pantoprazol Sódico",
+      "Tecta"
+    ],
+    "principio_ativo": "Pantoprazol Sódico",
+    "categoria": "Inibidor da Bomba de Prótons (IBP)",
+    "indicacao": "DRGE, úlcera péptica, síndrome de Zollinger-Ellison.",
+    "posologia": "40mg uma vez ao dia, em jejum.",
+    "contraindicacoes": "Hipersensibilidade a benzimidazóis.",
+    "avisos": "Mesmo cuidados do omeprazol. Não usar cronicamente sem avaliação médica.",
+    "receita": false,
+    "sintomas": [
+      "refluxo",
+      "azia",
+      "úlcera",
+      "queimação",
+      "gastrite",
+      "acidez",
+      "esofagite"
+    ],
+    "dicas": [
+      "Tomar em jejum, 30 a 60 minutos antes do café da manhã",
+      "Não mastigar ou partir o comprimido",
+      "Não usar por longos períodos sem acompanhamento médico"
+    ]
+  },
+  {
+    "nomes": [
+      "Levotiroxina",
+      "Puran T4",
+      "Synthroid",
+      "Euthyrox"
+    ],
+    "principio_ativo": "Levotiroxina Sódica",
+    "categoria": "Hormônio Tireoidiano",
+    "indicacao": "Hipotireoidismo, bócio, câncer de tireoide (supressão de TSH).",
+    "posologia": "Dose individualizada. Geralmente tomada em jejum, 30 minutos antes do café da manhã.",
+    "contraindicacoes": "Tireotoxicose não tratada, infarto agudo do miocárdio.",
+    "avisos": "Não interromper o tratamento sem orientação. Interações com cálcio, ferro, antiácidos (tomar 4h separados). Monitorar TSH regularmente.",
+    "receita": true,
+    "sintomas": [
+      "hipotireoidismo",
+      "tireoide lenta",
+      "TSH alto",
+      "cansaço",
+      "ganho de peso por tireoide",
+      "bócio",
+      "queda de cabelo por tireoide",
+      "frio excessivo",
+      "sono excessivo"
+    ],
+    "dicas": [
+      "Tomar sempre em jejum, 30-60 minutos antes do café",
+      "Separar 4 horas de cálcio, ferro, antiácidos e fibras",
+      "Não interromper nunca sem orientação médica",
+      "Fazer TSH regularmente para ajuste de dose",
+      "Guardar em local seco, longe do calor"
+    ]
+  },
+  {
+    "nomes": [
+      "Insulina NPH",
+      "Insulina Humana NPH",
+      "Humulin N",
+      "Novolin N"
+    ],
+    "principio_ativo": "Insulina Humana Isofana (NPH)",
+    "categoria": "Antidiabético (Insulina de Ação Intermediária)",
+    "indicacao": "Diabetes tipo 1 e tipo 2 com necessidade de insulinoterapia.",
+    "posologia": "Dose individualizada pelo médico. Geralmente aplicada 1-2x/dia (manhã e/ou noite), via subcutânea.",
+    "contraindicacoes": "Hipoglicemia ativa.",
+    "avisos": "Armazenar em geladeira (2-8°C). Frasco aberto pode ficar fora da geladeira por até 28 dias. Monitorar glicemia regularmente. Reconhecer sinais de hipoglicemia.",
+    "receita": true,
+    "sintomas": [
+      "diabetes",
+      "glicemia alta",
+      "açúcar alto",
+      "insulinoterapia",
+      "diabetes tipo 1",
+      "diabetes tipo 2"
+    ],
+    "dicas": [
+      "Guardar em geladeira (2-8°C); frasco aberto: até 28 dias fora da geladeira",
+      "Nunca congelar",
+      "Rodiziar os locais de aplicação (abdômen, coxas, braços)",
+      "Ter sempre açúcar ou suco de laranja por perto para hipoglicemia",
+      "Aprender a reconhecer tremor, suor frio e tontura (hipoglicemia)"
+    ]
+  },
+  {
+    "nomes": [
+      "Insulina Glargina",
+      "Lantus",
+      "Toujeo",
+      "Basaglar"
+    ],
+    "principio_ativo": "Insulina Glargina",
+    "categoria": "Antidiabético (Insulina de Ação Prolongada)",
+    "indicacao": "Diabetes tipo 1 e tipo 2. Controle basal de glicemia.",
+    "posologia": "Dose individualizada. Aplicada uma vez ao dia, sempre no mesmo horário, via subcutânea.",
+    "contraindicacoes": "Hipoglicemia ativa. Não misturar com outras insulinas na mesma seringa.",
+    "avisos": "Armazenar em geladeira. Frasco aberto: até 28 dias fora da geladeira. Não agitar.",
+    "receita": true,
+    "sintomas": [
+      "diabetes",
+      "glicemia alta",
+      "controle basal de açúcar",
+      "diabetes tipo 1",
+      "diabetes tipo 2"
+    ],
+    "dicas": [
+      "Aplicar sempre no mesmo horário todos os dias",
+      "Não misturar com outras insulinas na seringa",
+      "Guardar na geladeira; após aberta: até 28 dias temperatura ambiente",
+      "Não agitar o frasco — girar suavemente",
+      "Rodiziar o local de aplicação"
+    ]
+  },
+  {
+    "nomes": [
+      "Clonazepam",
+      "Rivotril",
+      "Clonotril"
+    ],
+    "principio_ativo": "Clonazepam",
+    "categoria": "Benzodiazepínico / Anticonvulsivante",
+    "indicacao": "Epilepsia, transtorno do pânico, ansiedade grave.",
+    "posologia": "0,5 a 2mg 2-3x/dia (adultos). Dose ajustada pelo médico.",
+    "contraindicacoes": "Glaucoma agudo, miastenia gravis, insuficiência respiratória grave.",
+    "avisos": "CONTROLADO — requer receita especial. Risco de dependência e tolerância. Não interromper abruptamente. Não ingerir álcool. Pode causar sonolência e comprometer a direção.",
+    "receita": true,
+    "sintomas": [
+      "ansiedade",
+      "pânico",
+      "epilepsia",
+      "convulsão",
+      "tremor",
+      "insônia",
+      "crise de ansiedade"
+    ],
+    "dicas": [
+      "Nunca interromper abruptamente — risco de convulsão e abstinência grave",
+      "Não consumir álcool",
+      "Evitar dirigir ou operar máquinas",
+      "Uso de curto prazo sempre preferível",
+      "Guarde em local seguro, longe de crianças"
+    ]
+  },
+  {
+    "nomes": [
+      "Alprazolam",
+      "Frontal",
+      "Xanax",
+      "Apraz"
+    ],
+    "principio_ativo": "Alprazolam",
+    "categoria": "Benzodiazepínico / Ansiolítico",
+    "indicacao": "Transtorno de ansiedade generalizada, síndrome do pânico.",
+    "posologia": "0,25 a 0,5mg 3x/dia. Dose ajustada pelo médico.",
+    "contraindicacoes": "Glaucoma, miastenia gravis, gravidez.",
+    "avisos": "CONTROLADO — receita especial. Alto risco de dependência. Não combinar com álcool ou opioides. Uso de curto prazo recomendado.",
+    "receita": true,
+    "sintomas": [
+      "ansiedade",
+      "pânico",
+      "nervosismo",
+      "fobia",
+      "crise de pânico",
+      "angústia"
+    ],
+    "dicas": [
+      "Não combinar com álcool — risco grave",
+      "Alto potencial de dependência: usar pelo menor tempo possível",
+      "Não interromper abruptamente",
+      "Não dirigir após tomar",
+      "Receita controlada especial obrigatória"
+    ]
+  },
+  {
+    "nomes": [
+      "Sertralina",
+      "Zoloft",
+      "Assert",
+      "Tolrest"
+    ],
+    "principio_ativo": "Cloridrato de Sertralina",
+    "categoria": "Antidepressivo (ISRS)",
+    "indicacao": "Depressão, transtorno obsessivo-compulsivo, fobia social, síndrome do pânico, TEPT.",
+    "posologia": "50 a 200mg uma vez ao dia, com ou sem alimento.",
+    "contraindicacoes": "Uso concomitante com IMAOs (intervalo mínimo de 14 dias).",
+    "avisos": "Efeito completo pode levar 4-6 semanas. Não interromper abruptamente. Risco de síndrome serotoninérgica com outros serotonérgicos.",
+    "receita": true,
+    "sintomas": [
+      "depressão",
+      "ansiedade",
+      "TOC",
+      "pânico",
+      "fobia social",
+      "TEPT",
+      "tristeza",
+      "humor deprimido"
+    ],
+    "dicas": [
+      "O efeito completo demora 4 a 6 semanas — não desistir antes",
+      "Não interromper sem orientação médica (retirada gradual)",
+      "Pode causar náusea e insônia nas primeiras semanas",
+      "Tomar com alimento se sentir náusea"
+    ]
+  },
+  {
+    "nomes": [
+      "Fluoxetina",
+      "Prozac",
+      "Daforin",
+      "Verotina"
+    ],
+    "principio_ativo": "Cloridrato de Fluoxetina",
+    "categoria": "Antidepressivo (ISRS)",
+    "indicacao": "Depressão, TOC, bulimia nervosa, síndrome disfórica pré-menstrual.",
+    "posologia": "20 a 80mg uma vez ao dia, pela manhã.",
+    "contraindicacoes": "Uso com IMAOs, pimozida, tioridazina.",
+    "avisos": "Meia-vida longa (1-4 semanas). Pode causar insônia, perda de apetite, náusea nas primeiras semanas.",
+    "receita": true,
+    "sintomas": [
+      "depressão",
+      "TOC",
+      "bulimia",
+      "tristeza",
+      "humor deprimido",
+      "compulsão alimentar"
+    ],
+    "dicas": [
+      "Tomar pela manhã para reduzir risco de insônia",
+      "Efeito demora 4 a 6 semanas",
+      "Não interromper abruptamente",
+      "Pode reduzir o apetite inicialmente — manter alimentação regular"
+    ]
+  },
+  {
+    "nomes": [
+      "Escitalopram",
+      "Lexapro",
+      "Exodus",
+      "Reconter"
+    ],
+    "principio_ativo": "Oxalato de Escitalopram",
+    "categoria": "Antidepressivo (ISRS)",
+    "indicacao": "Depressão maior, transtorno de ansiedade generalizada.",
+    "posologia": "10 a 20mg uma vez ao dia.",
+    "contraindicacoes": "Uso com IMAOs, síndrome do QT longo.",
+    "avisos": "Considerado um dos ISRS com melhor perfil de tolerabilidade. Pode causar náusea e insônia no início.",
+    "receita": true,
+    "sintomas": [
+      "depressão",
+      "ansiedade generalizada",
+      "tristeza",
+      "humor deprimido",
+      "angústia"
+    ],
+    "dicas": [
+      "Pode ser tomado de manhã ou à noite — escolha o horário que cause menos efeitos",
+      "Efeito completo demora 4 a 6 semanas",
+      "Não interromper sem desmame gradual orientado pelo médico"
+    ]
+  },
+  {
+    "nomes": [
+      "Bupropiona",
+      "Wellbutrin",
+      "Zyban",
+      "Bup"
+    ],
+    "principio_ativo": "Cloridrato de Bupropiona",
+    "categoria": "Antidepressivo (IRSND) / Auxílio para parar de fumar",
+    "indicacao": "Depressão, cessação do tabagismo, TDAH (off-label).",
+    "posologia": "150 a 300mg/dia, divididos em doses. Não tomar à noite (inibe o sono).",
+    "contraindicacoes": "Epilepsia ou risco de convulsão, transtorno alimentar (bulimia/anorexia), uso de IMAOs.",
+    "avisos": "Reduz o limiar convulsivo (não tomar mais de 150mg por dose). Pode causar boca seca, insônia, agitação.",
+    "receita": true,
+    "sintomas": [
+      "depressão",
+      "tabagismo",
+      "parar de fumar",
+      "TDAH",
+      "falta de energia",
+      "tristeza persistente"
+    ],
+    "dicas": [
+      "Nunca tomar mais de 150mg de uma vez — risco de convulsão",
+      "Não tomar após as 17h para evitar insônia",
+      "Não usar se tiver histórico de convulsão ou transtorno alimentar",
+      "Para parar de fumar: iniciar 1-2 semanas antes da data de parada"
+    ]
+  },
+  {
+    "nomes": [
+      "AAS",
+      "Aspirina",
+      "Ácido Acetilsalicílico",
+      "Cardioaspirina",
+      "AAS 100mg"
+    ],
+    "principio_ativo": "Ácido Acetilsalicílico",
+    "categoria": "Antiagregante Plaquetário / AINE",
+    "indicacao": "Prevenção de infarto e AVC (dose baixa), dor e febre (dose alta).",
+    "posologia": "Preventivo: 100mg/dia. Analgésico/antipirético: 500 a 1000mg a cada 4-6h.",
+    "contraindicacoes": "Úlcera ativa, hemofilia, gravidez (especialmente no 3º trimestre), crianças com infecções virais (risco de Síndrome de Reye).",
+    "avisos": "Aumenta risco de sangramento. Não interromper uso preventivo sem orientação médica. Avisar dentista e cirurgiões sobre o uso.",
+    "receita": false,
+    "sintomas": [
+      "prevenção infarto",
+      "prevenção AVC",
+      "dor",
+      "febre",
+      "trombose",
+      "coração",
+      "proteção cardiovascular"
+    ],
+    "dicas": [
+      "Informar sempre ao dentista e cirurgiões que usa AAS",
+      "Não interromper o AAS preventivo sem orientação — risco de trombose rebote",
+      "Tomar com alimento para proteger o estômago",
+      "Não usar em crianças com gripe ou varicela"
+    ]
+  },
+  {
+    "nomes": [
+      "Clopidogrel",
+      "Plavix",
+      "Iscover",
+      "Clopping"
+    ],
+    "principio_ativo": "Bissulfato de Clopidogrel",
+    "categoria": "Antiagregante Plaquetário",
+    "indicacao": "Prevenção de trombose após stent coronário, infarto, AVC isquêmico.",
+    "posologia": "75mg uma vez ao dia.",
+    "contraindicacoes": "Sangramento ativo, insuficiência hepática grave.",
+    "avisos": "Não interromper sem orientação médica (risco de trombose do stent). Aumenta risco de sangramento. Informar ao cirurgião antes de procedimentos.",
+    "receita": true,
+    "sintomas": [
+      "infarto",
+      "AVC",
+      "stent",
+      "trombose",
+      "coração",
+      "prevenção cardiovascular"
+    ],
+    "dicas": [
+      "Nunca interromper sem orientação do cardiologista — risco de infarto",
+      "Informar todo profissional de saúde que faz uso (cirurgiões, dentistas)",
+      "Evitar AINEs sem orientação médica",
+      "Tomar no mesmo horário todos os dias"
+    ]
+  },
+  {
+    "nomes": [
+      "Warfarina",
+      "Marevan",
+      "Coumadin"
+    ],
+    "principio_ativo": "Varfarina Sódica",
+    "categoria": "Anticoagulante (Antagonista da Vitamina K)",
+    "indicacao": "Prevenção e tratamento de trombose, fibrilação atrial, prótese valvar.",
+    "posologia": "Dose individualizada pelo INR (exame de coagulação). Tomada uma vez ao dia.",
+    "contraindicacoes": "Sangramento ativo, gravidez, hipertensão grave não controlada.",
+    "avisos": "Monitorar INR regularmente. Muitas interações medicamentosas e alimentares. Evitar variações bruscas no consumo de vitamina K (verduras folhosas).",
+    "receita": true,
+    "sintomas": [
+      "coagulação",
+      "fibrilação atrial",
+      "trombose",
+      "tromboembolismo",
+      "válvula cardíaca",
+      "TVP",
+      "embolia"
+    ],
+    "dicas": [
+      "Manter consumo de folhas verdes consistente (não eliminar — manter estável)",
+      "Fazer INR regularmente (frequência definida pelo médico)",
+      "Qualquer sangramento incomum: procurar médico imediatamente",
+      "Avisar todos os profissionais de saúde que usa anticoagulante",
+      "Evitar bebidas alcoólicas"
+    ]
+  },
+  {
+    "nomes": [
+      "Rivaroxabana",
+      "Xarelto"
+    ],
+    "principio_ativo": "Rivaroxabana",
+    "categoria": "Anticoagulante (Inibidor direto do Fator Xa)",
+    "indicacao": "Prevenção de AVC na fibrilação atrial, TVP, embolia pulmonar.",
+    "posologia": "15 a 20mg uma vez ao dia com a refeição principal.",
+    "contraindicacoes": "Sangramento ativo, insuficiência renal grave, gravidez.",
+    "avisos": "Tomar sempre com alimento (aumenta absorção). Não requer monitoramento de INR. Antídoto disponível (andexanet alfa).",
+    "receita": true,
+    "sintomas": [
+      "fibrilação atrial",
+      "trombose",
+      "embolia pulmonar",
+      "AVC",
+      "coagulação",
+      "TVP"
+    ],
+    "dicas": [
+      "Tomar obrigatoriamente com a refeição principal (muito importante para absorção)",
+      "Não interromper sem orientação do médico",
+      "Reportar qualquer sangramento incomum",
+      "Avisar dentistas e cirurgiões antes de procedimentos"
+    ]
+  },
+  {
+    "nomes": [
+      "Prednisona",
+      "Prednisolona",
+      "Predsim",
+      "Meticorten",
+      "Predsin",
+      "Prelone"
+    ],
+    "principio_ativo": "Prednisona / Prednisolona",
+    "categoria": "Corticosteroide Sistêmico",
+    "indicacao": "Inflamações, doenças autoimunes, alergias graves, asma, doenças reumatológicas. Prednisolona é a forma ativa da prednisona.",
+    "posologia": "Dose muito variável (1 a 2mg/kg/dia em doenças graves). Tomar pela manhã com alimento.",
+    "contraindicacoes": "Infecções fúngicas sistêmicas sem tratamento, hipersensibilidade.",
+    "avisos": "Não interromper abruptamente (risco de insuficiência adrenal). Uso prolongado: risco de osteoporose, diabetes, imunossupressão, catarata, hipertensão.",
+    "receita": true,
+    "sintomas": [
+      "inflamação",
+      "alergia grave",
+      "asma",
+      "doença autoimune",
+      "artrite reumatoide",
+      "reação alérgica grave",
+      "lúpus",
+      "edema por inflamação",
+      "garganta inflamada",
+      "amigdalite",
+      "faringite",
+      "dor de garganta",
+      "inflamação na garganta",
+      "rinite alérgica"
+    ],
+    "dicas": [
+      "Sempre tomar com alimento para proteger o estômago",
+      "Nunca interromper abruptamente — risco de crise adrenal",
+      "Em uso prolongado: suplementar cálcio e vitamina D para ossos",
+      "Aumenta o açúcar no sangue — monitorar em diabéticos",
+      "Reduz imunidade — evitar contato com pessoas doentes"
+    ]
+  },
+  {
+    "nomes": [
+      "Dexametasona",
+      "Decadron",
+      "Dexacort"
+    ],
+    "principio_ativo": "Dexametasona",
+    "categoria": "Corticosteroide Sistêmico",
+    "indicacao": "Inflamação, edema cerebral, náusea em quimioterapia, alergias graves.",
+    "posologia": "0,5 a 9mg/dia conforme indicação e via (oral, IM, IV).",
+    "contraindicacoes": "Infecções fúngicas sistêmicas, hipersensibilidade.",
+    "avisos": "Potente corticoide. Mesmos riscos da prednisona. Não interromper abruptamente.",
+    "receita": true,
+    "sintomas": [
+      "inflamação grave",
+      "edema",
+      "alergia grave",
+      "náusea de quimioterapia",
+      "reação alérgica",
+      "inchaço por inflamação",
+      "garganta inflamada",
+      "faringite",
+      "amigdalite"
+    ],
+    "dicas": [
+      "Tomar com alimento",
+      "Nunca interromper abruptamente",
+      "Corticoide potente — usar apenas pelo tempo prescrito",
+      "Pode elevar o açúcar e a pressão — monitorar"
+    ]
+  },
+  {
+    "nomes": [
+      "Salbutamol",
+      "Aerolin",
+      "Ventolin",
+      "Salbutol"
+    ],
+    "principio_ativo": "Sulfato de Salbutamol",
+    "categoria": "Broncodilatador (Beta-2 agonista de curta ação)",
+    "indicacao": "Asma, broncoespasmo, DPOC (alívio rápido).",
+    "posologia": "1-2 jatos inalados a cada 4-6 horas quando necessário.",
+    "contraindicacoes": "Taquicardia grave, hipersensibilidade.",
+    "avisos": "Uso de resgate (não preventivo). Tremores e taquicardia são efeitos comuns. Se precisar mais de 3x/semana, rever controle com médico.",
+    "receita": true,
+    "sintomas": [
+      "asma",
+      "falta de ar",
+      "chiado no peito",
+      "broncoespasmo",
+      "DPOC",
+      "crise asmática",
+      "dispneia"
+    ],
+    "dicas": [
+      "É medicamento de resgate — usar só nas crises, não preventivamente",
+      "Se precisar usar mais de 3 vezes por semana, consultar médico para ajustar tratamento",
+      "Agitar o frasco antes de usar",
+      "Lavar a boca após uso inalatório"
+    ]
+  },
+  {
+    "nomes": [
+      "Loratadina",
+      "Claritin",
+      "Loratamed",
+      "Histadin"
+    ],
+    "principio_ativo": "Loratadina",
+    "categoria": "Anti-histamínico (2ª geração)",
+    "indicacao": "Rinite alérgica, urticária, reações alérgicas leves.",
+    "posologia": "10mg uma vez ao dia.",
+    "contraindicacoes": "Hipersensibilidade.",
+    "avisos": "Não causa sonolência significativa (2ª geração). Evitar em insuficiência hepática grave.",
+    "receita": false,
+    "sintomas": [
+      "alergia",
+      "rinite",
+      "urticária",
+      "coceira",
+      "espirros",
+      "olhos irritados",
+      "nariz escorrendo",
+      "nariz entupido por alergia"
+    ],
+    "dicas": [
+      "Pode ser tomada com ou sem alimento",
+      "Não causa sonolência significativa na maioria das pessoas",
+      "Tomar 1x por dia — efeito dura 24 horas"
+    ]
+  },
+  {
+    "nomes": [
+      "Cetirizina",
+      "Zyrtec",
+      "Reactine",
+      "Cetrizin"
+    ],
+    "principio_ativo": "Dicloridrato de Cetirizina",
+    "categoria": "Anti-histamínico (2ª geração)",
+    "indicacao": "Rinite alérgica, urticária, prurido.",
+    "posologia": "10mg uma vez ao dia, à noite (pode causar leve sonolência).",
+    "contraindicacoes": "Insuficiência renal grave, hipersensibilidade.",
+    "avisos": "Pode causar leve sonolência em algumas pessoas. Evitar álcool.",
+    "receita": false,
+    "sintomas": [
+      "alergia",
+      "rinite",
+      "coceira",
+      "urticária",
+      "olhos irritados",
+      "espirros",
+      "prurido"
+    ],
+    "dicas": [
+      "Tomar à noite, pois pode causar leve sonolência",
+      "Evitar álcool",
+      "Efeito dura 24 horas — 1 tomada por dia"
+    ]
+  },
+  {
+    "nomes": [
+      "Ondansetrona",
+      "Vonau",
+      "Zofran",
+      "Nausedron"
+    ],
+    "principio_ativo": "Cloridrato de Ondansetrona",
+    "categoria": "Antiemético (Antagonista 5-HT3)",
+    "indicacao": "Náusea e vômito por quimioterapia, cirurgia, gravidez (off-label).",
+    "posologia": "4 a 8mg a cada 8 horas conforme necessidade.",
+    "contraindicacoes": "Síndrome do QT longo congênita, uso com apomorfina.",
+    "avisos": "Pode causar constipação, cefaleia. Risco de prolongamento do QT em doses altas.",
+    "receita": true,
+    "sintomas": [
+      "náusea",
+      "vômito",
+      "enjoo",
+      "náusea de quimioterapia",
+      "mal-estar gástrico",
+      "vômito pós-cirurgia"
+    ],
+    "dicas": [
+      "Pode ser tomado com ou sem alimento",
+      "Se causar constipação, aumentar ingestão de água e fibras",
+      "Não ultrapassar a dose prescrita"
+    ]
+  },
+  {
+    "nomes": [
+      "Metoclopramida",
+      "Plasil",
+      "Cloridrato de Metoclopramida"
+    ],
+    "principio_ativo": "Cloridrato de Metoclopramida",
+    "categoria": "Antiemético / Procinético",
+    "indicacao": "Náusea, vômito, refluxo gastroesofágico, gastroparesia.",
+    "posologia": "10mg 3x/dia, 30 minutos antes das refeições.",
+    "contraindicacoes": "Epilepsia, feocromocitoma, obstrução gastrointestinal.",
+    "avisos": "Uso máximo de 5 dias (risco de discinesia tardia com uso prolongado). Pode causar sonolência e inquietação.",
+    "receita": false,
+    "sintomas": [
+      "náusea",
+      "vômito",
+      "refluxo",
+      "enjoo",
+      "enjôo",
+      "estômago lento",
+      "mal-estar"
+    ],
+    "dicas": [
+      "Usar por no máximo 5 dias consecutivos",
+      "Tomar 30 minutos antes das refeições",
+      "Pode causar sonolência — cuidado ao dirigir",
+      "Movimentos involuntários: parar e consultar médico"
+    ]
+  },
+  {
+    "nomes": [
+      "Tramadol",
+      "Tramal",
+      "Cloridrato de Tramadol"
+    ],
+    "principio_ativo": "Cloridrato de Tramadol",
+    "categoria": "Analgésico Opioide Central",
+    "indicacao": "Dor moderada a grave (pós-operatório, dor oncológica, dor crônica).",
+    "posologia": "50 a 100mg a cada 4-6 horas. Máximo 400mg/dia.",
+    "contraindicacoes": "Epilepsia não controlada, uso com IMAOs, insuficiência respiratória grave.",
+    "avisos": "CONTROLADO — receita especial. Risco de dependência. Pode causar náusea, tontura, convulsão. Evitar álcool.",
+    "receita": true,
+    "sintomas": [
+      "dor forte",
+      "dor intensa",
+      "dor crônica",
+      "dor pós-operatória",
+      "dor oncológica",
+      "dor severa"
+    ],
+    "dicas": [
+      "Não combinar com álcool — risco grave",
+      "Pode causar tontura e náusea — sentar devagar ao levantar",
+      "Risco de dependência: usar pelo menor tempo possível",
+      "Receita controlada especial obrigatória",
+      "Não ultrapassar a dose prescrita"
+    ]
+  },
+  {
+    "nomes": [
+      "Gabapentina",
+      "Neurontin",
+      "Gabatina"
+    ],
+    "principio_ativo": "Gabapentina",
+    "categoria": "Anticonvulsivante / Analgésico para dor neuropática",
+    "indicacao": "Epilepsia, dor neuropática (neuropatia diabética, neuralgia pós-herpética).",
+    "posologia": "300 a 3600mg/dia divididos em 3 tomadas.",
+    "contraindicacoes": "Hipersensibilidade.",
+    "avisos": "Pode causar sonolência, tontura, ganho de peso. Não interromper abruptamente. Ajuste de dose em insuficiência renal.",
+    "receita": true,
+    "sintomas": [
+      "dor neuropática",
+      "queimação nos pés",
+      "epilepsia",
+      "neuralgia",
+      "formigamento",
+      "choque elétrico nas pernas",
+      "dor nos nervos"
+    ],
+    "dicas": [
+      "Pode causar muita sonolência — cuidado ao dirigir",
+      "Não interromper abruptamente",
+      "Ajuste gradual de dose (começa baixo e sobe)",
+      "Pode causar ganho de peso em uso prolongado"
+    ]
+  },
+  {
+    "nomes": [
+      "Carbamazepina",
+      "Tegretol",
+      "Carbazep"
+    ],
+    "principio_ativo": "Carbamazepina",
+    "categoria": "Anticonvulsivante / Estabilizador de Humor",
+    "indicacao": "Epilepsia, neuralgia do trigêmeo, transtorno bipolar.",
+    "posologia": "200 a 1200mg/dia divididos em 2-3 tomadas.",
+    "contraindicacoes": "Bloqueio AV, uso com IMAOs, histórico de depressão de medula óssea.",
+    "avisos": "Muitas interações medicamentosas. Monitorar hemograma e função hepática. Risco raro de síndrome de Stevens-Johnson.",
+    "receita": true,
+    "sintomas": [
+      "epilepsia",
+      "neuralgia do trigêmeo",
+      "dor facial",
+      "convulsão",
+      "bipolar",
+      "dor de cabeça severa no rosto"
+    ],
+    "dicas": [
+      "Tomar com alimento para reduzir náusea",
+      "Fazer exames de sangue periodicamente (hemograma e fígado)",
+      "Muitas interações: avisar médico de todos os outros medicamentos",
+      "Qualquer erupção na pele: suspender e procurar médico imediatamente"
+    ]
+  },
+  {
+    "nomes": [
+      "Valproato",
+      "Valproato de Sódio",
+      "Depakote",
+      "Depakene"
+    ],
+    "principio_ativo": "Ácido Valproico / Valproato de Sódio",
+    "categoria": "Anticonvulsivante / Estabilizador de Humor",
+    "indicacao": "Epilepsia, transtorno bipolar, profilaxia de enxaqueca.",
+    "posologia": "500 a 2500mg/dia divididos em 2-3 tomadas.",
+    "contraindicacoes": "Doença hepática, gravidez (teratogênico), porfiria.",
+    "avisos": "CONTRAINDICADO na gravidez (espinha bífida). Monitorar função hepática. Pode causar ganho de peso, queda de cabelo.",
+    "receita": true,
+    "sintomas": [
+      "epilepsia",
+      "convulsão",
+      "bipolar",
+      "enxaqueca",
+      "tremor",
+      "mania"
+    ],
+    "dicas": [
+      "CONTRAINDICADO na gravidez — usar anticoncepcional confiável",
+      "Tomar com alimento",
+      "Pode causar queda de cabelo e ganho de peso",
+      "Monitorar fígado regularmente",
+      "Não interromper abruptamente"
+    ]
+  },
+  {
+    "nomes": [
+      "Metoprolol",
+      "Selozok",
+      "Lopressor",
+      "Atenol"
+    ],
+    "principio_ativo": "Succinato/Tartarato de Metoprolol",
+    "categoria": "Beta-bloqueador Cardioseletivo",
+    "indicacao": "Hipertensão, angina, insuficiência cardíaca, arritmias, pós-infarto.",
+    "posologia": "25 a 200mg/dia em 1-2 tomadas conforme formulação.",
+    "contraindicacoes": "Bradicardia grave, bloqueio AV 2º/3º grau, asma brônquica grave.",
+    "avisos": "Não interromper abruptamente (risco de angina rebote). Pode mascarar hipoglicemia em diabéticos.",
+    "receita": true,
+    "sintomas": [
+      "pressão alta",
+      "frequência cardíaca alta",
+      "arritmia",
+      "angina",
+      "insuficiência cardíaca",
+      "palpitações",
+      "coração acelerado"
+    ],
+    "dicas": [
+      "Nunca interromper abruptamente — risco de angina de rebote e infarto",
+      "Pode mascarar sinais de hipoglicemia em diabéticos",
+      "Medir a frequência cardíaca regularmente",
+      "Pode causar fadiga e mãos frias"
+    ]
+  },
+  {
+    "nomes": [
+      "Furosemida",
+      "Lasix",
+      "Frusenex"
+    ],
+    "principio_ativo": "Furosemida",
+    "categoria": "Diurético de Alça",
+    "indicacao": "Edema (cardíaco, renal, hepático), hipertensão, insuficiência cardíaca.",
+    "posologia": "20 a 80mg/dia em 1-2 tomadas, pela manhã.",
+    "contraindicacoes": "Anúria, hipovolemia grave, hipersensibilidade a sulfonamidas.",
+    "avisos": "Monitorar eletrólitos (potássio, sódio). Pode causar hipocalemia. Tomar de manhã para evitar noctúria.",
+    "receita": true,
+    "sintomas": [
+      "inchaço",
+      "edema",
+      "pernas inchadas",
+      "insuficiência cardíaca",
+      "retenção de líquido",
+      "barriga inchada"
+    ],
+    "dicas": [
+      "Tomar pela manhã para não acordar à noite para urinar",
+      "Monitorar potássio — pode ser necessário suplementar",
+      "Medir o peso diariamente para controle de retenção hídrica",
+      "Não interromper sem orientação médica"
+    ]
+  },
+  {
+    "nomes": [
+      "Espironolactona",
+      "Aldactone",
+      "Espironol"
+    ],
+    "principio_ativo": "Espironolactona",
+    "categoria": "Diurético Poupador de Potássio / Antialdosterônico",
+    "indicacao": "Insuficiência cardíaca, hiperaldosteronismo, ascite, hirsutismo feminino.",
+    "posologia": "25 a 200mg/dia em 1-2 tomadas.",
+    "contraindicacoes": "Hipercalemia, insuficiência renal grave, anúria.",
+    "avisos": "Monitorar potássio (risco de hipercalemia). Evitar combinar com IECAs/BRAs sem monitoramento. Pode causar ginecomastia em homens.",
+    "receita": true,
+    "sintomas": [
+      "inchaço",
+      "edema",
+      "insuficiência cardíaca",
+      "retenção de líquido",
+      "potássio baixo",
+      "hirsutismo"
+    ],
+    "dicas": [
+      "Monitorar potássio regularmente — risco de potássio muito alto",
+      "Tomar com alimento",
+      "Pode causar ginecomastia (crescimento de mama) em homens",
+      "Evitar alimentos muito ricos em potássio (banana, laranja) em excesso"
+    ]
+  },
+  {
+    "nomes": [
+      "Alopurinol",
+      "Zyloric",
+      "Lopurin"
+    ],
+    "principio_ativo": "Alopurinol",
+    "categoria": "Antigotoso (Inibidor da Xantina Oxidase)",
+    "indicacao": "Gota crônica, hiperuricemia, prevenção de cálculos de ácido úrico.",
+    "posologia": "100 a 300mg/dia após as refeições.",
+    "contraindicacoes": "Crise aguda de gota (não iniciar durante a crise), hipersensibilidade.",
+    "avisos": "Não iniciar durante crise aguda. Beber bastante água. Raro mas grave: síndrome de hipersensibilidade (febre, rash, hepatite).",
+    "receita": true,
+    "sintomas": [
+      "gota",
+      "ácido úrico alto",
+      "dor nas articulações",
+      "cálculo renal de ácido úrico",
+      "hiperuricemia",
+      "dor no dedão"
+    ],
+    "dicas": [
+      "NÃO iniciar durante crise aguda de gota — agrava a crise",
+      "Beber bastante água (ao menos 2 litros por dia)",
+      "Tomar após as refeições",
+      "Qualquer erupção na pele: suspender e procurar médico imediatamente",
+      "Reduzir consumo de bebidas alcoólicas e carnes vermelhas"
+    ]
+  },
+  {
+    "nomes": [
+      "Vitamina D3",
+      "Vitamina D",
+      "Colecalciferol",
+      "D-Cura",
+      "Addera D3"
+    ],
+    "principio_ativo": "Colecalciferol (Vitamina D3)",
+    "categoria": "Suplemento / Vitamina",
+    "indicacao": "Deficiência de vitamina D, prevenção de raquitismo, osteoporose, suporte imunológico.",
+    "posologia": "1000 a 10000 UI/dia conforme nível sérico e orientação médica.",
+    "contraindicacoes": "Hipercalcemia, hipervitaminose D, sarcoidose.",
+    "avisos": "Dosar 25-OH vitamina D antes de suplementar. Doses altas podem causar toxicidade (hipercalcemia). Tomar com alimento gorduroso para melhor absorção.",
+    "receita": false,
+    "sintomas": [
+      "cansaço",
+      "fraqueza",
+      "ossos frágeis",
+      "imunidade baixa",
+      "deficiência de vitamina D",
+      "dor nos ossos",
+      "humor deprimido por baixo nível"
+    ],
+    "dicas": [
+      "Tomar com alimento gorduroso (leite, ovo, azeite) para melhor absorção",
+      "Dosar o nível sanguíneo antes de suplementar e periodicamente",
+      "Doses muito altas podem causar toxicidade — não exagerar",
+      "Vitamina D + K2 combinadas potencializam o benefício ósseo"
+    ]
+  },
+  {
+    "nomes": [
+      "Ácido Fólico",
+      "Folato",
+      "Acfol"
+    ],
+    "principio_ativo": "Ácido Fólico",
+    "categoria": "Vitamina B9 / Suplemento",
+    "indicacao": "Prevenção de defeitos do tubo neural (gravidez), anemia megaloblástica, suporte em uso de metotrexato.",
+    "posologia": "0,4 a 5mg/dia conforme indicação. Gestantes: iniciar 3 meses antes da concepção.",
+    "contraindicacoes": "Hipersensibilidade. Não usar isolado em deficiência de B12 (pode mascarar anemia).",
+    "avisos": "Essencial no planejamento da gravidez. Doses altas podem mascarar deficiência de B12.",
+    "receita": false,
+    "sintomas": [
+      "gravidez",
+      "anemia",
+      "planejamento familiar",
+      "folato baixo",
+      "gestação",
+      "pré-natal"
+    ],
+    "dicas": [
+      "Iniciar 3 meses antes da tentativa de engravidar",
+      "Pode ser tomado com ou sem alimento",
+      "Não substitui uma alimentação equilibrada com vegetais folhosos",
+      "Em uso de metotrexato: indispensável por orientação médica"
+    ]
+  },
+  {
+    "nomes": [
+      "Ferro Quelato",
+      "Ferroquel",
+      "Hemfer",
+      "Sulfato Ferroso"
+    ],
+    "principio_ativo": "Ferro Quelato / Sulfato Ferroso",
+    "categoria": "Suplemento de Ferro",
+    "indicacao": "Anemia ferropriva, deficiência de ferro.",
+    "posologia": "Ferro quelato: 30mg/dia. Sulfato ferroso: 300mg 2-3x/dia. Tomar em jejum ou com vitamina C.",
+    "contraindicacoes": "Sobrecarga de ferro (hemocromatose), anemia não ferropriva.",
+    "avisos": "Pode causar constipação e fezes escuras. Tomar 2h separado de cálcio, antiácidos e alguns antibióticos. Vitamina C melhora a absorção.",
+    "receita": false,
+    "sintomas": [
+      "anemia",
+      "cansaço",
+      "palidez",
+      "ferro baixo",
+      "ferritina baixa",
+      "falta de energia",
+      "fraqueza"
+    ],
+    "dicas": [
+      "Tomar em jejum ou com vitamina C (suco de laranja) para melhor absorção",
+      "Fezes escuras são normais durante o uso",
+      "Separar 2 horas de cálcio, leite, antiácidos e antibióticos",
+      "Pode causar constipação — aumentar ingestão de água e fibras"
+    ]
+  },
+  {
+    "nomes": [
+      "Melatonina",
+      "Melatonin",
+      "Melatol"
+    ],
+    "principio_ativo": "Melatonina",
+    "categoria": "Suplemento / Hormônio do Sono",
+    "indicacao": "Distúrbios do sono, jet lag, insônia.",
+    "posologia": "0,5 a 5mg, 30-60 minutos antes de dormir.",
+    "contraindicacoes": "Gravidez, doenças autoimunes (com cautela), uso com imunossupressores.",
+    "avisos": "Preferir doses baixas (0,5-1mg). Não causa dependência. Evitar exposição à luz forte após tomar.",
+    "receita": false,
+    "sintomas": [
+      "insônia",
+      "dificuldade para dormir",
+      "jet lag",
+      "sono irregular",
+      "distúrbio do sono",
+      "acordar de madrugada"
+    ],
+    "dicas": [
+      "Tomar 30-60 minutos antes de dormir",
+      "Doses baixas (0,5-1mg) costumam ser suficientes",
+      "Apagar telas (celular, TV) após tomar",
+      "Não causa dependência física",
+      "O quarto deve estar escuro para potencializar o efeito"
+    ]
+  },
+  {
+    "nomes": [
+      "Ômega 3",
+      "Omega 3",
+      "EPA",
+      "DHA",
+      "Óleo de Peixe"
+    ],
+    "principio_ativo": "Ácidos Graxos Ômega-3 (EPA/DHA)",
+    "categoria": "Suplemento / Nutriente",
+    "indicacao": "Suporte cardiovascular, triglicerídeos elevados, anti-inflamatório.",
+    "posologia": "1 a 4g/dia com refeições.",
+    "contraindicacoes": "Alergia a frutos do mar (com cautela). Cuidado com anticoagulantes.",
+    "avisos": "Em doses altas pode aumentar sangramento. Preferir produtos com certificação de pureza (metais pesados).",
+    "receita": false,
+    "sintomas": [
+      "colesterol",
+      "triglicerídeos altos",
+      "coração",
+      "inflamação",
+      "saúde cardiovascular",
+      "gordura no sangue"
+    ],
+    "dicas": [
+      "Tomar com a refeição principal para reduzir sabor de peixe",
+      "Guardar na geladeira após aberto para evitar oxidação",
+      "Em doses altas, avisar médico se usar anticoagulantes",
+      "Preferir produtos com certificação de pureza (livre de metais pesados)"
+    ]
+  },
+  {
+    "nomes": [
+      "Probiótico",
+      "Lactobacillus",
+      "Bifidobacterium",
+      "Floratil",
+      "Saccharomyces"
+    ],
+    "principio_ativo": "Probióticos (cepas variadas)",
+    "categoria": "Suplemento / Probiótico",
+    "indicacao": "Diarreia associada a antibióticos, síndrome do intestino irritável, reequilíbrio da flora intestinal.",
+    "posologia": "Conforme produto. Geralmente 1 dose/dia, com ou sem alimento.",
+    "contraindicacoes": "Imunossupressão grave (uso com cautela).",
+    "avisos": "Conservar conforme indicação do produto (alguns necessitam refrigeração). Afastar 2h de antibióticos.",
+    "receita": false,
+    "sintomas": [
+      "diarreia",
+      "intestino irregular",
+      "disbiose",
+      "flora intestinal",
+      "diarreia por antibiótico",
+      "gases",
+      "inchaço abdominal"
+    ],
+    "dicas": [
+      "Afastar 2 horas do antibiótico (se estiver usando)",
+      "Verificar se o produto precisa de refrigeração",
+      "Pode causar gases e inchaço leve nas primeiras semanas — é normal",
+      "Consistência é importante: usar por pelo menos 2-4 semanas"
+    ]
+  },
+  {
+    "nomes": [
+      "Acetilcisteina",
+      "ACC",
+      "Fluimucil"
+    ],
+    "principio_ativo": "Acetilcisteina",
+    "categoria": "Mucolítico e antioxidante",
+    "indicacao": "Utilizado para fluidificar e facilitar a eliminação de secreções em afecções das vias respiratórias. É indicado para tosse produtiva, bronquite, asma e outras condições que envolvem excesso de muco.",
+    "posologia": "Adultos: 600 mg ao dia, dividido em 2-3 doses. Crianças acima de 2 anos: 300-400 mg ao dia, dividido em 2-3 doses. Seguir orientação médica para ajustes.",
+    "contraindicacoes": "Hipersensibilidade à acetilcisteina. Uso com cautela em casos de úlcera péptica ativa. Pacientes com história de sangramento pulmonar.",
+    "avisos": "Pode causar reações alérgicas. Em casos raros, pode ocorrer broncoespasmo. Beba bastante água durante o tratamento. Interrompa e procure médico se apresentar dificuldade respiratória severa.",
+    "receita": false,
+    "sintomas": [
+      "tosse com catarro",
+      "secreção pulmonar",
+      "congestionamento das vias respiratórias",
+      "bronquite",
+      "muco espesso"
+    ],
+    "dicas": [
+      "Beba muita água para potencializar o efeito do medicamento",
+      "Tome de preferência após as refeições para melhor tolerância gástrica",
+      "O efeito geralmente aparece em 3-5 dias de uso contínuo"
+    ]
+  },
+  {
+    "nomes": [
+      "Miosan",
+      "Cloridrato de ciclobenzaprina",
+      "Ciclobenzaprina"
+    ],
+    "principio_ativo": "Cloridrato de ciclobenzaprina",
+    "categoria": "Relaxante muscular",
+    "indicacao": "Utilizado para alívio da rigidez muscular e espasmos musculares associados a condições como contraturas, trauma e doenças neuromusculares. Auxilia na redução da dor e melhora da mobilidade em casos de tensão muscular.",
+    "posologia": "Adultos: 5-10 mg, 3 vezes ao dia. Dose máxima de 60 mg diários. A dose deve ser ajustada conforme resposta individual.",
+    "contraindicacoes": "Hipersensibilidade ao cloridrato de ciclobenzaprina, período agudo do infarto do miocárdio, insuficiência cardíaca congestiva, arritmias cardíacas, gravidez e lactação, glaucoma de ângulo fechado.",
+    "avisos": "Pode causar sonolência e tontura; evitar dirigir e operar máquinas. Aumenta efeito do álcool e outros depressores do SNC. Usar com cautela em idosos, hipertensão e doenças hepáticas. Não exceder duração de tratamento de 2-3 semanas sem reavaliação médica.",
+    "receita": true,
+    "sintomas": [
+      "rigidez muscular",
+      "espasmo muscular",
+      "dor muscular",
+      "tensão nas costas",
+      "contração involuntária",
+      "imobilidade por contratura"
+    ],
+    "dicas": [
+      "Tomar com alimentos para reduzir desconforto gástrico",
+      "Evitar consumo de álcool durante o tratamento",
+      "Não dirigir logo após a ingestão devido ao risco de sonolência",
+      "Realizar alongamentos e repouso complementam a ação do medicamento",
+      "Manter uso consistente conforme prescrito para melhor eficácia",
+      "Não interromper abruptamente; reduzir gradualmente sob orientação médica"
+    ]
+  },
+  {
+    "nomes": [
+      "Nimesulida",
+      "Nimesulidum",
+      "Nimesulida Cimed"
+    ],
+    "principio_ativo": "Nimesulida 100mg",
+    "categoria": "Anti-inflamatório não esteroide (AINE)",
+    "indicacao": "Utilizado no alívio de dores de intensidade leve a moderada, inflamação e febre. Indicado para dores musculares, articulares, menstruais e pós-operatórias.",
+    "posologia": "Adultos: 100mg a 200mg, 2 a 3 vezes ao dia. Máximo de 400mg/dia. Crianças acima de 12 anos: conforme orientação médica.",
+    "contraindicacoes": "Alergia à nimesulida ou outros AINEs. Pacientes com úlcera péptica ativa, insuficiência hepática ou renal grave, asma, doença cardiovascular avançada e gestantes (especialmente último trimestre).",
+    "avisos": "Pode causar irritação gástrica. Usar com precaução em portadores de hipertensão, diabetes e doença renal. Evitar uso prolongado sem orientação médica. Não exceda a dose recomendada. Descontinue se aparecerem reações alérgicas.",
+    "receita": true,
+    "sintomas": [
+      "dor de cabeça",
+      "dor nas costas",
+      "dor articular",
+      "dor menstrual",
+      "febre",
+      "inflamação",
+      "dor muscular",
+      "dor pós-operatória"
+    ],
+    "dicas": [
+      "Tomar com alimentos ou leite para proteger o estômago",
+      "Não ultrapassar 400mg por dia",
+      "Usar pelo menor tempo possível",
+      "Beber bastante água durante o tratamento",
+      "Se dor persistir além de 3 dias, consulte médico",
+      "Não combinar com outros AINEs ou álcool"
+    ]
+  },
+  {
+    "nomes": [
+      "Cetoprofeno",
+      "Profenid"
+    ],
+    "principio_ativo": "Cetoprofeno",
+    "categoria": "Anti-inflamatório não esteroidal (AINE)",
+    "indicacao": "Indicado para o alívio de dores agudas e inflamação, como dores musculares, articulares e pós-operatórias. Também utilizado no tratamento de inflamações e febre associadas a diversas condições.",
+    "posologia": "Adultos: 100-200 mg a cada 8-12 horas, não excedendo 600 mg/dia. A dose deve ser ajustada conforme a resposta clínica.",
+    "contraindicacoes": "Hipersensibilidade ao cetoprofeno ou a outros AINEs. Contraindicado em úlcera péptica ativa, insuficiência renal ou hepática grave, terceiro trimestre de gravidez, e em pacientes com asma induzida por AINEs.",
+    "avisos": "Aumenta risco de eventos cardiovasculares e gastrointestinais. Usar a menor dose eficaz pelo menor tempo possível. Evitar em insuficiência cardíaca, hipertensão não controlada. Pode interagir com anticoagulantes e anti-hipertensivos. Não recomendado na gravidez, especialmente no terceiro trimestre.",
+    "receita": true,
+    "sintomas": [
+      "dor muscular",
+      "dor articular",
+      "inflamação",
+      "inchaço",
+      "febre",
+      "dor pós-operatória"
+    ],
+    "dicas": [
+      "Tome com alimentos ou leite para reduzir irritação gástrica",
+      "Não ultrapasse 600 mg diários sem orientação médica",
+      "Use pelo menor tempo possível",
+      "Não combine com outros AINEs",
+      "Mantenha hidratação adequada durante o uso"
+    ]
+  }
+]
