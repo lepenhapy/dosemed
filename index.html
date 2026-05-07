@@ -17,8 +17,8 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
     }
-    let _pwaPrompt = null;
-    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); _pwaPrompt = e; });
+    window._pwaPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window._pwaPrompt = e; });
 
     function _urlB64ToUint8Array(base64String) {
       const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -417,7 +417,11 @@
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div class="bg-indigo-50 rounded-xl p-4 text-center">
                   <p class="text-2xl font-black text-indigo-600" x-text="adminDados.total_usuarios"></p>
-                  <p class="text-xs text-indigo-400 mt-1">Usuários</p>
+                  <p class="text-xs text-indigo-400 mt-1">Usuários total</p>
+                  <p class="text-xs text-indigo-300 mt-0.5">
+                    +<span x-text="adminDados.novos_usuarios_7d"></span> 7d &nbsp;·&nbsp;
+                    +<span x-text="adminDados.novos_usuarios_30d"></span> 30d
+                  </p>
                 </div>
                 <div class="bg-blue-50 rounded-xl p-4 text-center">
                   <p class="text-2xl font-black text-blue-600" x-text="adminDados.total_itens_estoque"></p>
@@ -431,6 +435,14 @@
                   <p class="text-2xl font-black text-amber-600" x-text="adminDados.usuarios_unicos_buscas"></p>
                   <p class="text-xs text-amber-400 mt-1">Usuários ativos</p>
                 </div>
+              </div>
+
+              <!-- Exportar CSV -->
+              <div class="flex justify-end">
+                <button @click="exportarAdminCSV()"
+                  class="text-xs bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-emerald-700 flex items-center gap-1.5">
+                  ⬇ Exportar CSV
+                </button>
               </div>
 
               <!-- Buscas por tipo -->
@@ -478,6 +490,12 @@
               <div x-show="adminDados.por_dia?.length > 0">
                 <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Buscas nos últimos 30 dias</p>
                 <canvas id="chartDias" height="80"></canvas>
+              </div>
+
+              <!-- Usuários por bairro -->
+              <div x-show="adminDados.por_bairro?.length > 0">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Usuários por bairro</p>
+                <canvas id="chartBairro" height="100"></canvas>
               </div>
             </div>
           </template>
@@ -994,6 +1012,7 @@
                   <option value="6">De 6 em 6 horas</option>
                   <option value="8">De 8 em 8 horas</option>
                   <option value="12">De 12 em 12 horas</option>
+                  <option value="24">1 vez ao dia</option>
                 </select>
               </div>
               <div>
@@ -1728,26 +1747,76 @@ function dosemed() {
     },
 
     renderizarChart() {
-      if (!this.adminDados?.por_dia?.length) return;
-      const el = document.getElementById('chartDias');
-      if (!el) return;
-      if (el._chartInstance) el._chartInstance.destroy();
-      el._chartInstance = new Chart(el, {
-        type: 'bar',
-        data: {
-          labels: this.adminDados.por_dia.map(d => d.data.slice(5)),
-          datasets: [{
-            label: 'Buscas',
-            data: this.adminDados.por_dia.map(d => d.count),
-            backgroundColor: '#818cf8',
-            borderRadius: 4
-          }]
-        },
-        options: {
-          plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+      if (this.adminDados?.por_dia?.length) {
+        const el = document.getElementById('chartDias');
+        if (el) {
+          if (el._chartInstance) el._chartInstance.destroy();
+          el._chartInstance = new Chart(el, {
+            type: 'bar',
+            data: {
+              labels: this.adminDados.por_dia.map(d => d.data.slice(5)),
+              datasets: [{ label: 'Buscas', data: this.adminDados.por_dia.map(d => d.count), backgroundColor: '#818cf8', borderRadius: 4 }]
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+          });
         }
-      });
+      }
+      if (this.adminDados?.por_bairro?.length) {
+        const el2 = document.getElementById('chartBairro');
+        if (el2) {
+          if (el2._chartInstance) el2._chartInstance.destroy();
+          const top = this.adminDados.por_bairro.slice(0, 12);
+          el2._chartInstance = new Chart(el2, {
+            type: 'bar',
+            data: {
+              labels: top.map(b => b.bairro),
+              datasets: [{ label: 'Usuários', data: top.map(b => b.count), backgroundColor: '#34d399', borderRadius: 4 }]
+            },
+            options: {
+              indexAxis: 'y',
+              plugins: { legend: { display: false } },
+              scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+          });
+        }
+      }
+    },
+
+    exportarAdminCSV() {
+      if (!this.adminDados) return;
+      const d = this.adminDados;
+      const linhas = [
+        ['Relatório DoseMed', new Date().toLocaleDateString('pt-BR')],
+        [],
+        ['Métrica', 'Valor'],
+        ['Total de usuários', d.total_usuarios],
+        ['Novos usuários (7d)', d.novos_usuarios_7d],
+        ['Novos usuários (30d)', d.novos_usuarios_30d],
+        ['Itens no estoque', d.total_itens_estoque],
+        ['Total de buscas', d.total_buscas],
+        ['Usuários ativos (buscas)', d.usuarios_unicos_buscas],
+        [],
+        ['Usuários por bairro'],
+        ['Bairro', 'Usuários'],
+        ...(d.por_bairro || []).map(b => [b.bairro, b.count]),
+        [],
+        ['Top termos buscados'],
+        ['Termo', 'Buscas'],
+        ...(d.top_termos || []).map(t => [t.termo, t.count]),
+        [],
+        ['Buscas por estado'],
+        ['Estado', 'Buscas'],
+        ...(d.top_estados || []).map(e => [e.estado, e.count]),
+        [],
+        ['Buscas por dia (30d)'],
+        ['Data', 'Buscas'],
+        ...(d.por_dia || []).map(x => [x.data, x.count]),
+      ];
+      const csv = linhas.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = `dosemed_admin_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click(); URL.revokeObjectURL(url);
     },
 
     abrirFormAdicionar() {

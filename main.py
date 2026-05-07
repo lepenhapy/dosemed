@@ -330,10 +330,10 @@ def gerar_codigo_recuperacao() -> str:
 
 
 def enviar_email(para: str, assunto: str, corpo_html: str) -> bool:
-    host = os.getenv("SMTP_HOST", "")
-    port = int(os.getenv("SMTP_PORT", "587"))
-    user = os.getenv("SMTP_USER", "")
-    senha = os.getenv("SMTP_PASSWORD", "")
+    host = os.getenv("SMTP_HOST", "").strip()
+    port = int(os.getenv("SMTP_PORT", "587").strip())
+    user = os.getenv("SMTP_USER", "").strip()
+    senha = os.getenv("SMTP_PASSWORD", "").strip()
     remetente = os.getenv("SMTP_FROM", f"DoseMed <{user}>")
 
     _placeholder = {"seuemail@gmail.com", "suasenhadoapp"}
@@ -1236,15 +1236,34 @@ def admin_relatorios(telefone: str, db: Session = Depends(get_db)):
     total_usuarios = db.query(Usuario).count()
     total_itens = db.query(Estoque).filter(Estoque.status != "consumido").count()
 
+    # Novos usuários (por aceite_lgpd)
+    agora = datetime.utcnow()
+    corte_7d  = agora - timedelta(days=7)
+    corte_30d = agora - timedelta(days=30)
+    novos_7d  = db.query(Usuario).filter(Usuario.aceite_lgpd >= corte_7d).count()
+    novos_30d = db.query(Usuario).filter(Usuario.aceite_lgpd >= corte_30d).count()
+
+    # Usuários por bairro
+    usuarios_todos = db.query(Usuario).all()
+    bairro_cnt: dict[str, int] = {}
+    for u in usuarios_todos:
+        b = (u.bairro or "").strip() or "Não informado"
+        bairro_cnt[b] = bairro_cnt.get(b, 0) + 1
+    por_bairro = [{"bairro": b, "count": c}
+                  for b, c in sorted(bairro_cnt.items(), key=lambda x: -x[1])]
+
     return {
         "total_buscas": len(logs),
         "usuarios_unicos_buscas": usuarios_unicos,
         "total_usuarios": total_usuarios,
+        "novos_usuarios_7d": novos_7d,
+        "novos_usuarios_30d": novos_30d,
         "total_itens_estoque": total_itens,
         "por_tipo": por_tipo,
         "top_termos": [{"termo": t, "count": c} for t, c in top_termos],
         "top_estados": [{"estado": e, "count": c} for e, c in top_estados],
-        "por_dia": [{"data": d, "count": c} for d, c in sorted(por_dia.items())]
+        "por_dia": [{"data": d, "count": c} for d, c in sorted(por_dia.items())],
+        "por_bairro": por_bairro,
     }
 
 
