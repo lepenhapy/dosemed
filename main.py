@@ -182,7 +182,7 @@ def enviar_push(sub: PushSub, titulo: str, corpo: str) -> bool:
         )
         return True
     except Exception as e:
-        logger.warning(f"Push falhou para {sub.usuario_id}: {e}")
+        logger.warning(f"Push falhou para {sub.usuario_id}: {type(e).__name__}: {e}")
         return False
 
 
