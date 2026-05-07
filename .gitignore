@@ -1,5 +1,6 @@
 .env
 dosemed.log
 dosemed.db
+migrar.py
 __pycache__/
 *.pyc
