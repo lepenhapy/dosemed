@@ -331,7 +331,7 @@ def gerar_codigo_recuperacao() -> str:
 
 def enviar_email(para: str, assunto: str, corpo_html: str) -> bool:
     host = os.getenv("SMTP_HOST", "").strip()
-    port = int(os.getenv("SMTP_PORT", "587").strip())
+    port = int(os.getenv("SMTP_PORT", "587").strip() or "587")
     user = os.getenv("SMTP_USER", "").strip()
     senha = os.getenv("SMTP_PASSWORD", "").strip()
     remetente = os.getenv("SMTP_FROM", f"DoseMed <{user}>")
