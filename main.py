@@ -448,10 +448,31 @@ def atualizar_status_estoque(db: Session, usuario_id: str):
     db.commit()
 
 
-def valor_efetivo(item) -> float:
+def precos_medios_sistema(db: Session) -> dict:
+    """Retorna {nome_normalizado: {media, amostras}} de todos os preco_real no sistema."""
+    itens = (
+        db.query(Estoque)
+        .filter(Estoque.preco_real.isnot(None), Estoque.preco_real > 0)
+        .all()
+    )
+    acum: dict[str, list[float]] = {}
+    for i in itens:
+        k = i.nome_medicamento.lower().strip()
+        acum.setdefault(k, []).append(i.preco_real)
+    return {
+        k: {"media": round(sum(v) / len(v), 2), "amostras": len(v)}
+        for k, v in acum.items()
+    }
+
+
+def valor_efetivo(item, precos_sistema: dict | None = None) -> float:
     if item.preco_real is not None:
         return item.preco_real
-    return item.preco_estimado
+    if precos_sistema:
+        k = item.nome_medicamento.lower().strip()
+        if k in precos_sistema:
+            return precos_sistema[k]["media"]
+    return item.preco_estimado or 0.0
 
 
 def serializar_item(i) -> dict:
@@ -926,8 +947,9 @@ def webhook(payload: WebhookPayload, db: Session = Depends(get_db)):
 
     atualizar_status_estoque(db, telefone)
     todos = db.query(Estoque).filter(Estoque.usuario_id == telefone, Estoque.status != "consumido").all()
-    prejuizo = sum(valor_efetivo(i) * (i.quantidade or 1) for i in todos if i.status == "vencido")
-    em_risco = sum(valor_efetivo(i) * (i.quantidade or 1) for i in todos if i.status == "atencao")
+    _ps = precos_medios_sistema(db)
+    prejuizo = sum(valor_efetivo(i, _ps) * (i.quantidade or 1) for i in todos if i.status == "vencido")
+    em_risco = sum(valor_efetivo(i, _ps) * (i.quantidade or 1) for i in todos if i.status == "atencao")
 
     logger.info(f"Item cadastrado: {medicamento} — usuário {telefone}")
     return {
@@ -957,8 +979,9 @@ def dashboard(telefone: str, db: Session = Depends(get_db)):
     atencao = sort_por_vencimento([serializar_item(i) for i in itens if i.status == "atencao"])
     ok = sort_por_vencimento([serializar_item(i) for i in itens if i.status == "ok"])
 
-    prejuizo = sum(valor_efetivo(i) * (i.quantidade or 1) for i in itens if i.status == "vencido")
-    em_risco = sum(valor_efetivo(i) * (i.quantidade or 1) for i in itens if i.status == "atencao")
+    _ps = precos_medios_sistema(db)
+    prejuizo = sum(valor_efetivo(i, _ps) * (i.quantidade or 1) for i in itens if i.status == "vencido")
+    em_risco = sum(valor_efetivo(i, _ps) * (i.quantidade or 1) for i in itens if i.status == "atencao")
 
     return {
         "usuario": {
@@ -1190,6 +1213,28 @@ Se não conhecer o medicamento com certeza, retorne {{"erro": "desconhecido"}}."
 def log_busca(payload: LogBuscaPayload, db: Session = Depends(get_db)):
     registrar_busca(db, payload.tipo, payload.termo, payload.usuario_id)
     return {"ok": True}
+
+
+# --- Preços médios do sistema ---
+
+@app.get("/precos/media")
+def precos_media(nome: Optional[str] = None, db: Session = Depends(get_db)):
+    medias = precos_medios_sistema(db)
+    if nome:
+        k = nome.lower().strip()
+        matches = {
+            k2: v for k2, v in medias.items()
+            if k in k2 or k2 in k
+        }
+        return {"precos": [{"nome": k2, "media": v["media"], "amostras": v["amostras"]}
+                           for k2, v in sorted(matches.items(), key=lambda x: -x[1]["amostras"])]}
+    return {
+        "precos": [
+            {"nome": k, "media": v["media"], "amostras": v["amostras"]}
+            for k, v in sorted(medias.items(), key=lambda x: x[0])
+        ],
+        "total_medicamentos": len(medias)
+    }
 
 
 # --- Admin ---
@@ -1847,8 +1892,9 @@ def exportar(telefone: str, db: Session = Depends(get_db)):
             </tr>"""
         return rows
 
-    prejuizo = sum(valor_efetivo(i) * (i.quantidade or 1) for i in itens if i.status == "vencido")
-    em_risco = sum(valor_efetivo(i) * (i.quantidade or 1) for i in itens if i.status == "atencao")
+    _ps = precos_medios_sistema(db)
+    prejuizo = sum(valor_efetivo(i, _ps) * (i.quantidade or 1) for i in itens if i.status == "vencido")
+    em_risco = sum(valor_efetivo(i, _ps) * (i.quantidade or 1) for i in itens if i.status == "atencao")
     hoje = date.today().strftime("%d/%m/%Y")
 
     html = f"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
