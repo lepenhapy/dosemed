@@ -750,79 +750,108 @@
         </div>
       </div>
 
-      <!-- ABAS ESTOQUE / ALARMES / HISTÓRICO -->
-      <div x-show="abaAtiva !== 'admin'" class="flex gap-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-1">
-        <button @click="abaAtiva = 'estoque'" class="flex-1 py-2 text-sm font-semibold rounded-xl transition"
+      <!-- ABAS DE NAVEGAÇÃO -->
+      <div x-show="abaAtiva !== 'admin'" class="grid grid-cols-5 gap-0.5 bg-white rounded-2xl border border-gray-100 shadow-sm p-1">
+        <button @click="abaAtiva = 'pesquisar'; $nextTick(() => document.getElementById('inputPesquisa')?.focus())"
+          class="py-1.5 text-xs font-semibold rounded-xl transition"
+          :class="abaAtiva === 'pesquisar' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
+          🔍 Buscar
+        </button>
+        <button @click="abaAtiva = 'cadastrar'"
+          class="py-1.5 text-xs font-semibold rounded-xl transition"
+          :class="abaAtiva === 'cadastrar' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
+          ➕ Cadastrar
+        </button>
+        <button @click="abaAtiva = 'estoque'"
+          class="py-1.5 text-xs font-semibold rounded-xl transition"
           :class="abaAtiva === 'estoque' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
           💊 Estoque
         </button>
-        <button @click="abaAtiva = 'alarmes'; if (!alarmes) carregarAlarmes()" class="flex-1 py-2 text-sm font-semibold rounded-xl transition"
+        <button @click="abaAtiva = 'alarmes'; if (!alarmes) carregarAlarmes()"
+          class="py-1.5 text-xs font-semibold rounded-xl transition relative"
           :class="abaAtiva === 'alarmes' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
           ⏰ Alarmes
-          <span x-show="alarmes?.length" class="ml-1 text-xs bg-blue-100 text-blue-600 px-1.5 rounded-full"
-            :class="abaAtiva==='alarmes' ? 'bg-white/30 text-white' : ''"
+          <span x-show="alarmes?.filter(a=>a.ativo).length > 0"
+            class="absolute -top-0.5 -right-0.5 text-xs bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center leading-none"
             x-text="alarmes?.filter(a=>a.ativo).length"></span>
         </button>
-        <button @click="abaAtiva = 'historico'; if (!historicoDados) carregarHistorico()" class="flex-1 py-2 text-sm font-semibold rounded-xl transition"
+        <button @click="abaAtiva = 'historico'; if (!historicoDados) carregarHistorico()"
+          class="py-1.5 text-xs font-semibold rounded-xl transition"
           :class="abaAtiva === 'historico' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
           📋 Histórico
         </button>
       </div>
 
-      <!-- PAINEL ESTOQUE -->
-      <div x-show="abaAtiva === 'estoque'" class="space-y-5">
+      <!-- PAINEL PESQUISAR -->
+      <div x-show="abaAtiva === 'pesquisar'" class="space-y-4">
+        <div class="relative">
+          <input id="inputPesquisa" x-model="termoPesquisa"
+            @input.debounce.400ms="buscarGeral()"
+            type="text" placeholder="Medicamento, princípio ativo, sintoma..."
+            class="w-full border-2 border-blue-200 rounded-2xl pl-10 pr-8 py-3 text-sm bg-white shadow-sm focus:outline-none focus:border-blue-500 transition-all placeholder-gray-400" />
+          <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400 text-base">🔍</span>
+          <button x-show="termoPesquisa" @click="termoPesquisa = ''; resultadosBula = null"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-sm">✕</button>
+        </div>
 
-        <!-- DISCLAIMER / PROPÓSITO (só aparece uma vez, pode fechar) -->
-        <div x-show="!disclaimerFechado" class="bg-blue-50 border border-blue-100 rounded-2xl p-4">
-          <div class="flex gap-3 items-start">
-            <span class="text-blue-400 text-lg shrink-0 mt-0.5">ℹ️</span>
-            <div class="flex-1">
-              <p class="text-sm font-semibold text-blue-700 mb-1">Sobre o DoseMed</p>
-              <p class="text-xs text-blue-600 leading-relaxed">
-                Esta ferramenta serve para <strong>controlar os medicamentos que você tem em casa</strong> e acompanhar validades. As informações de bula são de referência educativa e <strong>não substituem prescrição ou orientação médica</strong>. Nunca altere doses ou interrompa tratamentos sem consultar seu médico ou farmacêutico. Em caso de emergência, ligue 192 (SAMU).
-              </p>
+        <div x-show="!termoPesquisa" class="text-center py-14 text-gray-300">
+          <p class="text-5xl mb-3">🔍</p>
+          <p class="text-sm">Busque por nome, princípio ativo ou sintoma</p>
+        </div>
+
+        <template x-if="termoPesquisa.length >= 2">
+          <div class="space-y-5">
+
+            <!-- No estoque do usuário -->
+            <div>
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">No seu estoque</p>
+              <div x-show="estoquesFiltrados().length === 0" class="text-xs text-gray-300 italic px-1 py-2">
+                Nenhum item com esse nome no seu estoque.
+              </div>
+              <template x-for="item in estoquesFiltrados()" :key="item.id">
+                <div @click="verBula(item)"
+                  class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-2 cursor-pointer hover:border-blue-300 transition flex items-start gap-3">
+                  <span class="w-2 h-2 rounded-full mt-1.5 shrink-0"
+                    :class="{'bg-red-400':item.status==='vencido','bg-amber-400':item.status==='atencao','bg-emerald-400':item.status==='ok'}"></span>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-gray-700" x-text="item.nome"></p>
+                    <p x-show="item.principio_ativo" class="text-xs text-gray-400" x-text="item.principio_ativo"></p>
+                    <p class="text-xs mt-0.5"
+                      :class="{'text-red-400':item.status==='vencido','text-amber-500':item.status==='atencao','text-gray-300':item.status==='ok'}">
+                      <span x-show="item.data_vencimento"
+                        x-text="(item.status==='vencido'?'Venceu: ':'Vence: ') + formatarData(item.data_vencimento)"></span>
+                      <span x-show="!item.data_vencimento">Sem validade</span>
+                    </p>
+                  </div>
+                  <span class="text-xs text-blue-300 shrink-0">📋 bula</span>
+                </div>
+              </template>
             </div>
-            <button @click="disclaimerFechado = true; localStorage.setItem('dm_disc', '1')" class="text-blue-300 hover:text-blue-500 text-lg leading-none shrink-0">✕</button>
-          </div>
-        </div>
 
-        <!-- DICA BAIRRO -->
-        <div x-show="usuario && !usuario.bairro" class="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 flex gap-2 items-center">
-          <span class="text-amber-400 shrink-0">📍</span>
-          <p class="text-xs text-amber-700 flex-1">Adicione seu <strong>bairro</strong> no perfil para receber ofertas de farmácias próximas quando seus remédios estiverem vencendo.</p>
-          <button @click="abrirEditarPerfil()" class="text-xs font-semibold text-amber-600 hover:text-amber-800 underline shrink-0">Adicionar</button>
-        </div>
-
-        <!-- RESUMO FINANCEIRO -->
-        <div class="grid grid-cols-2 gap-4">
-          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Prejuízo acumulado</p>
-            <p class="text-3xl font-black mt-1" :class="prejuizoAcumulado > 0 ? 'text-red-500' : 'text-gray-300'"
-               x-text="'R$ ' + prejuizoAcumulado.toFixed(2).replace('.', ',')"></p>
-            <p class="text-xs text-gray-300 mt-1">Medicamentos vencidos</p>
+            <!-- Resultados gerais / bulas -->
+            <div>
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Resultados gerais</p>
+              <div x-show="buscandoBulas" class="text-xs text-gray-300 italic px-1 py-2">Buscando...</div>
+              <div x-show="!buscandoBulas && resultadosBula?._naoEncontrado"
+                class="text-xs text-gray-300 italic px-1 py-2">Nenhum resultado encontrado.</div>
+              <div x-show="resultadosBula && !resultadosBula._naoEncontrado"
+                @click="bulaAtiva = resultadosBula"
+                class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 cursor-pointer hover:border-blue-300 transition">
+                <p class="text-sm font-semibold text-gray-700" x-text="resultadosBula?.nome"></p>
+                <p x-show="resultadosBula?.principio_ativo" class="text-xs text-gray-400 mt-0.5" x-text="resultadosBula?.principio_ativo"></p>
+                <p x-show="resultadosBula?.para_que_serve" class="text-xs text-gray-500 mt-1 line-clamp-2" x-text="resultadosBula?.para_que_serve"></p>
+                <p class="text-xs text-blue-400 mt-2">📋 Ver bula completa →</p>
+              </div>
+            </div>
           </div>
-          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Em risco</p>
-            <p class="text-3xl font-black mt-1" :class="valorEmRisco > 0 ? 'text-amber-500' : 'text-gray-300'"
-               x-text="'R$ ' + valorEmRisco.toFixed(2).replace('.', ',')"></p>
-            <p class="text-xs text-gray-300 mt-1">Vencem em até 30 dias</p>
-          </div>
-        </div>
+        </template>
+      </div><!-- /pesquisar -->
 
-        <!-- ENDEREÇO / PORTARIA -->
-        <div x-show="usuario.endereco || usuario.instrucoes_portaria"
-             class="bg-blue-50 rounded-xl px-4 py-3 text-sm text-blue-700 flex gap-2 items-start">
-          <span>📍</span>
-          <div class="flex-1">
-            <p class="font-medium" x-text="usuario.endereco"></p>
-            <p class="text-blue-400 text-xs mt-0.5" x-text="usuario.instrucoes_portaria"></p>
-          </div>
-        </div>
-
-        <!-- FORMULÁRIO ADICIONAR -->
+      <!-- PAINEL CADASTRAR -->
+      <div x-show="abaAtiva === 'cadastrar'" class="space-y-4">
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-700">Adicionar medicamento</h3>
+            <h3 class="font-semibold text-gray-700">Novo medicamento</h3>
             <label class="cursor-pointer flex items-center gap-1.5 bg-gray-50 border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition text-gray-500 hover:text-blue-600 text-xs font-semibold px-3 py-2 rounded-xl">
               <span x-text="reconhecendo ? '⏳ Analisando...' : '📷 Foto da caixa'"></span>
               <input type="file" accept="image/*" capture="environment" class="hidden" @change="reconhecerImagem($event)" :disabled="reconhecendo" />
@@ -901,27 +930,70 @@
                :class="{'bg-yellow-50 text-yellow-700': mensagemWebhook?.includes('já tem') || mensagemWebhook?.includes('Atenção'), 'bg-green-50 text-green-700': mensagemWebhook?.includes('sucesso')}"
                x-text="mensagemWebhook"></div>
           <div x-show="alertaPA" x-cloak class="mt-2 text-sm px-4 py-2.5 rounded-xl bg-orange-50 text-orange-700" x-text="alertaPA"></div>
-        </div>
 
-        <!-- BARRA DE BUSCA + EXPORTAR -->
-        <div class="flex gap-2 items-center">
-          <div class="flex-1 relative">
-            <input x-model="busca" type="text"
-              placeholder="Nome, princípio ativo, fabricante ou sintoma (ex: dor de garganta)..."
-              class="w-full border-2 border-blue-200 rounded-2xl pl-10 pr-8 py-3 text-sm bg-white shadow-sm focus:outline-none focus:border-blue-500 focus:shadow-md transition-all placeholder-gray-400"
-              @input="logBuscaDebounced()" />
-            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400 text-base">🔍</span>
-            <button x-show="busca" @click="busca = ''" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-sm">✕</button>
+          <button x-show="mensagemWebhook?.includes('sucesso')" @click="abaAtiva = 'estoque'"
+            class="mt-3 w-full border border-blue-200 text-blue-600 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-50 transition">
+            Ver estoque →
+          </button>
+        </div>
+      </div><!-- /cadastrar -->
+
+      <!-- PAINEL ESTOQUE -->
+      <div x-show="abaAtiva === 'estoque'" class="space-y-5">
+
+        <!-- DISCLAIMER / PROPÓSITO (só aparece uma vez, pode fechar) -->
+        <div x-show="!disclaimerFechado" class="bg-blue-50 border border-blue-100 rounded-2xl p-4">
+          <div class="flex gap-3 items-start">
+            <span class="text-blue-400 text-lg shrink-0 mt-0.5">ℹ️</span>
+            <div class="flex-1">
+              <p class="text-sm font-semibold text-blue-700 mb-1">Sobre o DoseMed</p>
+              <p class="text-xs text-blue-600 leading-relaxed">
+                Esta ferramenta serve para <strong>controlar os medicamentos que você tem em casa</strong> e acompanhar validades. As informações de bula são de referência educativa e <strong>não substituem prescrição ou orientação médica</strong>. Nunca altere doses ou interrompa tratamentos sem consultar seu médico ou farmacêutico. Em caso de emergência, ligue 192 (SAMU).
+              </p>
+            </div>
+            <button @click="disclaimerFechado = true; localStorage.setItem('dm_disc', '1')" class="text-blue-300 hover:text-blue-500 text-lg leading-none shrink-0">✕</button>
           </div>
-          <a :href="'/exportar/' + telefoneAtual" target="_blank"
-             class="flex items-center gap-1.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-500 hover:text-gray-700 text-xs font-semibold px-3 py-3 rounded-xl transition whitespace-nowrap">
-            📄 PDF
-          </a>
         </div>
 
-        <div x-show="busca.trim()" x-cloak class="text-xs text-gray-400 -mt-3 px-1">
-          <span x-text="totalFiltrado + ' medicamento(s) encontrado(s)'"></span>
-          <span x-show="sintomatico" class="text-blue-400 ml-1">· busca por sintoma</span>
+        <!-- DICA BAIRRO -->
+        <div x-show="usuario && !usuario.bairro" class="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 flex gap-2 items-center">
+          <span class="text-amber-400 shrink-0">📍</span>
+          <p class="text-xs text-amber-700 flex-1">Adicione seu <strong>bairro</strong> no perfil para receber ofertas de farmácias próximas quando seus remédios estiverem vencendo.</p>
+          <button @click="abrirEditarPerfil()" class="text-xs font-semibold text-amber-600 hover:text-amber-800 underline shrink-0">Adicionar</button>
+        </div>
+
+        <!-- RESUMO FINANCEIRO -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Prejuízo acumulado</p>
+            <p class="text-3xl font-black mt-1" :class="prejuizoAcumulado > 0 ? 'text-red-500' : 'text-gray-300'"
+               x-text="'R$ ' + prejuizoAcumulado.toFixed(2).replace('.', ',')"></p>
+            <p class="text-xs text-gray-300 mt-1">Medicamentos vencidos</p>
+          </div>
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Em risco</p>
+            <p class="text-3xl font-black mt-1" :class="valorEmRisco > 0 ? 'text-amber-500' : 'text-gray-300'"
+               x-text="'R$ ' + valorEmRisco.toFixed(2).replace('.', ',')"></p>
+            <p class="text-xs text-gray-300 mt-1">Vencem em até 30 dias</p>
+          </div>
+        </div>
+
+        <!-- ENDEREÇO / PORTARIA -->
+        <div x-show="usuario.endereco || usuario.instrucoes_portaria"
+             class="bg-blue-50 rounded-xl px-4 py-3 text-sm text-blue-700 flex gap-2 items-start">
+          <span>📍</span>
+          <div class="flex-1">
+            <p class="font-medium" x-text="usuario.endereco"></p>
+            <p class="text-blue-400 text-xs mt-0.5" x-text="usuario.instrucoes_portaria"></p>
+          </div>
+        </div>
+
+        <!-- EXPORTAR PDF -->
+        <div class="flex justify-end">
+          <a :href="'/exportar/' + telefoneAtual" target="_blank"
+             class="flex items-center gap-1.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-500 hover:text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl transition">
+            📄 Exportar PDF
+          </a>
         </div>
 
         <!-- GRID DE STATUS -->
@@ -1196,9 +1268,9 @@
 
 <!-- FAB — adicionar medicamento -->
 <template x-if="usuario && abaAtiva === 'estoque'">
-  <button @click="abrirFormAdicionar()"
+  <button @click="abaAtiva = 'cadastrar'"
     class="fixed bottom-6 right-6 z-30 w-14 h-14 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-full shadow-lg shadow-blue-200 flex items-center justify-center text-2xl transition-all"
-    title="Adicionar medicamento">
+    title="Cadastrar medicamento">
     +
   </button>
 </template>
@@ -1211,6 +1283,7 @@ function dosemed() {
     prejuizoAcumulado: 0, valorEmRisco: 0,
     novoMed: { nome: '', principioAtivo: '', miligramas: '', fabricante: '', validade: '', quantidade: 1, manipulado: false, precoReal: null },
     precoSistema: null,
+    termoPesquisa: '', resultadosBula: null, buscandoBulas: false,
     carregando: false, erroLogin: '', mensagemWebhook: '', alertaPA: '',
     reconhecendo: false, previewUrl: '', erroReconhecimento: '',
     mostrarCadastro: false, cadastro: { nome: '', email: '', bairro: '', endereco: '', portaria: '' },
@@ -1867,6 +1940,39 @@ function dosemed() {
       }
     },
 
+    estoquesFiltrados() {
+      const t = (this.termoPesquisa || '').toLowerCase().trim();
+      if (t.length < 2) return [];
+      const todos = [
+        ...(this.estoque.vencidos || []),
+        ...(this.estoque.atencao || []),
+        ...(this.estoque.ok || [])
+      ];
+      return todos.filter(i =>
+        (i.nome || '').toLowerCase().includes(t) ||
+        (i.principio_ativo || '').toLowerCase().includes(t) ||
+        (i.fabricante || '').toLowerCase().includes(t)
+      );
+    },
+
+    async buscarGeral() {
+      this.resultadosBula = null;
+      const t = (this.termoPesquisa || '').trim();
+      if (t.length < 2) return;
+      this.buscandoBulas = true;
+      try {
+        const r = await fetch(`/bulas/${encodeURIComponent(t)}`);
+        if (r.ok) {
+          const d = await r.json();
+          this.resultadosBula = d;
+          this.logBusca('bula', t);
+        } else {
+          this.resultadosBula = { _naoEncontrado: true };
+        }
+      } catch { this.resultadosBula = { _naoEncontrado: true }; }
+      this.buscandoBulas = false;
+    },
+
     async buscarPrecoSistema(nome) {
       this.precoSistema = null;
       if (!nome || nome.trim().length < 3) return;
@@ -1879,11 +1985,11 @@ function dosemed() {
     },
 
     abrirFormAdicionar() {
-      const el = document.querySelector('input[x-model="novoMed.nome"]');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setTimeout(() => el.focus(), 350);
-      }
+      this.abaAtiva = 'cadastrar';
+      this.$nextTick(() => {
+        const el = document.querySelector('input[x-model="novoMed.nome"]');
+        if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
+      });
     },
 
     async testarPush() {
