@@ -455,7 +455,7 @@ def precos_medios_sistema(db: Session) -> dict:
         .filter(Estoque.preco_real.isnot(None), Estoque.preco_real > 0)
         .all()
     )
-    acum: dict[str, list[float]] = {}
+    acum = {}
     for i in itens:
         k = i.nome_medicamento.lower().strip()
         acum.setdefault(k, []).append(i.preco_real)
@@ -465,7 +465,7 @@ def precos_medios_sistema(db: Session) -> dict:
     }
 
 
-def valor_efetivo(item, precos_sistema: dict | None = None) -> float:
+def valor_efetivo(item, precos_sistema: Optional[dict] = None) -> float:
     if item.preco_real is not None:
         return item.preco_real
     if precos_sistema:
