@@ -643,7 +643,10 @@ def health():
 
 @app.get("/")
 def root():
-    return FileResponse(os.path.join(os.path.dirname(__file__), "index.html"))
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "index.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+    )
 
 @app.get("/manifest.json")
 def manifest():
@@ -651,7 +654,11 @@ def manifest():
 
 @app.get("/sw.js")
 def service_worker():
-    return FileResponse(os.path.join(os.path.dirname(__file__), "sw.js"), media_type="application/javascript")
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "sw.js"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+    )
 
 @app.get("/icon-{size}.png")
 def icone(size: str):
