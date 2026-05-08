@@ -1,4 +1,4 @@
-const CACHE = 'dosemed-v5';
+const CACHE = 'dosemed-v6';
 const SHELL = ['/'];
 
 self.addEventListener('install', e => {
@@ -10,9 +10,13 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .then(clients => {
+        // Recarrega todas as janelas abertas para servir a versão nova
+        clients.forEach(c => c.navigate(c.url));
+      })
   );
   self.clients.claim();
 });
@@ -31,27 +35,25 @@ self.addEventListener('fetch', e => {
       url.pathname.startsWith('/bulas/enriquecer') ||
       url.pathname.startsWith('/log-busca') ||
       url.pathname.startsWith('/push') ||
+      url.pathname.startsWith('/precos') ||
       url.pathname.startsWith('/alarmes')) {
     e.respondWith(fetch(e.request).catch(() => new Response('{"erro":"offline"}', { headers: { 'Content-Type': 'application/json' } })));
     return;
   }
 
-  // Shell: cache-first, atualiza em background
+  // Shell: network-first, com fallback para cache
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const network = fetch(e.request).then(res => {
-        if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-        }
-        return res;
-      });
-      return cached || network;
-    })
+    fetch(e.request).then(res => {
+      if (res.ok) {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+      }
+      return res;
+    }).catch(() => caches.match(e.request))
   );
 });
 
-// Permite que a página force a ativação do novo SW via postMessage
+// Permite ativação forçada via postMessage
 self.addEventListener('message', e => {
   if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
