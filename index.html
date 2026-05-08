@@ -802,13 +802,12 @@
         <template x-if="termoPesquisa.length >= 2">
           <div class="space-y-5">
 
-            <!-- No estoque do usuário -->
+            <!-- No seu estoque -->
             <div>
               <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">No seu estoque</p>
-              <div x-show="estoquesFiltrados().length === 0" class="text-xs text-gray-300 italic px-1 py-2">
-                Nenhum item com esse nome no seu estoque.
-              </div>
-              <template x-for="item in estoquesFiltrados()" :key="item.id">
+
+              <!-- Matches diretos (nome/princípio) -->
+              <template x-for="item in estoquesFiltrados()" :key="'d'+item.id">
                 <div @click="verBula(item)"
                   class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-2 cursor-pointer hover:border-blue-300 transition flex items-start gap-3">
                   <span class="w-2 h-2 rounded-full mt-1.5 shrink-0"
@@ -817,31 +816,51 @@
                     <p class="text-sm font-semibold text-gray-700" x-text="item.nome"></p>
                     <p x-show="item.principio_ativo" class="text-xs text-gray-400" x-text="item.principio_ativo"></p>
                     <p class="text-xs mt-0.5"
-                      :class="{'text-red-400':item.status==='vencido','text-amber-500':item.status==='atencao','text-gray-300':item.status==='ok'}">
-                      <span x-show="item.data_vencimento"
-                        x-text="(item.status==='vencido'?'Venceu: ':'Vence: ') + formatarData(item.data_vencimento)"></span>
-                      <span x-show="!item.data_vencimento">Sem validade</span>
-                    </p>
+                      :class="{'text-red-400':item.status==='vencido','text-amber-500':item.status==='atencao','text-gray-300':item.status==='ok'}"
+                      x-text="item.data_vencimento ? (item.status==='vencido'?'Venceu: ':'Vence: ') + formatarData(item.data_vencimento) : 'Sem validade'"></p>
                   </div>
                   <span class="text-xs text-blue-300 shrink-0">📋 bula</span>
                 </div>
               </template>
+
+              <!-- Matches via sintoma (cruzamento com bulas) -->
+              <template x-for="item in estoquePorBula" :key="'s'+item.id">
+                <div @click="verBula(item)"
+                  class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-2 cursor-pointer hover:border-blue-300 transition flex items-start gap-3">
+                  <span class="w-2 h-2 rounded-full mt-1.5 shrink-0"
+                    :class="{'bg-red-400':item.status==='vencido','bg-amber-400':item.status==='atencao','bg-emerald-400':item.status==='ok'}"></span>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-gray-700" x-text="item.nome"></p>
+                    <p x-show="item.principio_ativo" class="text-xs text-gray-400" x-text="item.principio_ativo"></p>
+                    <p class="text-xs mt-0.5"
+                      :class="{'text-red-400':item.status==='vencido','text-amber-500':item.status==='atencao','text-gray-300':item.status==='ok'}"
+                      x-text="item.data_vencimento ? (item.status==='vencido'?'Venceu: ':'Vence: ') + formatarData(item.data_vencimento) : 'Sem validade'"></p>
+                  </div>
+                  <span class="text-xs text-blue-300 shrink-0">📋 bula</span>
+                </div>
+              </template>
+
+              <div x-show="!buscandoBulas && estoquesFiltrados().length === 0 && estoquePorBula.length === 0"
+                class="text-xs text-gray-300 italic px-1 py-2">
+                Nenhum item desse tipo no seu estoque.
+              </div>
             </div>
 
             <!-- Resultados gerais / bulas -->
             <div>
               <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Resultados gerais</p>
               <div x-show="buscandoBulas" class="text-xs text-gray-300 italic px-1 py-2">Buscando...</div>
-              <div x-show="!buscandoBulas && resultadosBula?._naoEncontrado"
+              <div x-show="!buscandoBulas && resultadosBula.length === 0"
                 class="text-xs text-gray-300 italic px-1 py-2">Nenhum resultado encontrado.</div>
-              <div x-show="resultadosBula && !resultadosBula._naoEncontrado"
-                @click="bulaAtiva = resultadosBula"
-                class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 cursor-pointer hover:border-blue-300 transition">
-                <p class="text-sm font-semibold text-gray-700" x-text="resultadosBula?.nome"></p>
-                <p x-show="resultadosBula?.principio_ativo" class="text-xs text-gray-400 mt-0.5" x-text="resultadosBula?.principio_ativo"></p>
-                <p x-show="resultadosBula?.para_que_serve" class="text-xs text-gray-500 mt-1 line-clamp-2" x-text="resultadosBula?.para_que_serve"></p>
-                <p class="text-xs text-blue-400 mt-2">📋 Ver bula completa →</p>
-              </div>
+              <template x-for="bula in resultadosBula" :key="bula.principio_ativo || bula.nomes?.[0]">
+                <div @click="bulaAtiva = bula"
+                  class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-2 cursor-pointer hover:border-blue-300 transition">
+                  <p class="text-sm font-semibold text-gray-700" x-text="bula.nomes?.[0] || bula.principio_ativo"></p>
+                  <p x-show="bula.principio_ativo" class="text-xs text-gray-400 mt-0.5" x-text="bula.principio_ativo"></p>
+                  <p x-show="bula.indicacao" class="text-xs text-gray-500 mt-1 line-clamp-2" x-text="bula.indicacao"></p>
+                  <p class="text-xs text-blue-400 mt-2">📋 Ver bula completa →</p>
+                </div>
+              </template>
             </div>
           </div>
         </template>
@@ -1283,7 +1302,7 @@ function dosemed() {
     prejuizoAcumulado: 0, valorEmRisco: 0,
     novoMed: { nome: '', principioAtivo: '', miligramas: '', fabricante: '', validade: '', quantidade: 1, manipulado: false, precoReal: null },
     precoSistema: null,
-    termoPesquisa: '', resultadosBula: null, buscandoBulas: false,
+    termoPesquisa: '', resultadosBula: [], estoquePorBula: [], buscandoBulas: false,
     carregando: false, erroLogin: '', mensagemWebhook: '', alertaPA: '',
     reconhecendo: false, previewUrl: '', erroReconhecimento: '',
     mostrarCadastro: false, cadastro: { nome: '', email: '', bairro: '', endereco: '', portaria: '' },
@@ -1297,7 +1316,7 @@ function dosemed() {
     bulasIndex: [],
     bulaAtiva: null, bulaCarregando: false,
     // admin
-    isAdmin: false, temEmail: false, abaAtiva: 'estoque', abaAdmin: 'resumo', adminDados: null, adminCarregando: false,
+    isAdmin: false, temEmail: false, abaAtiva: 'pesquisar', abaAdmin: 'resumo', adminDados: null, adminCarregando: false,
     adminInsights: null, insightsCarregando: false,
     insightFiltros: { bairro: true, termo: true, tipo: true, ticket: true, periodo: true },
     adminFarmacias: null, adminLeads: null, adminPrecos: null,
@@ -1940,15 +1959,18 @@ function dosemed() {
       }
     },
 
-    estoquesFiltrados() {
-      const t = (this.termoPesquisa || '').toLowerCase().trim();
-      if (t.length < 2) return [];
-      const todos = [
+    _todosItens() {
+      return [
         ...(this.estoque.vencidos || []),
         ...(this.estoque.atencao || []),
         ...(this.estoque.ok || [])
       ];
-      return todos.filter(i =>
+    },
+
+    estoquesFiltrados() {
+      const t = (this.termoPesquisa || '').toLowerCase().trim();
+      if (t.length < 2) return [];
+      return this._todosItens().filter(i =>
         (i.nome || '').toLowerCase().includes(t) ||
         (i.principio_ativo || '').toLowerCase().includes(t) ||
         (i.fabricante || '').toLowerCase().includes(t)
@@ -1956,20 +1978,38 @@ function dosemed() {
     },
 
     async buscarGeral() {
-      this.resultadosBula = null;
+      this.resultadosBula = [];
+      this.estoquePorBula = [];
       const t = (this.termoPesquisa || '').trim();
       if (t.length < 2) return;
       this.buscandoBulas = true;
       try {
-        const r = await fetch(`/bulas/${encodeURIComponent(t)}`);
+        const r = await fetch(`/bulas/buscar?q=${encodeURIComponent(t)}`);
         if (r.ok) {
-          const d = await r.json();
-          this.resultadosBula = d;
-          this.logBusca('bula', t);
-        } else {
-          this.resultadosBula = { _naoEncontrado: true };
+          const bulas = await r.json();
+          this.resultadosBula = bulas;
+          this.logBusca('busca', t);
+
+          // Cruza bulas encontradas com estoque do usuário
+          if (bulas.length) {
+            const termosB = new Set();
+            bulas.forEach(b => {
+              (b.nomes || []).forEach(n => termosB.add(n.toLowerCase()));
+              if (b.principio_ativo) termosB.add(b.principio_ativo.toLowerCase());
+            });
+            const diretosIds = new Set(this.estoquesFiltrados().map(i => i.id));
+            this.estoquePorBula = this._todosItens().filter(i => {
+              if (diretosIds.has(i.id)) return false;
+              const nome = (i.nome || '').toLowerCase();
+              const pa   = (i.principio_ativo || '').toLowerCase();
+              return [...termosB].some(bt =>
+                nome.includes(bt) || pa.includes(bt) ||
+                bt.includes(nome.split(' ')[0]) || bt.includes(pa.split(' ')[0])
+              );
+            });
+          }
         }
-      } catch { this.resultadosBula = { _naoEncontrado: true }; }
+      } catch {}
       this.buscandoBulas = false;
     },
 

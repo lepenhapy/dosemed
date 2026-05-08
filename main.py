@@ -1126,6 +1126,29 @@ def bulas_index():
     ]
 
 
+@app.get("/bulas/buscar")
+def buscar_bulas_multi(q: str = "", db: Session = Depends(get_db)):
+    """Retorna múltiplos resultados por nome, princípio ativo ou sintoma."""
+    termo = q.lower().strip()
+    if len(termo) < 2:
+        return []
+    resultados = []
+    for b in BULAS:
+        nomes = [n.lower() for n in b.get("nomes", [])]
+        pa = b.get("principio_ativo", "").lower()
+        sintomas = [s.lower() for s in b.get("sintomas", [])]
+        indicacao = b.get("indicacao", "").lower()
+        score = 0
+        if any(termo in n or n in termo for n in nomes): score = 4
+        elif termo in pa or pa in termo:                  score = 3
+        elif any(termo in s for s in sintomas):           score = 2
+        elif termo in indicacao:                          score = 1
+        if score:
+            resultados.append((score, b))
+    resultados.sort(key=lambda x: -x[0])
+    return [b for _, b in resultados[:12]]
+
+
 @app.get("/bulas/{nome}")
 def buscar_bula(nome: str, db: Session = Depends(get_db)):
     resultado = buscar_bula_local(nome)
