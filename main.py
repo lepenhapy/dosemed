@@ -333,7 +333,7 @@ def enviar_email(para: str, assunto: str, corpo_html: str) -> bool:
     host = os.getenv("SMTP_HOST", "").strip()
     port = int(os.getenv("SMTP_PORT", "587").strip() or "587")
     user = os.getenv("SMTP_USER", "").strip()
-    senha = os.getenv("SMTP_PASSWORD", "").strip()
+    senha = os.getenv("SMTP_PASSWORD", "").replace(" ", "")
     remetente = os.getenv("SMTP_FROM", f"DoseMed <{user}>")
 
     _placeholder = {"seuemail@gmail.com", "suasenhadoapp"}
