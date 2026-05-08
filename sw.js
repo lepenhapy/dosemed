@@ -1,4 +1,4 @@
-const CACHE = 'dosemed-v3';
+const CACHE = 'dosemed-v4';
 const SHELL = ['/'];
 
 self.addEventListener('install', e => {
@@ -49,6 +49,11 @@ self.addEventListener('fetch', e => {
       return cached || network;
     })
   );
+});
+
+// Permite que a página force a ativação do novo SW via postMessage
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // --- Push Notifications ---
