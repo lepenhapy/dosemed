@@ -97,7 +97,7 @@ _migracoes = {
     "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "aceite_lgpd DATETIME"],
     "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo DATETIME"],
     "log_buscas": ["bairro TEXT"],
-    "leads": ["asaas_charge_id TEXT"],
+    "leads": ["asaas_charge_id TEXT", "criado_em DATETIME"],
     "farmacias": [
         "atende_manipulado INTEGER DEFAULT 0",
         "asaas_customer_id TEXT",
@@ -242,9 +242,14 @@ def asaas_criar_assinatura(customer_id: str, valor: float, descricao: str) -> st
     return None
 
 
-def asaas_criar_cobranca(customer_id: str, valor: float, descricao: str, vencimento: str = None) -> str | None:
-    if not os.getenv("ASAAS_KEY") or not customer_id or valor <= 0:
-        return None
+def asaas_criar_cobranca(customer_id: str, valor: float, descricao: str, vencimento: str = None):
+    """Retorna (charge_id, erro_str). charge_id é None em caso de falha."""
+    if not os.getenv("ASAAS_KEY"):
+        return None, "ASAAS_KEY não configurada"
+    if not customer_id:
+        return None, "customer_id ausente"
+    if valor <= 0:
+        return None, f"valor inválido: {valor}"
     from datetime import date
     payload = {
         "customer": customer_id,
@@ -256,11 +261,13 @@ def asaas_criar_cobranca(customer_id: str, valor: float, descricao: str, vencime
     try:
         r = requests.post(_asaas_url("/payments"), json=payload, headers=_asaas_headers(), timeout=10)
         if r.ok:
-            return r.json().get("id")
-        logger.warning(f"Asaas criar cobrança falhou ({r.status_code}): {r.text[:400]}")
+            return r.json().get("id"), None
+        erro = f"HTTP {r.status_code}: {r.text[:300]}"
+        logger.warning(f"Asaas criar cobrança falhou — {erro}")
+        return None, erro
     except Exception as e:
         logger.error(f"Asaas criar cobrança: {e}")
-    return None
+        return None, str(e)
 
 
 def asaas_listar_cobrancas(customer_id: str) -> list:
@@ -1689,7 +1696,7 @@ def faturar_leads(farmacia_id: int, telefone: str, db: Session = Depends(get_db)
 
     valor_total = sum(l.preco_cobrado or 0 for l in leads_nao_faturados)
     mes_atual = datetime.utcnow().strftime("%m/%Y")
-    charge_id = asaas_criar_cobranca(
+    charge_id, asaas_erro = asaas_criar_cobranca(
         f.asaas_customer_id, valor_total,
         f"DoseMed — {len(leads_nao_faturados)} leads em {mes_atual} — {f.nome}"
     )
@@ -1699,7 +1706,7 @@ def faturar_leads(farmacia_id: int, telefone: str, db: Session = Depends(get_db)
         db.commit()
         mensagem = "Cobrança PIX gerada com sucesso no Asaas."
     else:
-        mensagem = "Leads contabilizados, mas cobrança Asaas falhou — verifique o CNPJ da farmácia e o log."
+        mensagem = f"Leads contabilizados, mas cobrança Asaas falhou: {asaas_erro}"
 
     return {"mensagem": mensagem, "total_leads": len(leads_nao_faturados),
             "valor": round(valor_total, 2), "asaas_charge_id": charge_id}
