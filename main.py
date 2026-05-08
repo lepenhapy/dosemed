@@ -251,6 +251,7 @@ def asaas_criar_cobranca(customer_id: str, valor: float, descricao: str, vencime
         r = requests.post(_asaas_url("/payments"), json=payload, headers=_asaas_headers(), timeout=10)
         if r.ok:
             return r.json().get("id")
+        logger.warning(f"Asaas criar cobrança falhou ({r.status_code}): {r.text[:400]}")
     except Exception as e:
         logger.error(f"Asaas criar cobrança: {e}")
     return None
@@ -1659,7 +1660,16 @@ def faturar_leads(farmacia_id: int, telefone: str, db: Session = Depends(get_db)
     if not f:
         raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
     if not f.asaas_customer_id:
-        raise HTTPException(status_code=400, detail="Farmácia sem cliente Asaas cadastrado.")
+        if not os.getenv("ASAAS_KEY"):
+            raise HTTPException(status_code=400, detail="ASAAS_KEY não configurada — integração desativada.")
+        if not f.cnpj:
+            raise HTTPException(status_code=400, detail="Farmácia sem CNPJ cadastrado — necessário para criar cliente Asaas.")
+        cid = asaas_criar_cliente(f.nome, f.email or "", f.cnpj)
+        if not cid:
+            raise HTTPException(status_code=502, detail="Falha ao criar cliente Asaas — verifique o CNPJ e o log.")
+        f.asaas_customer_id = cid
+        db.commit()
+        logger.info(f"Asaas: cliente criado automaticamente para farmácia {f.id} ({f.nome}): {cid}")
 
     inicio_mes = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0)
     leads_nao_faturados = db.query(Lead).filter(
