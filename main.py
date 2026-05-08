@@ -98,6 +98,12 @@ _migracoes = {
     "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo DATETIME"],
     "log_buscas": ["bairro TEXT"],
     "leads": ["asaas_charge_id TEXT"],
+    "farmacias": [
+        "atende_manipulado INTEGER DEFAULT 0",
+        "asaas_customer_id TEXT",
+        "asaas_subscription_id TEXT",
+        "criado_em DATETIME",
+    ],
     "alarmes": [],
     "push_subs": [],
 }
