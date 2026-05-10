@@ -35,7 +35,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.exception_handlers import http_exception_handler
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -94,15 +94,15 @@ Base.metadata.create_all(bind=engine)
 
 # Migrações seguras (add-only)
 _migracoes = {
-    "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "aceite_lgpd DATETIME"],
-    "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo DATETIME"],
+    "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "aceite_lgpd TIMESTAMP"],
+    "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo TIMESTAMP"],
     "log_buscas": ["bairro TEXT"],
-    "leads": ["asaas_charge_id TEXT", "criado_em DATETIME"],
+    "leads": ["asaas_charge_id TEXT", "criado_em TIMESTAMP"],
     "farmacias": [
         "atende_manipulado INTEGER DEFAULT 0",
         "asaas_customer_id TEXT",
         "asaas_subscription_id TEXT",
-        "criado_em DATETIME",
+        "criado_em TIMESTAMP",
     ],
     "alarmes": [],
     "push_subs": [],
@@ -110,11 +110,15 @@ _migracoes = {
 with engine.connect() as conn:
     for tabela, colunas in _migracoes.items():
         for col_def in colunas:
+            col_nome = col_def.split()[0]
             try:
                 conn.execute(text(f"ALTER TABLE {tabela} ADD COLUMN {col_def}"))
                 conn.commit()
-            except Exception:
-                pass
+                logger.info(f"Migração: {tabela}.{col_nome} adicionado.")
+            except Exception as ex:
+                msg = str(ex).lower()
+                if "already exists" not in msg and "duplicate column" not in msg:
+                    logger.warning(f"Migração {tabela}.{col_nome}: {ex}")
 
 # Seed de configurações padrão (só insere se ainda não existir)
 _CONFIG_DEFAULT = {
@@ -2058,7 +2062,9 @@ def confirmar_chegada(payload: ConfirmarChegadaPayload, db: Session = Depends(ge
         item = Estoque(
             usuario_id=pedido.usuario_id, nome_medicamento=pedido.medicamento_nome,
             data_validade=data_val, categoria_valor=categoria,
-            preco_estimado=preco, status=calcular_status(data_val)
+            preco_estimado=preco, status=calcular_status(data_val),
+            quantidade=1, manipulado=0, iniciado=0,
+            principio_ativo=None, miligramas=None, fabricante=None, preco_real=None,
         )
         db.add(item)
         db.commit()
@@ -2071,7 +2077,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     if isinstance(exc, HTTPException):
         return await http_exception_handler(request, exc)
     logger.error(f"Erro não tratado em {request.url}: {exc}", exc_info=True)
-    return HTMLResponse(status_code=500, content='{"detail":"Erro interno. Tente novamente."}')
+    return JSONResponse(status_code=500, content={"detail": "Erro interno. Tente novamente."})
 
 
 if __name__ == "__main__":
