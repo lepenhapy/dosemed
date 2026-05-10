@@ -347,7 +347,8 @@ def gerar_codigo_recuperacao() -> str:
     return str(random.randint(100000, 999999))
 
 
-def enviar_email(para: str, assunto: str, corpo_html: str) -> bool:
+def enviar_email(para: str, assunto: str, corpo_html: str):
+    """Retorna (ok: bool, erro: str). erro é '' em caso de sucesso."""
     host = os.getenv("SMTP_HOST", "").strip()
     port = int(os.getenv("SMTP_PORT", "587").strip() or "587")
     user = os.getenv("SMTP_USER", "").strip()
@@ -356,8 +357,9 @@ def enviar_email(para: str, assunto: str, corpo_html: str) -> bool:
 
     _placeholder = {"seuemail@gmail.com", "suasenhadoapp"}
     if not host or not user or not senha or user in _placeholder or senha in _placeholder:
-        logger.warning("SMTP não configurado — e-mail não enviado")
-        return False
+        msg = f"SMTP não configurado (host={host!r} user={user!r})"
+        logger.warning(msg)
+        return False, msg
 
     try:
         msg = MIMEMultipart("alternative")
@@ -366,16 +368,17 @@ def enviar_email(para: str, assunto: str, corpo_html: str) -> bool:
         msg["To"] = para
         msg.attach(MIMEText(corpo_html, "html", "utf-8"))
 
-        with smtplib.SMTP(host, port, timeout=10) as smtp:
+        with smtplib.SMTP(host, port, timeout=15) as smtp:
             smtp.ehlo()
             smtp.starttls()
+            smtp.ehlo()
             smtp.login(user, senha)
             smtp.sendmail(user, para, msg.as_string())
         logger.info(f"E-mail enviado para {para}: {assunto}")
-        return True
+        return True, ""
     except Exception as e:
         logger.error(f"Erro ao enviar e-mail para {para}: {e}")
-        return False
+        return False, str(e)
 
 
 def html_recuperacao(nome: str, codigo: str) -> str:
@@ -805,20 +808,19 @@ def recuperar_pin(payload: RecuperarPinPayload, db: Session = Depends(get_db)):
     db.add(CodigoRecuperacao(telefone=telefone, codigo=codigo, expira_em=expira))
     db.commit()
 
-    enviado = enviar_email(
+    enviado, email_erro = enviar_email(
         usuario.email,
         "DoseMed — Código para redefinir seu PIN",
         html_recuperacao(usuario.nome, codigo)
     )
 
     if not enviado:
-        # Dev mode: credenciais SMTP não configuradas ou são placeholder
         smtp_user = os.getenv("SMTP_USER", "")
         smtp_pass = os.getenv("SMTP_PASSWORD", "")
         smtp_real = smtp_user and smtp_user != "seuemail@gmail.com" and smtp_pass and smtp_pass != "suasenhadoapp"
         if not smtp_real:
             return {"mensagem": f"[DEV] Código: {codigo}", "codigo": codigo, "email_mascarado": usuario.email}
-        raise HTTPException(status_code=503, detail="Erro ao enviar e-mail. Tente novamente.")
+        raise HTTPException(status_code=503, detail=f"Erro ao enviar e-mail: {email_erro}")
 
     partes = usuario.email.split("@")
     mascarado = partes[0][:2] + "***@" + partes[1]
@@ -875,7 +877,7 @@ def notificar_vencimentos(telefone: str, db: Session = Depends(get_db)):
             continue
 
         lista = [serializar_item(i) for i in itens]
-        ok = enviar_email(
+        ok, _ = enviar_email(
             u.email,
             "DoseMed — Medicamentos com atenção no seu estoque",
             html_vencimento(u.nome, lista)
@@ -895,14 +897,14 @@ def testar_email(telefone: str, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.telefone == tel).first()
     if not usuario or not usuario.email:
         raise HTTPException(status_code=400, detail="Usuário não encontrado ou sem e-mail.")
-    ok = enviar_email(
+    ok, email_erro = enviar_email(
         usuario.email,
         "DoseMed — Teste de e-mail",
         f"<p>Olá, <strong>{usuario.nome}</strong>! Seu e-mail está configurado corretamente no DoseMed. 💊</p>"
     )
     if ok:
         return {"mensagem": f"E-mail de teste enviado para {usuario.email}"}
-    raise HTTPException(status_code=503, detail="Erro ao enviar e-mail. Verifique as configurações SMTP no .env")
+    raise HTTPException(status_code=503, detail=f"Erro ao enviar e-mail: {email_erro}")
 
 
 # --- Webhook / Estoque ---
@@ -1471,7 +1473,9 @@ def gerar_leads_para_item(db: Session, item: Estoque, usuario: Usuario, origem: 
             html = html_lead_farmacia(f.nome, usuario.bairro, item.nome_medicamento,
                                       item.principio_ativo or "", item.miligramas or "",
                                       bool(item.manipulado))
-            enviar_email(f.email, f"DoseMed — Lead: {item.nome_medicamento} ({usuario.bairro})", html)
+            ok_lead, err_lead = enviar_email(f.email, f"DoseMed — Lead: {item.nome_medicamento} ({usuario.bairro})", html)
+            if not ok_lead:
+                logger.warning(f"Lead email falhou para {f.nome}: {err_lead}")
 
         enviados += 1
 
@@ -1505,7 +1509,7 @@ def cron_notificacoes_vencimento():
             # Notificação por e-mail ao usuário
             if u.email:
                 lista = [serializar_item(i) for i in itens_atencao]
-                ok = enviar_email(u.email, "DoseMed — Medicamentos com atenção no seu estoque", html_vencimento(u.nome, lista))
+                ok, _ = enviar_email(u.email, "DoseMed — Medicamentos com atenção no seu estoque", html_vencimento(u.nome, lista))
                 if ok:
                     emails_enviados += 1
 
