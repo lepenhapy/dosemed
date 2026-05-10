@@ -349,6 +349,7 @@ def gerar_codigo_recuperacao() -> str:
 
 def enviar_email(para: str, assunto: str, corpo_html: str):
     """Retorna (ok: bool, erro: str). erro é '' em caso de sucesso."""
+    import socket, ssl as _ssl
     host = os.getenv("SMTP_HOST", "").strip()
     port = int(os.getenv("SMTP_PORT", "587").strip() or "587")
     user = os.getenv("SMTP_USER", "").strip()
@@ -361,19 +362,33 @@ def enviar_email(para: str, assunto: str, corpo_html: str):
         logger.warning(msg)
         return False, msg
 
+    # Força IPv4 para evitar ENETUNREACH em hosts sem rota IPv6
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = assunto
-        msg["From"] = remetente
-        msg["To"] = para
-        msg.attach(MIMEText(corpo_html, "html", "utf-8"))
+        infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+        host_ip = infos[0][4][0]
+    except Exception as e:
+        return False, f"DNS falhou para {host}: {e}"
 
-        with smtplib.SMTP(host, port, timeout=15) as smtp:
-            smtp.ehlo()
-            smtp.starttls()
-            smtp.ehlo()
-            smtp.login(user, senha)
-            smtp.sendmail(user, para, msg.as_string())
+    try:
+        mensagem = MIMEMultipart("alternative")
+        mensagem["Subject"] = assunto
+        mensagem["From"] = remetente
+        mensagem["To"] = para
+        mensagem.attach(MIMEText(corpo_html, "html", "utf-8"))
+
+        ctx = _ssl.create_default_context()
+        if port == 465:
+            with smtplib.SMTP_SSL(host_ip, port, context=ctx, timeout=15) as smtp:
+                smtp.login(user, senha)
+                smtp.sendmail(user, para, mensagem.as_string())
+        else:
+            with smtplib.SMTP(host_ip, port, timeout=15) as smtp:
+                smtp.ehlo()
+                smtp.starttls(context=ctx)
+                smtp.ehlo()
+                smtp.login(user, senha)
+                smtp.sendmail(user, para, mensagem.as_string())
+
         logger.info(f"E-mail enviado para {para}: {assunto}")
         return True, ""
     except Exception as e:
