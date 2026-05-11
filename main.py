@@ -1813,21 +1813,30 @@ def gerar_leads_manual(telefone: str, db: Session = Depends(get_db)):
     tel = validar_telefone(telefone)
     if tel != ADMIN_PHONE:
         raise HTTPException(status_code=403, detail="Acesso restrito.")
-    hoje = date.today()
-    dias = int(get_config(db, "dias_aviso_vencimento", "30"))
-    limite = hoje + timedelta(days=dias)
-    usuarios = db.query(Usuario).all()
-    total = 0
-    for u in usuarios:
-        itens = db.query(Estoque).filter(
-            Estoque.usuario_id == u.telefone,
-            Estoque.status != "consumido",
-            Estoque.data_validade.isnot(None),
-            Estoque.data_validade <= limite
-        ).all()
-        for item in itens:
-            total += gerar_leads_para_item(db, item, u, origem="manual")
-    return {"leads_gerados": total}
+    try:
+        hoje = date.today()
+        dias = int(get_config(db, "dias_aviso_vencimento", "30"))
+        limite = hoje + timedelta(days=dias)
+        usuarios = db.query(Usuario).all()
+        total = 0
+        erros = []
+        for u in usuarios:
+            try:
+                itens = db.query(Estoque).filter(
+                    Estoque.usuario_id == u.telefone,
+                    Estoque.status != "consumido",
+                    Estoque.data_validade.isnot(None),
+                    Estoque.data_validade <= limite
+                ).all()
+                for item in itens:
+                    total += gerar_leads_para_item(db, item, u, origem="manual")
+            except Exception as ex:
+                erros.append(f"usuario {u.telefone}: {ex}")
+                db.rollback()
+        return {"leads_gerados": total, "erros": erros}
+    except Exception as ex:
+        import traceback
+        return JSONResponse(status_code=500, content={"detail": str(ex), "trace": traceback.format_exc()[-800:]})
 
 
 # --- Configurações (admin) ---
