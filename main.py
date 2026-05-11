@@ -347,6 +347,32 @@ def gerar_codigo_recuperacao() -> str:
     return str(random.randint(100000, 999999))
 
 
+def _enviar_via_brevo(para: str, assunto: str, corpo_html: str, api_key: str):
+    nome_env = os.getenv("BREVO_FROM_NAME", "DoseMed")
+    email_env = os.getenv("BREVO_FROM_EMAIL", os.getenv("SMTP_USER", ""))
+    if not email_env:
+        return False, "BREVO_FROM_EMAIL não configurado"
+    try:
+        r = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={"api-key": api_key, "Content-Type": "application/json"},
+            json={
+                "sender": {"name": nome_env, "email": email_env},
+                "to": [{"email": para}],
+                "subject": assunto,
+                "htmlContent": corpo_html,
+            },
+            timeout=15,
+        )
+        if r.ok:
+            logger.info(f"E-mail (Brevo) enviado para {para}: {assunto}")
+            return True, ""
+        return False, f"Brevo HTTP {r.status_code}: {r.text[:300]}"
+    except Exception as e:
+        logger.error(f"Brevo erro: {e}")
+        return False, str(e)
+
+
 def _enviar_via_resend(para: str, assunto: str, corpo_html: str, api_key: str):
     remetente = os.getenv("RESEND_FROM", os.getenv("SMTP_FROM", "DoseMed <noreply@dosemed.com.br>"))
     try:
@@ -411,7 +437,10 @@ def _enviar_via_smtp(para: str, assunto: str, corpo_html: str):
 
 
 def enviar_email(para: str, assunto: str, corpo_html: str):
-    """Retorna (ok: bool, erro: str). Usa Resend se RESEND_API_KEY estiver configurado, senão SMTP."""
+    """Retorna (ok: bool, erro: str). Prioridade: Brevo → Resend → SMTP."""
+    brevo_key = os.getenv("BREVO_API_KEY", "").strip()
+    if brevo_key:
+        return _enviar_via_brevo(para, assunto, corpo_html, brevo_key)
     resend_key = os.getenv("RESEND_API_KEY", "").strip()
     if resend_key:
         return _enviar_via_resend(para, assunto, corpo_html, resend_key)
