@@ -230,7 +230,7 @@ def asaas_criar_cliente(nome: str, email: str, cnpj: str = None):
         return None, f"CNPJ não informado para '{nome}'"
     payload = {"name": nome, "email": email, "cpfCnpj": re.sub(r"\D", "", cnpj)}
     try:
-        r = requests.post(_asaas_url("/customers"), json=payload, headers=_asaas_headers(), timeout=10)
+        r = requests.post(_asaas_url("/customers"), json=payload, headers=_asaas_headers(), timeout=30)
         if r.ok:
             return r.json().get("id"), ""
         erro = f"HTTP {r.status_code}: {r.text[:300]}"
@@ -255,7 +255,7 @@ def asaas_criar_assinatura(customer_id: str, valor: float, descricao: str) -> st
         "description": descricao,
     }
     try:
-        r = requests.post(_asaas_url("/subscriptions"), json=payload, headers=_asaas_headers(), timeout=10)
+        r = requests.post(_asaas_url("/subscriptions"), json=payload, headers=_asaas_headers(), timeout=30)
         if r.ok:
             return r.json().get("id")
     except Exception as e:
@@ -280,7 +280,7 @@ def asaas_criar_cobranca(customer_id: str, valor: float, descricao: str, vencime
         "description": descricao,
     }
     try:
-        r = requests.post(_asaas_url("/payments"), json=payload, headers=_asaas_headers(), timeout=10)
+        r = requests.post(_asaas_url("/payments"), json=payload, headers=_asaas_headers(), timeout=30)
         if r.ok:
             return r.json().get("id"), None
         erro = f"HTTP {r.status_code}: {r.text[:300]}"
@@ -295,7 +295,7 @@ def asaas_listar_cobrancas(customer_id: str) -> list:
     if not os.getenv("ASAAS_KEY") or not customer_id:
         return []
     try:
-        r = requests.get(_asaas_url(f"/payments?customer={customer_id}&limit=20"), headers=_asaas_headers(), timeout=10)
+        r = requests.get(_asaas_url(f"/payments?customer={customer_id}&limit=20"), headers=_asaas_headers(), timeout=30)
         if r.ok:
             return r.json().get("data", [])
     except Exception as e:
