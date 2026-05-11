@@ -347,8 +347,25 @@ def gerar_codigo_recuperacao() -> str:
     return str(random.randint(100000, 999999))
 
 
-def enviar_email(para: str, assunto: str, corpo_html: str):
-    """Retorna (ok: bool, erro: str). erro é '' em caso de sucesso."""
+def _enviar_via_resend(para: str, assunto: str, corpo_html: str, api_key: str):
+    remetente = os.getenv("RESEND_FROM", os.getenv("SMTP_FROM", "DoseMed <noreply@dosemed.com.br>"))
+    try:
+        r = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"from": remetente, "to": [para], "subject": assunto, "html": corpo_html},
+            timeout=15,
+        )
+        if r.ok:
+            logger.info(f"E-mail (Resend) enviado para {para}: {assunto}")
+            return True, ""
+        return False, f"Resend HTTP {r.status_code}: {r.text[:300]}"
+    except Exception as e:
+        logger.error(f"Resend erro: {e}")
+        return False, str(e)
+
+
+def _enviar_via_smtp(para: str, assunto: str, corpo_html: str):
     import socket, ssl as _ssl
     host = os.getenv("SMTP_HOST", "").strip()
     port = int(os.getenv("SMTP_PORT", "587").strip() or "587")
@@ -358,11 +375,8 @@ def enviar_email(para: str, assunto: str, corpo_html: str):
 
     _placeholder = {"seuemail@gmail.com", "suasenhadoapp"}
     if not host or not user or not senha or user in _placeholder or senha in _placeholder:
-        msg = f"SMTP não configurado (host={host!r} user={user!r})"
-        logger.warning(msg)
-        return False, msg
+        return False, f"SMTP não configurado (host={host!r} user={user!r})"
 
-    # Força IPv4 para evitar ENETUNREACH em hosts sem rota IPv6
     try:
         infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
         host_ip = infos[0][4][0]
@@ -389,11 +403,19 @@ def enviar_email(para: str, assunto: str, corpo_html: str):
                 smtp.login(user, senha)
                 smtp.sendmail(user, para, mensagem.as_string())
 
-        logger.info(f"E-mail enviado para {para}: {assunto}")
+        logger.info(f"E-mail (SMTP) enviado para {para}: {assunto}")
         return True, ""
     except Exception as e:
-        logger.error(f"Erro ao enviar e-mail para {para}: {e}")
+        logger.error(f"SMTP erro: {e}")
         return False, str(e)
+
+
+def enviar_email(para: str, assunto: str, corpo_html: str):
+    """Retorna (ok: bool, erro: str). Usa Resend se RESEND_API_KEY estiver configurado, senão SMTP."""
+    resend_key = os.getenv("RESEND_API_KEY", "").strip()
+    if resend_key:
+        return _enviar_via_resend(para, assunto, corpo_html, resend_key)
+    return _enviar_via_smtp(para, assunto, corpo_html)
 
 
 def html_recuperacao(nome: str, codigo: str) -> str:
