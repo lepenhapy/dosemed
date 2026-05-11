@@ -77,14 +77,46 @@ class Farmacia(Base):
     cnpj = Column(String, nullable=True)
     email = Column(String, nullable=False)
     telefone_contato = Column(String, nullable=True)
-    bairros = Column(String, nullable=True)          # bairros separados por vírgula
+    bairros = Column(String, nullable=True)
     plano = Column(String, default="lead")           # lead | basico | pro | manipulado
     ativo = Column(Integer, default=1)
     atende_manipulado = Column(Integer, default=0)
     asaas_customer_id = Column(String, nullable=True)
     asaas_subscription_id = Column(String, nullable=True)
+    pin = Column(String, nullable=True)
+    rating_total = Column(Float, default=0.0)
+    rating_count = Column(Integer, default=0)
     criado_em = Column(DateTime, default=datetime.utcnow)
     leads = relationship("Lead", back_populates="farmacia")
+    orcamento_respostas = relationship("OrcamentoResposta", back_populates="farmacia")
+
+
+class OrcamentoSolicitacao(Base):
+    __tablename__ = "orcamentos_solicitacoes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    usuario_id = Column(String, ForeignKey("usuarios.telefone"), nullable=False)
+    nome_med = Column(String, nullable=False)
+    quantidade_restante = Column(Integer, nullable=True)
+    status = Column(String, default="coletando")    # coletando | aguardando_usuario | fechado | cancelado | sem_resposta
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    expira_em = Column(DateTime, nullable=True)
+    respostas = relationship("OrcamentoResposta", back_populates="solicitacao")
+
+
+class OrcamentoResposta(Base):
+    __tablename__ = "orcamentos_respostas"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    solicitacao_id = Column(Integer, ForeignKey("orcamentos_solicitacoes.id"), nullable=False)
+    farmacia_id = Column(Integer, ForeignKey("farmacias.id"), nullable=False)
+    token = Column(String, unique=True, nullable=False)
+    preco = Column(Float, nullable=True)
+    prazo_entrega = Column(String, nullable=True)
+    formas_pagamento = Column(String, nullable=True)  # json: ["pix","cartao","dinheiro"]
+    status = Column(String, default="pendente")       # pendente | respondido | ganhou | perdeu | expirou
+    respondido_em = Column(DateTime, nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    solicitacao = relationship("OrcamentoSolicitacao", back_populates="respostas")
+    farmacia = relationship("Farmacia", back_populates="orcamento_respostas")
 
 
 class Lead(Base):

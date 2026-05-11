@@ -108,14 +108,16 @@
         class="text-xs text-blue-400 hover:text-blue-600 font-semibold px-2 py-1 rounded-lg border border-blue-200 hover:border-blue-400 transition">
         📲 Instalar
       </button>
-      <button x-show="isAdmin" @click="abaAtiva = abaAtiva === 'admin' ? 'estoque' : 'admin'"
+      <button x-show="isAdmin && !isFarmacia" @click="abaAtiva = abaAtiva === 'admin' ? 'estoque' : 'admin'"
         class="text-xs font-semibold px-2 py-1 rounded-lg transition"
         :class="abaAtiva === 'admin' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'">
         Admin
       </button>
-      <button @click="abrirEditarPerfil()" class="text-xs text-gray-400 hover:text-blue-500 transition">
+      <span x-show="isFarmacia" class="text-xs bg-green-100 text-green-700 font-semibold px-2 py-1 rounded-lg">Farmácia</span>
+      <button x-show="!isFarmacia" @click="abrirEditarPerfil()" class="text-xs text-gray-400 hover:text-blue-500 transition">
         <span x-text="usuario?.nome"></span> ✏️
       </button>
+      <span x-show="isFarmacia" class="text-xs text-gray-500 font-medium" x-text="usuario?.nome"></span>
       <button @click="sair()" class="text-xs text-gray-400 hover:text-gray-600 underline">Sair</button>
     </div>
   </div>
@@ -261,13 +263,32 @@
         <span x-text="carregando ? 'Salvando...' : 'Salvar'"></span>
       </button>
     </div>
+    <!-- Exclusão de conta — discreta -->
+    <div class="mt-6 border-t border-gray-100 pt-4">
+      <button @click="mostrarExcluirConta = !mostrarExcluirConta"
+        class="text-xs text-gray-300 hover:text-red-400 transition underline w-full text-center">
+        Excluir minha conta
+      </button>
+      <div x-show="mostrarExcluirConta" x-cloak class="mt-3 space-y-2 bg-red-50 rounded-xl p-4">
+        <p class="text-xs text-red-600 font-semibold">Ação irreversível</p>
+        <p class="text-xs text-gray-500 leading-relaxed">Todos os seus medicamentos, alarmes e histórico serão permanentemente removidos.</p>
+        <input x-model="pinExcluir" type="password" inputmode="numeric" maxlength="6" placeholder="Seu PIN"
+          class="w-full border border-red-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white" />
+        <input x-model="confirmarExcluir" type="text" placeholder="Digite: EXCLUIR"
+          class="w-full border border-red-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white" />
+        <button @click="excluirConta()" :disabled="confirmarExcluir !== 'EXCLUIR' || carregando"
+          class="w-full bg-red-600 text-white py-2 rounded-xl text-xs font-semibold hover:bg-red-700 disabled:opacity-30 transition">
+          <span x-text="carregando ? 'Excluindo...' : 'Excluir definitivamente'"></span>
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
 <main class="max-w-3xl mx-auto px-5 py-8 space-y-6">
 
   <!-- TELA DE ACESSO -->
-  <div x-show="!usuario && !mostrarCadastro && !mostrarDefinirPin" x-cloak>
+  <div x-show="!usuario && !mostrarCadastro && !mostrarDefinirPin && !mostrarEscolha && !mostrarCadastroFarmacia" x-cloak>
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
       <div class="bg-blue-50 rounded-xl px-4 py-3 mb-6 text-xs text-blue-700 leading-relaxed">
         <strong>O que é o DoseMed?</strong> Uma ferramenta para controlar os medicamentos que você tem em casa, acompanhar validades e consultar informações de referência sobre os remédios. Não é um serviço médico — sempre consulte seu médico ou farmacêutico.
@@ -351,6 +372,75 @@
       <button @click="pularPin()" class="mt-3 text-xs text-gray-300 hover:text-gray-400 underline w-full text-center">
         Pular por enquanto
       </button>
+      <p x-show="erroLogin" x-cloak class="text-red-400 text-xs mt-2" x-text="erroLogin"></p>
+    </div>
+  </div>
+
+  <!-- TELA DE ESCOLHA: paciente ou farmácia -->
+  <div x-show="mostrarEscolha" x-cloak>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+      <p class="text-xs text-blue-500 font-semibold uppercase tracking-wide mb-1">Primeiro acesso</p>
+      <h2 class="text-xl font-bold text-gray-800 mb-2">Como você quer usar o DoseMed?</h2>
+      <p class="text-gray-400 text-sm mb-6">Escolha seu perfil para continuar.</p>
+      <div class="grid grid-cols-2 gap-4">
+        <button @click="mostrarEscolha = false; mostrarCadastro = true"
+          class="flex flex-col items-center gap-3 border-2 border-blue-200 hover:border-blue-400 rounded-2xl p-6 transition text-center">
+          <span class="text-4xl">💊</span>
+          <span class="font-bold text-gray-800 text-sm">Sou paciente</span>
+          <span class="text-xs text-gray-400 leading-relaxed">Controlo meus remédios em casa</span>
+        </button>
+        <button @click="mostrarEscolha = false; mostrarCadastroFarmacia = true"
+          class="flex flex-col items-center gap-3 border-2 border-green-200 hover:border-green-400 rounded-2xl p-6 transition text-center">
+          <span class="text-4xl">🏥</span>
+          <span class="font-bold text-gray-800 text-sm">Sou farmácia</span>
+          <span class="text-xs text-gray-400 leading-relaxed">Quero receber leads de pacientes</span>
+        </button>
+      </div>
+      <button @click="mostrarEscolha = false" class="mt-4 text-xs text-gray-300 hover:text-gray-400 underline w-full text-center">
+        Voltar
+      </button>
+    </div>
+  </div>
+
+  <!-- TELA DE CADASTRO FARMÁCIA -->
+  <div x-show="mostrarCadastroFarmacia" x-cloak>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+      <p class="text-xs text-green-600 font-semibold uppercase tracking-wide mb-1">Cadastro de farmácia</p>
+      <h2 class="text-xl font-bold text-gray-800 mb-5">Cadastre sua farmácia</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Nome da farmácia *</label>
+          <input x-model="cadastroFarmacia.nome" type="text" placeholder="Farmácia Central"
+            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">E-mail *</label>
+          <input x-model="cadastroFarmacia.email" type="email" placeholder="contato@farmacia.com.br"
+            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">CNPJ <span class="text-gray-300 normal-case font-normal">(necessário para cobranças PIX)</span></label>
+          <input x-model="cadastroFarmacia.cnpj" type="text" placeholder="00.000.000/0001-00"
+            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Bairros atendidos <span class="text-gray-300 normal-case font-normal">(separados por vírgula — vazio = todos)</span></label>
+          <input x-model="cadastroFarmacia.bairros" type="text" placeholder="Centro, Jardim América, Setor Norte"
+            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+        </div>
+        <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+          <input type="checkbox" x-model="cadastroFarmacia.atende_manipulado" class="rounded" />
+          Atende manipulado
+        </label>
+      </div>
+      <div class="flex gap-2 mt-6">
+        <button @click="mostrarCadastroFarmacia = false; mostrarEscolha = true"
+          class="border border-gray-200 text-gray-400 py-3 px-5 rounded-xl text-sm hover:bg-gray-50">Voltar</button>
+        <button @click="registrarFarmacia()" :disabled="carregando"
+          class="flex-1 bg-green-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
+          <span x-text="carregando ? 'Cadastrando...' : 'Cadastrar farmácia'"></span>
+        </button>
+      </div>
       <p x-show="erroLogin" x-cloak class="text-red-400 text-xs mt-2" x-text="erroLogin"></p>
     </div>
   </div>
@@ -523,6 +613,52 @@
               <div x-show="adminDados.por_bairro?.length > 0">
                 <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Usuários por bairro</p>
                 <canvas id="chartBairro" height="100"></canvas>
+              </div>
+
+              <!-- Farmácias -->
+              <div x-show="adminDados.farmacias">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Farmácias parceiras</p>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                  <div class="bg-green-50 rounded-xl p-3 text-center">
+                    <p class="text-xl font-black text-green-600" x-text="adminDados.farmacias?.total ?? '—'"></p>
+                    <p class="text-xs text-gray-400">Total</p>
+                  </div>
+                  <div class="bg-emerald-50 rounded-xl p-3 text-center">
+                    <p class="text-xl font-black text-emerald-600" x-text="adminDados.farmacias?.ativas ?? '—'"></p>
+                    <p class="text-xs text-gray-400">Ativas</p>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <p class="text-xs text-gray-400 mb-1">Por plano</p>
+                    <template x-for="[plano, count] in Object.entries(adminDados.farmacias?.por_plano ?? {})" :key="plano">
+                      <div class="flex justify-between text-xs py-0.5">
+                        <span class="capitalize text-gray-600" x-text="plano"></span>
+                        <span class="font-semibold text-gray-800" x-text="count"></span>
+                      </div>
+                    </template>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-400 mb-1">Por origem</p>
+                    <template x-for="[origem, count] in Object.entries(adminDados.farmacias?.por_origem ?? {})" :key="origem">
+                      <div class="flex justify-between text-xs py-0.5">
+                        <span class="text-gray-600" x-text="origem === 'auto' ? 'Auto-cadastro' : 'Admin'"></span>
+                        <span class="font-semibold text-gray-800" x-text="count"></span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+                <div x-show="adminDados.farmacias?.bairros_cobertos?.length > 0">
+                  <p class="text-xs text-gray-400 mb-1">Bairros cobertos</p>
+                  <div class="flex flex-wrap gap-1">
+                    <template x-for="b in adminDados.farmacias?.bairros_cobertos" :key="b.bairro">
+                      <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                        <span x-text="b.bairro"></span>
+                        <span class="text-green-500" x-text="' (' + b.farmacias + ')'"></span>
+                      </span>
+                    </template>
+                  </div>
+                </div>
               </div>
             </div>
           </template>
@@ -750,8 +886,8 @@
         </div>
       </div>
 
-      <!-- ABAS DE NAVEGAÇÃO -->
-      <div x-show="abaAtiva !== 'admin'" class="grid grid-cols-5 gap-0.5 bg-white rounded-2xl border border-gray-100 shadow-sm p-1">
+      <!-- ABAS DE NAVEGAÇÃO (usuário) -->
+      <div x-show="abaAtiva !== 'admin' && !isFarmacia" class="grid grid-cols-5 gap-0.5 bg-white rounded-2xl border border-gray-100 shadow-sm p-1">
         <button @click="abaAtiva = 'pesquisar'; $nextTick(() => document.getElementById('inputPesquisa')?.focus())"
           class="py-1.5 text-xs font-semibold rounded-xl transition"
           :class="abaAtiva === 'pesquisar' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
@@ -1280,6 +1416,140 @@
           </template>
         </div>
       </div><!-- /painel histórico -->
+
+      <!-- PAINEL FARMÁCIA -->
+      <div x-show="abaAtiva === 'farmacia'" class="space-y-5">
+
+        <!-- Nav farmácia -->
+        <div class="flex gap-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-1">
+          <button @click="abaFarmacia = 'leads'" class="flex-1 py-1.5 text-xs font-semibold rounded-xl transition"
+            :class="abaFarmacia === 'leads' ? 'bg-green-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
+            Leads
+          </button>
+          <button @click="abaFarmacia = 'perfil'" class="flex-1 py-1.5 text-xs font-semibold rounded-xl transition"
+            :class="abaFarmacia === 'perfil' ? 'bg-green-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
+            Perfil
+          </button>
+          <button x-show="farmacia?.farmacia?.plano === 'pro' || farmacia?.farmacia?.plano === 'manipulado'"
+            @click="abaFarmacia = 'insights'; if (!farmaciaInsights) carregarFarmaciaInsights()"
+            class="flex-1 py-1.5 text-xs font-semibold rounded-xl transition"
+            :class="abaFarmacia === 'insights' ? 'bg-green-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
+            Insights
+          </button>
+        </div>
+
+        <!-- Resumo -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+            <p class="text-2xl font-black text-green-600" x-text="farmacia?.leads_total ?? '—'"></p>
+            <p class="text-xs text-gray-400 mt-1">Total de leads</p>
+          </div>
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+            <p class="text-2xl font-black text-blue-600" x-text="farmacia?.leads_mes ?? '—'"></p>
+            <p class="text-xs text-gray-400 mt-1">Este mês</p>
+          </div>
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+            <p class="text-2xl font-black text-amber-500" x-text="farmacia?.farmacia?.rating ? farmacia.farmacia.rating + '★' : '—'"></p>
+            <p class="text-xs text-gray-400 mt-1">Avaliação</p>
+          </div>
+        </div>
+
+        <!-- LEADS -->
+        <div x-show="abaFarmacia === 'leads'" class="space-y-3">
+          <div x-show="farmaciaCarregando" class="text-center py-8 text-gray-300 text-sm">Carregando leads...</div>
+          <div x-show="!farmaciaCarregando && (!farmacia?.leads_recentes || farmacia.leads_recentes.length === 0)"
+            class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-300 text-sm">
+            Nenhum lead nos últimos 30 dias.
+          </div>
+          <template x-for="lead in (farmacia?.leads_recentes || [])" :key="lead.id">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <p class="font-semibold text-gray-800 text-sm" x-text="lead.medicamento"></p>
+                  <p x-show="lead.principio_ativo" class="text-xs text-gray-400 mt-0.5" x-text="lead.principio_ativo + (lead.miligramas ? ' · ' + lead.miligramas : '')"></p>
+                  <p class="text-xs text-gray-400 mt-1">
+                    <span x-text="lead.bairro || 'Bairro não informado'"></span>
+                    <span x-show="lead.manipulado" class="ml-1 text-purple-500 font-semibold">· Manipulado</span>
+                  </p>
+                </div>
+                <div class="text-right shrink-0">
+                  <span class="text-xs px-2 py-1 rounded-lg font-semibold"
+                    :class="lead.status === 'enviado' ? 'bg-blue-50 text-blue-600' : lead.status === 'convertido' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'"
+                    x-text="lead.status"></span>
+                  <p class="text-xs text-gray-300 mt-1" x-text="formatarData(lead.criado_em)"></p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- PERFIL -->
+        <div x-show="abaFarmacia === 'perfil'" class="space-y-4">
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Nome</p>
+              <p class="text-sm text-gray-800" x-text="farmacia?.farmacia?.nome"></p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Plano</p>
+              <p class="text-sm text-gray-800 capitalize" x-text="farmacia?.farmacia?.plano"></p>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Bairros atendidos <span class="normal-case font-normal text-gray-300">(separados por vírgula — vazio = todos)</span></label>
+              <input x-model="farmaciaEditBairros" type="text" placeholder="Centro, Jardim América..."
+                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+              <input type="checkbox" x-model="farmaciaEditManipulado" class="rounded" />
+              Atende manipulado
+            </label>
+            <button @click="salvarPerfilFarmacia()" :disabled="carregando"
+              class="w-full bg-green-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-40">
+              <span x-text="carregando ? 'Salvando...' : 'Salvar perfil'"></span>
+            </button>
+            <p x-show="farmaciaPerfilMsg" class="text-xs text-green-600 text-center" x-text="farmaciaPerfilMsg"></p>
+            <!-- Exclusão de conta farmácia — discreta -->
+            <div class="border-t border-gray-100 pt-4 mt-2">
+              <button @click="mostrarExcluirConta = !mostrarExcluirConta"
+                class="text-xs text-gray-300 hover:text-red-400 transition underline w-full text-center">
+                Excluir conta da farmácia
+              </button>
+              <div x-show="mostrarExcluirConta" x-cloak class="mt-3 space-y-2 bg-red-50 rounded-xl p-4">
+                <p class="text-xs text-red-600 font-semibold">Ação irreversível</p>
+                <p class="text-xs text-gray-500 leading-relaxed">O cadastro, todos os leads e dados da farmácia serão permanentemente removidos.</p>
+                <input x-model="pinExcluir" type="password" inputmode="numeric" maxlength="6" placeholder="Seu PIN"
+                  class="w-full border border-red-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white" />
+                <input x-model="confirmarExcluir" type="text" placeholder="Digite: EXCLUIR"
+                  class="w-full border border-red-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white" />
+                <button @click="excluirContaFarmacia()" :disabled="confirmarExcluir !== 'EXCLUIR' || carregando"
+                  class="w-full bg-red-600 text-white py-2 rounded-xl text-xs font-semibold hover:bg-red-700 disabled:opacity-30 transition">
+                  <span x-text="carregando ? 'Excluindo...' : 'Excluir definitivamente'"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- INSIGHTS -->
+        <div x-show="abaFarmacia === 'insights'" class="space-y-3">
+          <div x-show="!farmaciaInsights" class="text-center py-8 text-gray-300 text-sm">Carregando insights...</div>
+          <template x-if="farmaciaInsights">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Medicamentos mais buscados na sua região</p>
+              <div class="space-y-2">
+                <template x-for="(item, i) in (farmaciaInsights.top_medicamentos || [])" :key="i">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-700 capitalize" x-text="item.termo"></span>
+                    <span class="text-xs text-gray-400" x-text="item.buscas + ' buscas'"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+
+      </div><!-- /painel farmácia -->
+
     </div>
   </template>
 
@@ -1321,6 +1591,13 @@ function dosemed() {
     insightFiltros: { bairro: true, termo: true, tipo: true, ticket: true, periodo: true },
     adminFarmacias: null, adminLeads: null, adminPrecos: null,
     modalFarmacia: null,
+    // farmácia
+    isFarmacia: false, farmacia: null, farmaciaCarregando: false,
+    abaFarmacia: 'leads', farmaciaInsights: null,
+    farmaciaEditBairros: '', farmaciaEditManipulado: false, farmaciaPerfilMsg: '',
+    mostrarEscolha: false, mostrarCadastroFarmacia: false,
+    cadastroFarmacia: { nome: '', email: '', cnpj: '', bairros: '', atende_manipulado: false },
+    mostrarExcluirConta: false, confirmarExcluir: '', pinExcluir: '',
     // disclaimer
     disclaimerFechado: false,
     // histórico
@@ -1442,7 +1719,23 @@ function dosemed() {
       this.carregando = true;
       try {
         const r = await fetch(`/usuario/${encodeURIComponent(tel)}`);
-        if (r.status === 404) { this.mostrarCadastro = true; this.carregando = false; return; }
+        if (r.status === 404) {
+          // Verifica se é farmácia antes de mostrar cadastro
+          const rf = await fetch(`/farmacia/verificar-telefone?telefone=${encodeURIComponent(tel)}`);
+          if (rf.ok) {
+            const fd = await rf.json();
+            this.telefoneAtual = tel;
+            this.isFarmacia = true;
+            if (fd.tem_pin) {
+              this.mostrarPin = true;
+            } else {
+              await this.buscarDashboardFarmacia();
+              this.mostrarDefinirPin = true;
+            }
+            this.carregando = false; return;
+          }
+          this.mostrarEscolha = true; this.carregando = false; return;
+        }
         if (!r.ok) { this.erroLogin = 'Erro ao acessar.'; this.carregando = false; return; }
         const data = await r.json();
         this.telefoneAtual = tel;
@@ -1471,8 +1764,13 @@ function dosemed() {
           body: JSON.stringify({ telefone: this.telefoneAtual, pin })
         });
         if (!r.ok) { this.erroLogin = 'PIN incorreto.'; this.pinInput = ''; this.carregando = false; return; }
+        const data = await r.json();
         this.mostrarPin = false;
-        await this.buscarDashboard();
+        if (data.tipo === 'farmacia') {
+          await this.buscarDashboardFarmacia();
+        } else {
+          await this.buscarDashboard();
+        }
       } catch { this.erroLogin = 'Erro de conexão.'; }
       this.carregando = false;
     },
@@ -1483,7 +1781,8 @@ function dosemed() {
       if (pin.length < 4) { this.erroLogin = 'PIN deve ter ao menos 4 dígitos.'; return; }
       this.carregando = true;
       try {
-        await fetch('/auth/definir-pin', {
+        const url = this.isFarmacia ? '/auth/farmacia/definir-pin' : '/auth/definir-pin';
+        await fetch(url, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ telefone: this.telefoneAtual, pin })
         });
@@ -1518,6 +1817,34 @@ function dosemed() {
       this.carregando = false;
     },
 
+    async registrarFarmacia() {
+      this.erroLogin = '';
+      if (!this.cadastroFarmacia.nome.trim()) { this.erroLogin = 'Informe o nome da farmácia.'; return; }
+      if (!this.cadastroFarmacia.email.trim()) { this.erroLogin = 'Informe o e-mail.'; return; }
+      this.carregando = true;
+      try {
+        const r = await fetch('/farmacia/cadastro', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telefone: this.telefoneInput.trim(),
+            nome: this.cadastroFarmacia.nome,
+            email: this.cadastroFarmacia.email,
+            cnpj: this.cadastroFarmacia.cnpj || null,
+            bairros: this.cadastroFarmacia.bairros || null,
+            atende_manipulado: this.cadastroFarmacia.atende_manipulado ? 1 : 0,
+          })
+        });
+        const d = await r.json();
+        if (!r.ok) { this.erroLogin = d.detail || 'Erro ao cadastrar.'; this.carregando = false; return; }
+        this.telefoneAtual = this.telefoneInput.trim();
+        this.isFarmacia = true;
+        this.mostrarCadastroFarmacia = false;
+        await this.buscarDashboardFarmacia();
+        this.mostrarDefinirPin = true;
+      } catch { this.erroLogin = 'Erro de conexão.'; }
+      this.carregando = false;
+    },
+
     async buscarDashboard() {
       this.carregando = true;
       try {
@@ -1530,6 +1857,76 @@ function dosemed() {
         this.prejuizoAcumulado = data.prejuizo_acumulado;
         this.valorEmRisco = data.valor_em_risco;
       } catch {}
+      this.carregando = false;
+    },
+
+    async buscarDashboardFarmacia() {
+      this.farmaciaCarregando = true;
+      try {
+        const r = await fetch(`/farmacia/dashboard?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (!r.ok) { this.farmaciaCarregando = false; return; }
+        const data = await r.json();
+        this.farmacia = data;
+        this.isFarmacia = true;
+        this.usuario = { nome: data.farmacia.nome, is_admin: false };
+        this.farmaciaEditBairros = data.farmacia.bairros || '';
+        this.farmaciaEditManipulado = !!data.farmacia.atende_manipulado;
+        this.abaAtiva = 'farmacia';
+      } catch {}
+      this.farmaciaCarregando = false;
+    },
+
+    async salvarPerfilFarmacia() {
+      this.carregando = true; this.farmaciaPerfilMsg = '';
+      try {
+        const r = await fetch(`/farmacia/perfil?telefone=${encodeURIComponent(this.telefoneAtual)}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bairros: this.farmaciaEditBairros, atende_manipulado: this.farmaciaEditManipulado ? 1 : 0 })
+        });
+        if (r.ok) {
+          this.farmaciaPerfilMsg = 'Perfil atualizado!';
+          await this.buscarDashboardFarmacia();
+        }
+      } catch {}
+      this.carregando = false;
+    },
+
+    async carregarFarmaciaInsights() {
+      try {
+        const r = await fetch(`/farmacia/insights?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) this.farmaciaInsights = await r.json();
+      } catch {}
+    },
+
+    async excluirConta() {
+      if (this.confirmarExcluir !== 'EXCLUIR') return;
+      this.carregando = true;
+      try {
+        const r = await fetch(`/usuario/${encodeURIComponent(this.telefoneAtual)}`, {
+          method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: this.pinExcluir, confirmacao: 'EXCLUIR' })
+        });
+        const d = await r.json();
+        if (!r.ok) { alert(d.detail || 'Erro ao excluir.'); this.carregando = false; return; }
+        alert('Conta excluída. Até mais!');
+        this.sair();
+      } catch { alert('Erro de conexão.'); }
+      this.carregando = false;
+    },
+
+    async excluirContaFarmacia() {
+      if (this.confirmarExcluir !== 'EXCLUIR') return;
+      this.carregando = true;
+      try {
+        const r = await fetch(`/farmacia/conta?telefone=${encodeURIComponent(this.telefoneAtual)}`, {
+          method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: this.pinExcluir, confirmacao: 'EXCLUIR' })
+        });
+        const d = await r.json();
+        if (!r.ok) { alert(d.detail || 'Erro ao excluir.'); this.carregando = false; return; }
+        alert('Conta da farmácia excluída. Até mais!');
+        this.sair();
+      } catch { alert('Erro de conexão.'); }
       this.carregando = false;
     },
 
@@ -2191,6 +2588,11 @@ function dosemed() {
       this.mostrarLGPD = false; this.lgpdAceito = false;
       this.historicoDados = null; this.historicoCarregando = false;
       this.alarmes = null; this.novoAlarme = null;
+      this.isFarmacia = false; this.farmacia = null; this.farmaciaInsights = null;
+      this.farmaciaEditBairros = ''; this.farmaciaEditManipulado = false; this.farmaciaPerfilMsg = '';
+      this.mostrarEscolha = false; this.mostrarCadastroFarmacia = false;
+      this.cadastroFarmacia = { nome: '', email: '', cnpj: '', bairros: '', atende_manipulado: false };
+      this.mostrarExcluirConta = false; this.confirmarExcluir = ''; this.pinExcluir = '';
     }
   }
 }

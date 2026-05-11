@@ -47,7 +47,7 @@ from PIL import Image
 from dotenv import load_dotenv
 
 load_dotenv()
-from models import Base, Usuario, Estoque, Pedido, CodigoRecuperacao, LogBusca, Farmacia, Lead, Configuracao, PushSub, AlarmeRemedio
+from models import Base, Usuario, Estoque, Pedido, CodigoRecuperacao, LogBusca, Farmacia, Lead, Configuracao, PushSub, AlarmeRemedio, OrcamentoSolicitacao, OrcamentoResposta
 
 # --- Logging ---
 _log_handlers = [logging.StreamHandler()]
@@ -103,6 +103,10 @@ _migracoes = {
         "asaas_customer_id TEXT",
         "asaas_subscription_id TEXT",
         "criado_em TIMESTAMP",
+        "pin TEXT",
+        "rating_total REAL DEFAULT 0",
+        "rating_count INTEGER DEFAULT 0",
+        "origem TEXT DEFAULT 'admin'",
     ],
     "alarmes": [],
     "push_subs": [],
@@ -123,7 +127,8 @@ with engine.connect() as conn:
 # Corrige sequences PostgreSQL desincronizados (ocorre após migração de dados)
 if not DATABASE_URL.startswith("sqlite"):
     _tabelas_seq = ["estoque", "pedidos", "codigos_recuperacao", "log_buscas",
-                    "farmacias", "leads", "push_subs", "alarmes"]
+                    "farmacias", "leads", "push_subs", "alarmes",
+                    "orcamentos_solicitacoes", "orcamentos_respostas"]
     with engine.connect() as conn:
         for _t in _tabelas_seq:
             try:
@@ -144,6 +149,9 @@ _CONFIG_DEFAULT = {
     "preco_plano_manipulado":("699.00","Assinatura mensal plano manipulação (R$/mês)"),
     "dias_aviso_vencimento": ("30",    "Dias antes do vencimento para gerar lead"),
     "asaas_env":             ("sandbox","Ambiente Asaas: sandbox | production"),
+    "dias_alerta_reposicao": ("5",     "Dias restantes para disparar alerta de reposição de remédio"),
+    "minutos_disputa_lead":  ("30",    "Minutos que farmácias têm para responder um orçamento"),
+    "max_farmacias_orcamento":("4",    "Máximo de farmácias notificadas por orçamento"),
 }
 with SessionLocal() as _sess:
     for chave, (valor, descricao) in _CONFIG_DEFAULT.items():
@@ -308,6 +316,16 @@ limiter = Limiter(key_func=get_remote_address, default_limits=[])
 app = FastAPI(title="DoseMed API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=()"
+    return response
 
 # --- Bulas ---
 _BULAS_PATH = os.path.join(os.path.dirname(__file__), "bulas.json")
@@ -542,6 +560,19 @@ def calcular_status(data_validade: Optional[date]) -> str:
     return "ok"
 
 
+def calcular_doses_por_dia(db: Session, usuario_id: str, nome_med: str) -> Optional[float]:
+    """Doses/dia estimadas pelos alarmes ativos do usuário para o medicamento."""
+    alarmes = db.query(AlarmeRemedio).filter(
+        AlarmeRemedio.usuario_id == usuario_id,
+        AlarmeRemedio.nome_med.ilike(f"%{nome_med.split()[0]}%"),
+        AlarmeRemedio.ativo == 1
+    ).all()
+    if not alarmes:
+        return None
+    total = sum(len([d for d in a.dias.split(",") if d.strip()]) for a in alarmes)
+    return round(total / 7, 2)
+
+
 def atualizar_status_estoque(db: Session, usuario_id: str):
     itens = db.query(Estoque).filter(
         Estoque.usuario_id == usuario_id,
@@ -719,6 +750,11 @@ class EnriquecerPayload(BaseModel):
     usuario_id: Optional[str] = None
 
 
+class ExcluirContaPayload(BaseModel):
+    pin: str
+    confirmacao: str   # deve ser exatamente "EXCLUIR"
+
+
 class ConfirmarChegadaPayload(BaseModel):
     pedido_id: int
     validade: Optional[str] = None
@@ -737,6 +773,25 @@ class AlarmePayload(BaseModel):
     horario: str          # "HH:MM"
     dias: Optional[str] = "1,2,3,4,5,6,7"
     ativo: Optional[int] = 1
+
+
+class FarmaciaSetPinPayload(BaseModel):
+    telefone: str
+    pin: str
+
+
+class FarmaciaPerfilPayload(BaseModel):
+    bairros: Optional[str] = None
+    atende_manipulado: Optional[int] = None
+
+
+class FarmaciaCadastroPayload(BaseModel):
+    telefone: str
+    nome: str
+    email: str
+    cnpj: Optional[str] = None
+    bairros: Optional[str] = None
+    atende_manipulado: Optional[int] = 0
 
 
 # --- Rotas ---
@@ -840,6 +895,41 @@ def editar_usuario(telefone: str, payload: EditarUsuarioPayload, db: Session = D
     return {"mensagem": "Perfil atualizado com sucesso."}
 
 
+@app.delete("/usuario/{telefone}")
+def excluir_usuario(telefone: str, payload: ExcluirContaPayload, db: Session = Depends(get_db)):
+    """Exclusão definitiva da conta do usuário e todos os seus dados (LGPD art. 18)."""
+    telefone = validar_telefone(telefone)
+    if payload.confirmacao != "EXCLUIR":
+        raise HTTPException(status_code=400, detail="Confirmação inválida. Digite exatamente: EXCLUIR")
+
+    usuario = db.query(Usuario).filter(Usuario.telefone == telefone).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    pin = re.sub(r"\D", "", payload.pin)
+    if usuario.pin and hash_pin(pin, telefone) != usuario.pin:
+        raise HTTPException(status_code=401, detail="PIN incorreto.")
+
+    # Anonimiza buscas (mantém estatísticas sem PII)
+    db.query(LogBusca).filter(LogBusca.usuario_id == telefone).update({"usuario_id": None})
+
+    # Cascata de deleção
+    sols = db.query(OrcamentoSolicitacao).filter(OrcamentoSolicitacao.usuario_id == telefone).all()
+    for sol in sols:
+        db.query(OrcamentoResposta).filter(OrcamentoResposta.solicitacao_id == sol.id).delete()
+    db.query(OrcamentoSolicitacao).filter(OrcamentoSolicitacao.usuario_id == telefone).delete()
+    db.query(PushSub).filter(PushSub.usuario_id == telefone).delete()
+    db.query(AlarmeRemedio).filter(AlarmeRemedio.usuario_id == telefone).delete()
+    db.query(Estoque).filter(Estoque.usuario_id == telefone).delete()
+    db.query(Pedido).filter(Pedido.usuario_id == telefone).delete()
+    db.query(CodigoRecuperacao).filter(CodigoRecuperacao.telefone == telefone).delete()
+    db.delete(usuario)
+    db.commit()
+
+    logger.info(f"Conta excluída (LGPD): {telefone}")
+    return {"ok": True, "mensagem": "Conta excluída com sucesso. Todos os seus dados foram removidos."}
+
+
 # --- PIN ---
 
 @app.post("/auth/definir-pin")
@@ -857,21 +947,35 @@ def definir_pin(payload: PinPayload, db: Session = Depends(get_db)):
 
 
 @app.post("/auth/verificar-pin")
-def verificar_pin(payload: PinPayload, db: Session = Depends(get_db)):
-    telefone = validar_telefone(payload.telefone)
+@limiter.limit("5/minute")
+async def verificar_pin(request: Request, payload: PinPayload, db: Session = Depends(get_db)):
+    digitos = re.sub(r"\D", "", payload.telefone)
     pin = re.sub(r"\D", "", payload.pin)
+
+    # Farmácia? Detecta pelo telefone_contato antes do fluxo de usuário
+    farmacia = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
+    if farmacia:
+        if farmacia.pin and hash_pin(pin, digitos) != farmacia.pin:
+            raise HTTPException(status_code=401, detail="PIN incorreto.")
+        return {
+            "ok": True, "tipo": "farmacia",
+            "farmacia_id": farmacia.id, "farmacia_nome": farmacia.nome,
+        }
+
+    telefone = validar_telefone(payload.telefone)
     usuario = db.query(Usuario).filter(Usuario.telefone == telefone).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
     if not usuario.pin:
-        return {"ok": True, "mensagem": "Sem PIN definido."}
+        return {"ok": True, "tipo": "usuario", "mensagem": "Sem PIN definido."}
     if hash_pin(pin, telefone) != usuario.pin:
         raise HTTPException(status_code=401, detail="PIN incorreto.")
-    return {"ok": True, "mensagem": "PIN verificado."}
+    return {"ok": True, "tipo": "usuario", "mensagem": "PIN verificado."}
 
 
 @app.post("/auth/recuperar-pin")
-def recuperar_pin(payload: RecuperarPinPayload, db: Session = Depends(get_db)):
+@limiter.limit("3/hour")
+async def recuperar_pin(request: Request, payload: RecuperarPinPayload, db: Session = Depends(get_db)):
     telefone = validar_telefone(payload.telefone)
     usuario = db.query(Usuario).filter(Usuario.telefone == telefone).first()
     if not usuario:
@@ -1430,6 +1534,21 @@ def admin_relatorios(telefone: str, db: Session = Depends(get_db)):
     por_bairro = [{"bairro": b, "count": c}
                   for b, c in sorted(bairro_cnt.items(), key=lambda x: -x[1])]
 
+    # Farmácias por plano, bairro e origem
+    farmacias_todas = db.query(Farmacia).all()
+    farm_por_plano: dict[str, int] = {}
+    farm_por_origem: dict[str, int] = {}
+    farm_bairros: dict[str, int] = {}
+    for f in farmacias_todas:
+        farm_por_plano[f.plano or "lead"] = farm_por_plano.get(f.plano or "lead", 0) + 1
+        org = getattr(f, "origem", "admin") or "admin"
+        farm_por_origem[org] = farm_por_origem.get(org, 0) + 1
+        for b in (f.bairros or "").split(","):
+            b = b.strip()
+            if b:
+                farm_bairros[b] = farm_bairros.get(b, 0) + 1
+    farm_bairros_list = sorted(farm_bairros.items(), key=lambda x: -x[1])
+
     return {
         "total_buscas": len(logs),
         "usuarios_unicos_buscas": usuarios_unicos,
@@ -1442,6 +1561,13 @@ def admin_relatorios(telefone: str, db: Session = Depends(get_db)):
         "top_estados": [{"estado": e, "count": c} for e, c in top_estados],
         "por_dia": [{"data": d, "count": c} for d, c in sorted(por_dia.items())],
         "por_bairro": por_bairro,
+        "farmacias": {
+            "total": len(farmacias_todas),
+            "ativas": sum(1 for f in farmacias_todas if f.ativo),
+            "por_plano": farm_por_plano,
+            "por_origem": farm_por_origem,
+            "bairros_cobertos": [{"bairro": b, "farmacias": c} for b, c in farm_bairros_list],
+        },
     }
 
 
@@ -1638,12 +1764,49 @@ def cron_disparar_alarmes():
         db.close()
 
 
+def cron_verificar_estoque_baixo():
+    """Notifica via push usuários cujo estoque (em uso) está prestes a acabar."""
+    db = SessionLocal()
+    try:
+        dias_alerta = int(get_config(db, "dias_alerta_reposicao", "5"))
+        itens = db.query(Estoque).filter(
+            Estoque.iniciado == 1,
+            Estoque.status != "consumido"
+        ).all()
+        notificados = 0
+        for item in itens:
+            doses = calcular_doses_por_dia(db, item.usuario_id, item.nome_medicamento)
+            if not doses or doses <= 0:
+                continue
+            dias_restantes = (item.quantidade or 1) / doses
+            if dias_restantes > dias_alerta:
+                continue
+            subs = db.query(PushSub).filter(PushSub.usuario_id == item.usuario_id).all()
+            if not subs:
+                continue
+            usuario = db.query(Usuario).filter(Usuario.telefone == item.usuario_id).first()
+            nome = usuario.nome.split()[0] if usuario else "você"
+            for sub in subs:
+                if enviar_push(sub, "💊 Estoque baixo!",
+                               f"{nome}, {item.nome_medicamento} está acabando "
+                               f"(≈{max(1, int(dias_restantes))} dia(s)). Deseja reabastecer?"):
+                    notificados += 1
+        if notificados:
+            logger.info(f"[ESTOQUE BAIXO] {notificados} notificações push enviadas")
+    except Exception as e:
+        logger.error(f"[ESTOQUE BAIXO] Erro: {e}")
+    finally:
+        db.close()
+
+
 if SCHEDULER_OK:
     _scheduler = BackgroundScheduler(daemon=True)
     _scheduler.add_job(cron_notificacoes_vencimento, CronTrigger(hour=8, minute=0),
                        id="vencimentos", replace_existing=True, max_instances=1, coalesce=True)
     _scheduler.add_job(cron_disparar_alarmes, CronTrigger(minute="*"),
                        id="alarmes", replace_existing=True, max_instances=1, coalesce=True)
+    _scheduler.add_job(cron_verificar_estoque_baixo, CronTrigger(hour=9, minute=0),
+                       id="estoque_baixo", replace_existing=True, max_instances=1, coalesce=True)
 else:
     _scheduler = None
 
@@ -1688,6 +1851,7 @@ def serializar_farmacia(f: Farmacia, db: Session) -> dict:
         "plano": f.plano, "ativo": bool(f.ativo), "atende_manipulado": bool(f.atende_manipulado),
         "asaas_customer_id": f.asaas_customer_id, "asaas_subscription_id": f.asaas_subscription_id,
         "total_leads": total_leads, "leads_mes": leads_mes,
+        "origem": getattr(f, "origem", "admin") or "admin",
         "criado_em": str(f.criado_em.date()) if f.criado_em else None,
     }
 
@@ -1856,6 +2020,48 @@ def gerar_leads_manual(telefone: str, db: Session = Depends(get_db)):
 
 # --- Configurações (admin) ---
 
+@app.post("/admin/reset-pin")
+def admin_reset_pin(telefone: str, telefone_alvo: str, db: Session = Depends(get_db)):
+    """Admin: zera o PIN de um usuário para que ele possa entrar e redefinir."""
+    tel = validar_telefone(telefone)
+    if tel != ADMIN_PHONE:
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    alvo = validar_telefone(telefone_alvo)
+    usuario = db.query(Usuario).filter(Usuario.telefone == alvo).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    usuario.pin = None
+    db.commit()
+    logger.info(f"[ADMIN] PIN zerado para {alvo} por {tel}")
+    return {"ok": True, "mensagem": f"PIN de {usuario.nome} zerado. Ele pode entrar sem PIN e definir um novo."}
+
+
+@app.delete("/admin/usuario/{telefone_alvo}")
+def admin_excluir_usuario(telefone_alvo: str, telefone: str, db: Session = Depends(get_db)):
+    """Admin: exclui qualquer usuário e todos os seus dados."""
+    tel = validar_telefone(telefone)
+    if tel != ADMIN_PHONE:
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    alvo = validar_telefone(telefone_alvo)
+    usuario = db.query(Usuario).filter(Usuario.telefone == alvo).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    db.query(LogBusca).filter(LogBusca.usuario_id == alvo).update({"usuario_id": None})
+    sols = db.query(OrcamentoSolicitacao).filter(OrcamentoSolicitacao.usuario_id == alvo).all()
+    for sol in sols:
+        db.query(OrcamentoResposta).filter(OrcamentoResposta.solicitacao_id == sol.id).delete()
+    db.query(OrcamentoSolicitacao).filter(OrcamentoSolicitacao.usuario_id == alvo).delete()
+    db.query(PushSub).filter(PushSub.usuario_id == alvo).delete()
+    db.query(AlarmeRemedio).filter(AlarmeRemedio.usuario_id == alvo).delete()
+    db.query(Estoque).filter(Estoque.usuario_id == alvo).delete()
+    db.query(Pedido).filter(Pedido.usuario_id == alvo).delete()
+    db.query(CodigoRecuperacao).filter(CodigoRecuperacao.telefone == alvo).delete()
+    db.delete(usuario)
+    db.commit()
+    logger.info(f"[ADMIN] Usuário {alvo} excluído por {tel}")
+    return {"ok": True, "mensagem": f"Usuário {alvo} excluído com sucesso."}
+
+
 @app.get("/admin/configuracoes")
 def listar_configuracoes(telefone: str, db: Session = Depends(get_db)):
     tel = validar_telefone(telefone)
@@ -1992,6 +2198,204 @@ def excluir_alarme(alarme_id: int, db: Session = Depends(get_db)):
     db.delete(a)
     db.commit()
     return {"ok": True}
+
+
+# --- Farmácia Portal ---
+
+@app.post("/farmacia/cadastro")
+@limiter.limit("10/hour")
+async def farmacia_auto_cadastro(request: Request, payload: FarmaciaCadastroPayload, db: Session = Depends(get_db)):
+    """Auto-cadastro público de farmácia. Inicia como plano lead, aguarda ativação admin."""
+    digitos = re.sub(r"\D", "", payload.telefone)
+    if not (10 <= len(digitos) <= 11):
+        raise HTTPException(status_code=400, detail="Telefone inválido. Informe DDD + número.")
+    if not validar_email(payload.email.strip()):
+        raise HTTPException(status_code=400, detail="E-mail inválido.")
+    # Garante que o telefone não está em uso
+    if db.query(Usuario).filter(Usuario.telefone == digitos).first():
+        raise HTTPException(status_code=409, detail="Telefone já cadastrado como paciente.")
+    if db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first():
+        raise HTTPException(status_code=409, detail="Farmácia já cadastrada com este telefone.")
+    f = Farmacia(
+        nome=sanitizar(payload.nome),
+        email=payload.email.strip().lower(),
+        cnpj=payload.cnpj,
+        telefone_contato=digitos,
+        bairros=payload.bairros,
+        atende_manipulado=payload.atende_manipulado or 0,
+        plano="lead",
+        ativo=1,
+    )
+    # origem via setattr pois a coluna pode ser nova (migração)
+    try:
+        f.origem = "auto"
+    except Exception:
+        pass
+    db.add(f)
+    db.commit()
+    logger.info(f"Nova farmácia auto-cadastrada: {f.nome} ({digitos})")
+    return {"ok": True, "farmacia_id": f.id, "mensagem": "Farmácia cadastrada! Defina seu PIN para acessar o painel."}
+
+
+@app.get("/farmacia/verificar-telefone")
+def farmacia_verificar_telefone(telefone: str, db: Session = Depends(get_db)):
+    digitos = re.sub(r"\D", "", telefone)
+    f = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
+    if not f:
+        raise HTTPException(status_code=404, detail="Farmácia não encontrada com este telefone.")
+    return {"tipo": "farmacia", "tem_pin": bool(f.pin), "farmacia_nome": f.nome, "farmacia_id": f.id}
+
+
+@app.post("/auth/farmacia/definir-pin")
+def farmacia_definir_pin(payload: FarmaciaSetPinPayload, db: Session = Depends(get_db)):
+    digitos = re.sub(r"\D", "", payload.telefone)
+    f = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
+    if not f:
+        raise HTTPException(status_code=404, detail="Farmácia não encontrada com este telefone.")
+    pin = re.sub(r"\D", "", payload.pin)
+    if not (4 <= len(pin) <= 6):
+        raise HTTPException(status_code=400, detail="PIN deve ter 4 a 6 dígitos.")
+    f.pin = hash_pin(pin, digitos)
+    db.commit()
+    return {"ok": True, "mensagem": "PIN da farmácia definido."}
+
+
+@app.get("/farmacia/dashboard")
+def farmacia_dashboard(telefone: str, db: Session = Depends(get_db)):
+    digitos = re.sub(r"\D", "", telefone)
+    f = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
+    if not f:
+        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+
+    cutoff_30d = datetime.utcnow() - timedelta(days=30)
+    leads_recentes = db.query(Lead).filter(
+        Lead.farmacia_id == f.id,
+        Lead.criado_em >= cutoff_30d
+    ).order_by(Lead.criado_em.desc()).all()
+
+    inicio_mes = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0)
+    leads_mes = db.query(Lead).filter(
+        Lead.farmacia_id == f.id,
+        Lead.criado_em >= inicio_mes
+    ).count()
+
+    total_leads = db.query(Lead).filter(Lead.farmacia_id == f.id).count()
+    rating = round(f.rating_total / f.rating_count, 1) if f.rating_count else None
+
+    return {
+        "farmacia": {
+            "id": f.id, "nome": f.nome, "email": f.email,
+            "telefone_contato": f.telefone_contato, "bairros": f.bairros,
+            "plano": f.plano, "ativo": bool(f.ativo),
+            "atende_manipulado": bool(f.atende_manipulado),
+            "rating": rating, "rating_count": f.rating_count,
+        },
+        "leads_total": total_leads,
+        "leads_mes": leads_mes,
+        "leads_recentes": [{
+            "id": l.id, "bairro": l.usuario_bairro, "medicamento": l.medicamento,
+            "principio_ativo": l.principio_ativo, "miligramas": l.miligramas,
+            "manipulado": bool(l.manipulado), "status": l.status,
+            "criado_em": str(l.criado_em.date()) if l.criado_em else None,
+        } for l in leads_recentes],
+    }
+
+
+@app.put("/farmacia/perfil")
+def farmacia_atualizar_perfil(telefone: str, payload: FarmaciaPerfilPayload, db: Session = Depends(get_db)):
+    digitos = re.sub(r"\D", "", telefone)
+    f = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
+    if not f:
+        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+    if payload.bairros is not None:
+        f.bairros = payload.bairros
+    if payload.atende_manipulado is not None:
+        f.atende_manipulado = payload.atende_manipulado
+    db.commit()
+    return {"ok": True, "mensagem": "Perfil atualizado."}
+
+
+@app.delete("/farmacia/conta")
+def excluir_farmacia(telefone: str, payload: ExcluirContaPayload, db: Session = Depends(get_db)):
+    """Exclusão definitiva da conta da farmácia (LGPD art. 18)."""
+    digitos = re.sub(r"\D", "", telefone)
+    if payload.confirmacao != "EXCLUIR":
+        raise HTTPException(status_code=400, detail="Confirmação inválida. Digite exatamente: EXCLUIR")
+
+    f = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
+    if not f:
+        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+
+    pin = re.sub(r"\D", "", payload.pin)
+    if f.pin and hash_pin(pin, digitos) != f.pin:
+        raise HTTPException(status_code=401, detail="PIN incorreto.")
+
+    db.query(OrcamentoResposta).filter(OrcamentoResposta.farmacia_id == f.id).delete()
+    db.query(Lead).filter(Lead.farmacia_id == f.id).delete()
+    db.delete(f)
+    db.commit()
+
+    logger.info(f"Farmácia excluída (LGPD): {digitos} — {f.nome}")
+    return {"ok": True, "mensagem": "Conta da farmácia excluída com sucesso."}
+
+
+@app.get("/farmacia/insights")
+def farmacia_insights(telefone: str, db: Session = Depends(get_db)):
+    digitos = re.sub(r"\D", "", telefone)
+    f = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
+    if not f:
+        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+    if f.plano not in ("pro", "manipulado"):
+        raise HTTPException(status_code=403, detail="Insights disponíveis apenas para planos Pro e Manipulado.")
+
+    bairros_f = [b.strip() for b in (f.bairros or "").split(",") if b.strip()]
+    query = db.query(LogBusca)
+    if bairros_f:
+        query = query.filter(LogBusca.bairro.in_(bairros_f))
+    else:
+        query = query.filter(LogBusca.bairro.isnot(None))
+    logs = query.order_by(LogBusca.timestamp.desc()).limit(500).all()
+
+    contagem: dict[str, int] = {}
+    for l in logs:
+        t = l.termo.lower()
+        contagem[t] = contagem.get(t, 0) + 1
+    top_meds = sorted(contagem.items(), key=lambda x: -x[1])[:20]
+
+    return {
+        "bairros": bairros_f,
+        "top_medicamentos": [{"termo": t, "buscas": c} for t, c in top_meds],
+        "total_buscas": len(logs),
+    }
+
+
+@app.post("/estoque/{item_id}/solicitar-reposicao")
+def solicitar_reposicao(item_id: int, telefone: str, db: Session = Depends(get_db)):
+    """Usuário quer reabastecer — cria solicitação de orçamento e notifica farmácias."""
+    tel = validar_telefone(telefone)
+    item = db.query(Estoque).filter(Estoque.id == item_id, Estoque.usuario_id == tel).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item não encontrado.")
+
+    minutos = int(get_config(db, "minutos_disputa_lead", "30"))
+    expira = datetime.utcnow() + timedelta(minutes=minutos)
+    sol = OrcamentoSolicitacao(
+        usuario_id=tel, nome_med=item.nome_medicamento,
+        quantidade_restante=item.quantidade,
+        status="coletando", expira_em=expira,
+    )
+    db.add(sol)
+    db.flush()
+
+    usuario = db.query(Usuario).filter(Usuario.telefone == tel).first()
+    n_leads = gerar_leads_para_item(db, item, usuario, origem="consumido") if usuario and usuario.bairro else 0
+    db.commit()
+
+    return {
+        "ok": True, "solicitacao_id": sol.id,
+        "mensagem": f"Solicitação enviada para {n_leads} farmácia(s) parceira(s)." if n_leads
+                    else "Solicitação registrada. Entraremos em contato em breve.",
+    }
 
 
 # --- Webhook Asaas ---
