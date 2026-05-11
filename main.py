@@ -120,6 +120,21 @@ with engine.connect() as conn:
                 if "already exists" not in msg and "duplicate column" not in msg:
                     logger.warning(f"Migração {tabela}.{col_nome}: {ex}")
 
+# Corrige sequences PostgreSQL desincronizados (ocorre após migração de dados)
+if not DATABASE_URL.startswith("sqlite"):
+    _tabelas_seq = ["estoque", "pedidos", "codigos_recuperacao", "log_buscas",
+                    "farmacias", "leads", "push_subs", "alarmes"]
+    with engine.connect() as conn:
+        for _t in _tabelas_seq:
+            try:
+                conn.execute(text(
+                    f"SELECT setval(pg_get_serial_sequence('{_t}', 'id'), "
+                    f"COALESCE((SELECT MAX(id) FROM {_t}), 1))"
+                ))
+                conn.commit()
+            except Exception as _ex:
+                logger.warning(f"Sequence fix {_t}: {_ex}")
+
 # Seed de configurações padrão (só insere se ainda não existir)
 _CONFIG_DEFAULT = {
     "preco_lead_comum":      ("5.00",  "Preço por lead comum enviado à farmácia (R$)"),
