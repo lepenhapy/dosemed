@@ -207,21 +207,23 @@ def _asaas_url(path: str) -> str:
     return f"{base}{path}"
 
 
-def asaas_criar_cliente(nome: str, email: str, cnpj: str = None) -> str | None:
+def asaas_criar_cliente(nome: str, email: str, cnpj: str = None):
+    """Retorna (customer_id, erro). customer_id é None em caso de falha."""
     if not os.getenv("ASAAS_KEY"):
-        return None
+        return None, "ASAAS_KEY não configurada"
     if not cnpj:
-        logger.warning(f"Asaas: CNPJ não informado para '{nome}' — cliente não criado (exigido para cobranças PIX)")
-        return None
+        return None, f"CNPJ não informado para '{nome}'"
     payload = {"name": nome, "email": email, "cpfCnpj": re.sub(r"\D", "", cnpj)}
     try:
         r = requests.post(_asaas_url("/customers"), json=payload, headers=_asaas_headers(), timeout=10)
         if r.ok:
-            return r.json().get("id")
-        logger.warning(f"Asaas criar cliente falhou ({r.status_code}): {r.text[:200]}")
+            return r.json().get("id"), ""
+        erro = f"HTTP {r.status_code}: {r.text[:300]}"
+        logger.warning(f"Asaas criar cliente falhou — {erro}")
+        return None, erro
     except Exception as e:
         logger.error(f"Asaas criar cliente: {e}")
-    return None
+        return None, str(e)
 
 
 def asaas_criar_assinatura(customer_id: str, valor: float, descricao: str) -> str | None:
@@ -1697,7 +1699,7 @@ def criar_farmacia(telefone: str, payload: FarmaciaPayload, db: Session = Depend
     db.add(f); db.flush()
 
     # Criar cliente no Asaas
-    cid = asaas_criar_cliente(f.nome, f.email, f.cnpj)
+    cid, asaas_erro_cli = asaas_criar_cliente(f.nome, f.email, f.cnpj)
     if cid:
         f.asaas_customer_id = cid
         # Se plano não é 'lead', criar assinatura imediatamente
@@ -1707,6 +1709,8 @@ def criar_farmacia(telefone: str, payload: FarmaciaPayload, db: Session = Depend
             sub_id = asaas_criar_assinatura(cid, valor, f"DoseMed — Plano {payload.plano.capitalize()} — {f.nome}")
             if sub_id:
                 f.asaas_subscription_id = sub_id
+    elif asaas_erro_cli:
+        logger.warning(f"Farmácia {f.nome}: cliente Asaas não criado — {asaas_erro_cli}")
 
     db.commit()
     return serializar_farmacia(f, db)
@@ -1751,9 +1755,9 @@ def faturar_leads(farmacia_id: int, telefone: str, db: Session = Depends(get_db)
             raise HTTPException(status_code=400, detail="ASAAS_KEY não configurada — integração desativada.")
         if not f.cnpj:
             raise HTTPException(status_code=400, detail="Farmácia sem CNPJ cadastrado — necessário para criar cliente Asaas.")
-        cid = asaas_criar_cliente(f.nome, f.email or "", f.cnpj)
+        cid, asaas_erro_cli = asaas_criar_cliente(f.nome, f.email or "", f.cnpj)
         if not cid:
-            raise HTTPException(status_code=502, detail="Falha ao criar cliente Asaas — verifique o CNPJ e o log.")
+            raise HTTPException(status_code=502, detail=f"Falha ao criar cliente Asaas: {asaas_erro_cli}")
         f.asaas_customer_id = cid
         db.commit()
         logger.info(f"Asaas: cliente criado automaticamente para farmácia {f.id} ({f.nome}): {cid}")
