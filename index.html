@@ -99,26 +99,31 @@
       <span class="text-xl">💊</span>
       <span class="font-bold text-blue-600 text-lg tracking-tight">DoseMed</span>
     </div>
-    <div x-show="usuario" x-cloak class="flex items-center gap-3">
-      <button x-show="pwaDisponivel" @click="instalarPWA()" title="Instalar como app"
-        class="text-xs text-blue-400 hover:text-blue-600 font-semibold px-2 py-1 rounded-lg border border-blue-200 hover:border-blue-400 transition">
-        📲 Instalar
+    <div class="flex items-center gap-3">
+      <!-- Botão instalar: fora do x-show=usuario para aparecer também na tela de login -->
+      <button x-show="pwaDisponivel" @click="instalarPWA()"
+        class="text-xs text-blue-500 font-bold px-3 py-1.5 rounded-xl border-2 border-blue-300 hover:bg-blue-50 transition animate-pulse">
+        📲 Instalar app
       </button>
-      <button x-show="!pwaDisponivel && pwaIsIOS && usuario" @click="alert('No Safari: toque em Compartilhar ↑ → \"Adicionar à Tela de Início\"')" title="Instalar no iPhone"
-        class="text-xs text-blue-400 hover:text-blue-600 font-semibold px-2 py-1 rounded-lg border border-blue-200 hover:border-blue-400 transition">
-        📲 Instalar
+      <button x-show="!pwaDisponivel && pwaIsIOS"
+        @click="alert('No Safari: toque no ícone ↑ de compartilhar → \"Adicionar à Tela de Início\" → Adicionar.')"
+        class="text-xs text-blue-500 font-bold px-3 py-1.5 rounded-xl border-2 border-blue-300 hover:bg-blue-50 transition">
+        📲 Instalar app
       </button>
-      <button x-show="isAdmin && !isFarmacia" @click="abaAtiva = abaAtiva === 'admin' ? 'estoque' : 'admin'"
-        class="text-xs font-semibold px-2 py-1 rounded-lg transition"
-        :class="abaAtiva === 'admin' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'">
-        Admin
-      </button>
-      <span x-show="isFarmacia" class="text-xs bg-green-100 text-green-700 font-semibold px-2 py-1 rounded-lg">Farmácia</span>
-      <button x-show="!isFarmacia" @click="abrirEditarPerfil()" class="text-xs text-gray-400 hover:text-blue-500 transition">
-        <span x-text="usuario?.nome"></span> ✏️
-      </button>
-      <span x-show="isFarmacia" class="text-xs text-gray-500 font-medium" x-text="usuario?.nome"></span>
-      <button @click="sair()" class="text-xs text-gray-400 hover:text-gray-600 underline">Sair</button>
+      <!-- Botões de usuário logado -->
+      <div x-show="usuario" x-cloak class="flex items-center gap-3">
+        <button x-show="isAdmin && !isFarmacia" @click="abaAtiva = abaAtiva === 'admin' ? 'estoque' : 'admin'"
+          class="text-xs font-semibold px-2 py-1 rounded-lg transition"
+          :class="abaAtiva === 'admin' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'">
+          Admin
+        </button>
+        <span x-show="isFarmacia" class="text-xs bg-green-100 text-green-700 font-semibold px-2 py-1 rounded-lg">Farmácia</span>
+        <button x-show="!isFarmacia" @click="abrirEditarPerfil()" class="text-xs text-gray-400 hover:text-blue-500 transition">
+          <span x-text="usuario?.nome"></span> ✏️
+        </button>
+        <span x-show="isFarmacia" class="text-xs text-gray-500 font-medium" x-text="usuario?.nome"></span>
+        <button @click="sair()" class="text-xs text-gray-400 hover:text-gray-600 underline">Sair</button>
+      </div>
     </div>
   </div>
 </header>
@@ -2093,7 +2098,7 @@ function dosemed() {
     pushCarregando: false,
     // PWA
     pwaDisponivel: false,
-    pwaIsIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream,
+    pwaIsIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream && !window.navigator.standalone,
     // log debounce
     _logTimeout: null,
 
@@ -2152,6 +2157,8 @@ function dosemed() {
     init() {
       this.disclaimerFechado = localStorage.getItem('dm_disc') === '1';
       this.carregarBulasIndex();
+      // beforeinstallprompt dispara cedo — checa se já foi capturado antes do Alpine iniciar
+      this.pwaDisponivel = !!window._pwaPrompt;
       window.addEventListener('beforeinstallprompt', () => { this.pwaDisponivel = true; });
       window.addEventListener('appinstalled', () => { this.pwaDisponivel = false; });
       // Detecta URL /orcamento/TOKEN para modo de resposta de farmácia

@@ -5,19 +5,15 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(SHELL).catch(() => {}))
   );
-  self.skipWaiting();
+  // Não chama skipWaiting() automaticamente — o banner controla quando atualizar
 });
 
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
-      .then(clients => {
-        // Recarrega todas as janelas abertas para servir a versão nova
-        clients.forEach(c => c.navigate(c.url));
-      })
   );
+  // clients.claim() faz o novo SW assumir as abas abertas após skipWaiting
   self.clients.claim();
 });
 
