@@ -48,7 +48,7 @@ from PIL import Image
 from dotenv import load_dotenv
 
 load_dotenv()
-from models import Base, Usuario, Estoque, Pedido, CodigoRecuperacao, LogBusca, Farmacia, Lead, Configuracao, PushSub, AlarmeRemedio, OrcamentoSolicitacao, OrcamentoResposta, LogEvento
+from models import Base, Usuario, Estoque, Pedido, CodigoRecuperacao, LogBusca, Farmacia, Lead, Configuracao, PushSub, AlarmeRemedio, OrcamentoSolicitacao, OrcamentoResposta, LogEvento, AnuncioPush
 
 # --- Logging ---
 _log_handlers = [logging.StreamHandler()]
@@ -95,7 +95,7 @@ Base.metadata.create_all(bind=engine)
 
 # Migrações seguras (add-only)
 _migracoes = {
-    "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "aceite_lgpd TIMESTAMP"],
+    "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "aceite_lgpd TIMESTAMP", "genero TEXT"],
     "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo TIMESTAMP"],
     "log_buscas": ["bairro TEXT"],
     "leads": ["asaas_charge_id TEXT", "criado_em TIMESTAMP"],
@@ -690,6 +690,7 @@ class UsuarioPayload(BaseModel):
     endereco_completo: Optional[str] = None
     instrucoes_portaria: Optional[str] = None
     aceite_lgpd: Optional[bool] = False
+    genero: Optional[str] = None  # M | F
 
 
 class WebhookPayload(BaseModel):
@@ -711,6 +712,7 @@ class EditarUsuarioPayload(BaseModel):
     bairro: Optional[str] = None
     endereco_completo: Optional[str] = None
     instrucoes_portaria: Optional[str] = None
+    genero: Optional[str] = None  # M | F
 
 
 class RecuperarPinPayload(BaseModel):
@@ -761,6 +763,15 @@ class OrcamentoRespostaPayload(BaseModel):
     preco: float
     prazo_entrega: str
     formas_pagamento: str  # ex: "pix,cartao,dinheiro"
+
+
+class AnuncioCriarPayload(BaseModel):
+    telefone: str
+    pin: str
+    texto: str
+    titulo: Optional[str] = None
+    publico: str = "bairro"    # bairro | todos
+    genero_alvo: Optional[str] = None  # M | F | None
 
 
 class ConfirmarChegadaPayload(BaseModel):
@@ -865,6 +876,7 @@ def criar_usuario(payload: UsuarioPayload, db: Session = Depends(get_db)):
         if not validar_email(email_val):
             raise HTTPException(status_code=400, detail="E-mail inválido.")
         email = email_val
+    genero = payload.genero if payload.genero in ("M", "F") else None
     usuario = Usuario(
         telefone=telefone,
         nome=sanitizar(payload.nome),
@@ -872,7 +884,8 @@ def criar_usuario(payload: UsuarioPayload, db: Session = Depends(get_db)):
         bairro=sanitizar(payload.bairro or ""),
         endereco_completo=sanitizar(payload.endereco_completo or ""),
         instrucoes_portaria=sanitizar(payload.instrucoes_portaria or ""),
-        aceite_lgpd=datetime.utcnow() if payload.aceite_lgpd else None
+        aceite_lgpd=datetime.utcnow() if payload.aceite_lgpd else None,
+        genero=genero
     )
     db.add(usuario)
     db.add(LogEvento(tipo="cadastro_usuario"))
@@ -900,6 +913,10 @@ def editar_usuario(telefone: str, payload: EditarUsuarioPayload, db: Session = D
         usuario.endereco_completo = sanitizar(payload.endereco_completo)
     if payload.instrucoes_portaria is not None:
         usuario.instrucoes_portaria = sanitizar(payload.instrucoes_portaria)
+    if payload.genero in ("M", "F"):
+        usuario.genero = payload.genero
+    elif payload.genero == "":
+        usuario.genero = None
     db.commit()
     return {"mensagem": "Perfil atualizado com sucesso."}
 
@@ -1213,6 +1230,7 @@ def dashboard(telefone: str, db: Session = Depends(get_db)):
             "nome": usuario.nome,
             "email": usuario.email,
             "bairro": usuario.bairro,
+            "genero": usuario.genero,
             "endereco": usuario.endereco_completo,
             "instrucoes_portaria": usuario.instrucoes_portaria,
             "is_admin": usuario.telefone == ADMIN_PHONE,
@@ -2727,6 +2745,175 @@ def escolher_farmacia(solicitacao_id: int, resposta_id: int, telefone: str, db: 
             "mensagem": f"{f.nome} foi escolhida! Aguarde o contato da farmácia."}
 
 
+# --- Anúncios Push ---
+
+PRECO_ANUNCIO = {"bairro": 30.0, "todos": 70.0}
+
+
+def html_anuncio_confirmacao(farmacia_nome: str, texto: str, total: int, publico: str) -> str:
+    publico_str = "todos os bairros cadastrados" if publico == "todos" else "usuários do seu bairro/região"
+    return f"""
+    <div style="font-family:sans-serif;max-width:560px;margin:auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
+      <div style="background:#2563eb;padding:24px;text-align:center">
+        <h1 style="color:#fff;margin:0;font-size:22px">📢 Anúncio disparado!</h1>
+      </div>
+      <div style="padding:28px">
+        <p style="color:#374151">Olá, <strong>{farmacia_nome}</strong>!</p>
+        <p style="color:#374151">Seu anúncio foi enviado com sucesso para <strong>{total} usuários</strong> entre {publico_str}.</p>
+        <div style="background:#f0f9ff;border-left:4px solid #2563eb;padding:14px 18px;border-radius:6px;margin:20px 0">
+          <p style="color:#1e40af;font-style:italic;margin:0">"{texto}"</p>
+        </div>
+        <p style="color:#6b7280;font-size:13px">Agradecemos por anunciar no DoseMed. Em breve os usuários poderão consultar sua farmácia.</p>
+      </div>
+    </div>"""
+
+
+def _disparar_anuncio_push(anuncio: AnuncioPush, db: Session) -> int:
+    farmacia = db.query(Farmacia).filter(Farmacia.id == anuncio.farmacia_id).first()
+    bairros_farm: set[str] = set()
+    if anuncio.publico == "bairro" and farmacia and farmacia.bairros:
+        bairros_farm = {b.strip().lower() for b in farmacia.bairros.split(",") if b.strip()}
+
+    usuarios = db.query(Usuario).all()
+    telefones_alvo: set[str] = set()
+    for u in usuarios:
+        if bairros_farm:
+            if (u.bairro or "").strip().lower() not in bairros_farm:
+                continue
+        if anuncio.genero_alvo in ("M", "F"):
+            if u.genero != anuncio.genero_alvo:
+                continue
+        telefones_alvo.add(u.telefone)
+
+    subs = db.query(PushSub).filter(PushSub.usuario_id.in_(telefones_alvo)).all()
+    titulo = anuncio.titulo or (farmacia.nome if farmacia else "DoseMed")
+    total = sum(1 for sub in subs if enviar_push(sub, titulo, anuncio.texto))
+
+    anuncio.status = "disparado"
+    anuncio.total_enviados = total
+    anuncio.disparado_em = datetime.utcnow()
+    db.commit()
+
+    if farmacia and farmacia.email:
+        enviar_email(farmacia.email, f"DoseMed — Anúncio disparado: {anuncio.texto[:40]}...",
+                     html_anuncio_confirmacao(farmacia.nome, anuncio.texto, total, anuncio.publico))
+    logger.info(f"[ANUNCIO] {anuncio.id} disparado: {total} push enviados")
+    return total
+
+
+@app.post("/farmacia/anuncio/criar")
+def farmacia_criar_anuncio(payload: AnuncioCriarPayload, db: Session = Depends(get_db)):
+    digitos = re.sub(r"\D", "", payload.telefone)
+    farm = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
+    if not farm:
+        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+    pin = re.sub(r"\D", "", payload.pin)
+    if farm.pin and hash_pin(pin, digitos) != farm.pin:
+        raise HTTPException(status_code=401, detail="PIN incorreto.")
+    if not payload.texto.strip():
+        raise HTTPException(status_code=400, detail="Texto do anúncio é obrigatório.")
+    if payload.publico not in PRECO_ANUNCIO:
+        raise HTTPException(status_code=400, detail="Público inválido. Use 'bairro' ou 'todos'.")
+
+    preco = PRECO_ANUNCIO[payload.publico]
+    genero_alvo = payload.genero_alvo if payload.genero_alvo in ("M", "F") else None
+
+    anuncio = AnuncioPush(
+        farmacia_id=farm.id,
+        texto=sanitizar(payload.texto),
+        titulo=sanitizar(payload.titulo or ""),
+        publico=payload.publico,
+        genero_alvo=genero_alvo,
+        preco=preco,
+        status="aguardando_pagamento",
+    )
+    db.add(anuncio)
+    db.flush()
+
+    # Tenta gerar cobrança Asaas
+    customer_id = farm.asaas_customer_id
+    if not customer_id and farm.cnpj:
+        customer_id, _ = asaas_criar_cliente(farm.nome, farm.email, farm.cnpj)
+        if customer_id:
+            farm.asaas_customer_id = customer_id
+
+    charge_id = pix_link = None
+    if customer_id:
+        charge_id, asaas_erro = asaas_criar_cobranca(
+            customer_id, preco,
+            f"DoseMed Anúncio Push — {payload.publico}",
+            str((datetime.utcnow().date() + timedelta(days=3)))
+        )
+        if charge_id:
+            anuncio.asaas_charge_id = charge_id
+    db.commit()
+
+    publico_desc = "seu bairro/região (R$ 30)" if payload.publico == "bairro" else "todos os bairros (R$ 70)"
+    return {
+        "ok": True,
+        "anuncio_id": anuncio.id,
+        "preco": preco,
+        "publico": publico_desc,
+        "asaas_charge_id": charge_id,
+        "instrucao": "Pagamento gerado no Asaas. Após confirmação, o anúncio será disparado automaticamente." if charge_id
+                     else "Nenhuma cobrança Asaas gerada (CNPJ ausente ou Asaas não configurado). O admin irá confirmar e disparar o anúncio manualmente.",
+    }
+
+
+@app.get("/farmacia/anuncios")
+def farmacia_listar_anuncios(telefone: str, db: Session = Depends(get_db)):
+    digitos = re.sub(r"\D", "", telefone)
+    farm = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
+    if not farm:
+        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+    anuncios = db.query(AnuncioPush).filter(AnuncioPush.farmacia_id == farm.id).order_by(AnuncioPush.criado_em.desc()).limit(20).all()
+    return [{"id": a.id, "texto": a.texto, "titulo": a.titulo, "publico": a.publico,
+             "genero_alvo": a.genero_alvo, "status": a.status, "preco": a.preco,
+             "total_enviados": a.total_enviados,
+             "criado_em": str(a.criado_em.date()) if a.criado_em else None,
+             "disparado_em": str(a.disparado_em) if a.disparado_em else None} for a in anuncios]
+
+
+@app.get("/admin/anuncios")
+def admin_listar_anuncios(telefone: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    if tel != ADMIN_PHONE:
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    anuncios = db.query(AnuncioPush).order_by(AnuncioPush.criado_em.desc()).all()
+    total_receita = sum(a.preco for a in anuncios if a.status in ("pago", "disparado"))
+    return {
+        "total_receita": round(total_receita, 2),
+        "total_anuncios": len(anuncios),
+        "anuncios": [{
+            "id": a.id,
+            "farmacia": a.farmacia.nome if a.farmacia else "—",
+            "texto": a.texto[:60],
+            "publico": a.publico,
+            "genero_alvo": a.genero_alvo or "todos",
+            "status": a.status,
+            "preco": a.preco,
+            "total_enviados": a.total_enviados,
+            "criado_em": str(a.criado_em.date()) if a.criado_em else None,
+        } for a in anuncios]
+    }
+
+
+@app.post("/admin/anuncio/{anuncio_id}/disparar")
+def admin_disparar_anuncio(anuncio_id: int, telefone: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    if tel != ADMIN_PHONE:
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    anuncio = db.query(AnuncioPush).filter(AnuncioPush.id == anuncio_id).first()
+    if not anuncio:
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado.")
+    if anuncio.status == "disparado":
+        raise HTTPException(status_code=400, detail="Anúncio já foi disparado.")
+    anuncio.status = "pago"
+    db.commit()
+    total = _disparar_anuncio_push(anuncio, db)
+    return {"ok": True, "total_enviados": total}
+
+
 # --- Webhook Asaas ---
 
 @app.post("/webhook/asaas")
@@ -2742,6 +2929,12 @@ async def webhook_asaas(request: Request, db: Session = Depends(get_db)):
             for l in leads:
                 l.status = "pago"
             db.commit()
+            # Verifica se é pagamento de anúncio push
+            anuncio = db.query(AnuncioPush).filter(AnuncioPush.asaas_charge_id == charge_id).first()
+            if anuncio and anuncio.status == "aguardando_pagamento":
+                anuncio.status = "pago"
+                db.commit()
+                _disparar_anuncio_push(anuncio, db)
     except Exception as e:
         logger.error(f"[ASAAS] Webhook erro: {e}")
     return {"ok": True}

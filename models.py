@@ -14,6 +14,7 @@ class Usuario(Base):
     instrucoes_portaria = Column(String)
     pin = Column(String, nullable=True)
     bairro = Column(String, nullable=True)
+    genero = Column(String, nullable=True)   # M | F
     aceite_lgpd = Column(DateTime, nullable=True)
     estoque = relationship("Estoque", back_populates="usuario")
     pedidos = relationship("Pedido", back_populates="usuario")
@@ -90,6 +91,7 @@ class Farmacia(Base):
     criado_em = Column(DateTime, default=datetime.utcnow)
     leads = relationship("Lead", back_populates="farmacia")
     orcamento_respostas = relationship("OrcamentoResposta", back_populates="farmacia")
+    anuncios = relationship("AnuncioPush", back_populates="farmacia")
 
 
 class OrcamentoSolicitacao(Base):
@@ -163,6 +165,24 @@ class AlarmeRemedio(Base):
     dias = Column(String, default="1,2,3,4,5,6,7")  # 1=seg … 7=dom
     ativo = Column(Integer, default=1)
     criado_em = Column(DateTime, default=datetime.utcnow)
+
+
+class AnuncioPush(Base):
+    __tablename__ = "anuncios_push"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    farmacia_id = Column(Integer, ForeignKey("farmacias.id"), nullable=False)
+    texto = Column(String, nullable=False)
+    titulo = Column(String, nullable=True)
+    publico = Column(String, default="bairro")      # bairro | todos
+    genero_alvo = Column(String, nullable=True)     # M | F | None
+    status = Column(String, default="aguardando_pagamento")  # aguardando_pagamento | pago | disparado | cancelado
+    asaas_charge_id = Column(String, nullable=True)
+    pix_link = Column(String, nullable=True)
+    preco = Column(Float, nullable=False)
+    total_enviados = Column(Integer, nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    disparado_em = Column(DateTime, nullable=True)
+    farmacia = relationship("Farmacia", back_populates="anuncios")
 
 
 class LogEvento(Base):
