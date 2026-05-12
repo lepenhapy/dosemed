@@ -2574,6 +2574,16 @@ def confirmar_chegada(payload: ConfirmarChegadaPayload, db: Session = Depends(ge
     return {"mensagem": "Entrega confirmada. Informe a validade para atualizar o estoque."}
 
 
+@app.get("/debug/farmacia")
+def debug_farmacia(db: Session = Depends(get_db)):
+    import traceback
+    try:
+        count = db.query(Farmacia).count()
+        return {"ok": True, "count": count}
+    except Exception as e:
+        return {"ok": False, "erro": str(e), "trace": traceback.format_exc()}
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     if isinstance(exc, HTTPException):
