@@ -93,7 +93,7 @@
 </datalist>
 
 <!-- HEADER -->
-<header class="bg-white border-b border-gray-100 sticky top-0 z-20">
+<header x-show="!modoOrcamento" class="bg-white border-b border-gray-100 sticky top-0 z-20">
   <div class="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <span class="text-xl">💊</span>
@@ -287,8 +287,81 @@
 
 <main class="max-w-3xl mx-auto px-5 py-8 space-y-6">
 
+  <!-- TELA PÚBLICA: FARMÁCIA RESPONDE ORÇAMENTO -->
+  <div x-show="modoOrcamento" x-cloak class="min-h-screen">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 max-w-lg mx-auto">
+      <p class="text-green-600 font-bold text-lg mb-1">DoseMed — Orçamento</p>
+
+      <!-- Carregando -->
+      <div x-show="!orcamentoDados" class="text-sm text-gray-400 py-4">Carregando...</div>
+
+      <!-- Erro -->
+      <div x-show="orcamentoDados?.erro" class="text-sm text-red-400 py-4">Orçamento não encontrado ou link inválido.</div>
+
+      <!-- Já respondido -->
+      <div x-show="orcamentoDados && !orcamentoDados.erro && orcamentoDados.status_resposta === 'respondido'" class="text-center py-6">
+        <p class="text-2xl mb-2">✅</p>
+        <p class="font-semibold text-gray-700">Orçamento enviado com sucesso!</p>
+        <p class="text-xs text-gray-400 mt-1">O paciente receberá sua proposta e escolherá a farmácia.</p>
+      </div>
+
+      <!-- Formulário -->
+      <div x-show="orcamentoDados && !orcamentoDados.erro && orcamentoDados.status_resposta === 'pendente'">
+        <p class="text-sm text-gray-600 mb-4">
+          Olá, <strong x-text="orcamentoDados?.farmacia_nome"></strong>! Um paciente solicita orçamento para:
+        </p>
+        <div class="bg-green-50 border-l-4 border-green-500 rounded-xl px-4 py-3 mb-5">
+          <p class="font-bold text-gray-800" x-text="orcamentoDados?.medicamento"></p>
+          <p class="text-xs text-gray-500 mt-0.5" x-show="orcamentoDados?.quantidade"
+             x-text="'Quantidade: ' + orcamentoDados.quantidade + ' unidade(s)'"></p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Preço (R$)</label>
+            <input x-model="orcamentoForm.preco" type="number" step="0.01" min="0.01" placeholder="ex: 29,90"
+              class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Prazo de entrega</label>
+            <input x-model="orcamentoForm.prazo_entrega" type="text" placeholder="ex: Hoje, 1-2 dias úteis, Retirada na loja"
+              class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-2">Formas de pagamento</label>
+            <div class="flex gap-3 flex-wrap">
+              <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input type="checkbox" x-model="orcamentoForm.formas.pix" class="rounded"> PIX
+              </label>
+              <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input type="checkbox" x-model="orcamentoForm.formas.cartao" class="rounded"> Cartão
+              </label>
+              <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input type="checkbox" x-model="orcamentoForm.formas.dinheiro" class="rounded"> Dinheiro
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <p x-show="orcamentoMsg" class="text-red-400 text-xs mt-3" x-text="orcamentoMsg"></p>
+
+        <button @click="enviarRespostaOrcamento()" :disabled="orcamentoEnviando"
+          class="w-full mt-5 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition disabled:opacity-50">
+          <span x-text="orcamentoEnviando ? 'Enviando...' : 'Enviar Orçamento'"></span>
+        </button>
+      </div>
+
+      <!-- Expirado / encerrado -->
+      <div x-show="orcamentoDados && !orcamentoDados.erro && !['pendente','respondido'].includes(orcamentoDados.status_resposta)" class="text-center py-6">
+        <p class="text-2xl mb-2">⏱️</p>
+        <p class="font-semibold text-gray-600">Este orçamento foi encerrado.</p>
+        <p class="text-xs text-gray-400 mt-1" x-text="'Status: ' + (orcamentoDados?.status_resposta || '')"></p>
+      </div>
+    </div>
+  </div>
+
   <!-- TELA DE ACESSO -->
-  <div x-show="!usuario && !mostrarCadastro && !mostrarDefinirPin && !mostrarEscolha && !mostrarCadastroFarmacia" x-cloak>
+  <div x-show="!modoOrcamento && !usuario && !mostrarCadastro && !mostrarDefinirPin && !mostrarEscolha && !mostrarCadastroFarmacia" x-cloak>
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
       <div class="bg-blue-50 rounded-xl px-4 py-3 mb-6 text-xs text-blue-700 leading-relaxed">
         <strong>O que é o DoseMed?</strong> Uma ferramenta para controlar os medicamentos que você tem em casa, acompanhar validades e consultar informações de referência sobre os remédios. Não é um serviço médico — sempre consulte seu médico ou farmacêutico.
@@ -887,7 +960,7 @@
       </div>
 
       <!-- ABAS DE NAVEGAÇÃO (usuário) -->
-      <div x-show="abaAtiva !== 'admin' && !isFarmacia" class="grid grid-cols-5 gap-0.5 bg-white rounded-2xl border border-gray-100 shadow-sm p-1">
+      <div x-show="abaAtiva !== 'admin' && !isFarmacia" class="grid grid-cols-6 gap-0.5 bg-white rounded-2xl border border-gray-100 shadow-sm p-1">
         <button @click="abaAtiva = 'pesquisar'; $nextTick(() => document.getElementById('inputPesquisa')?.focus())"
           class="py-1.5 text-xs font-semibold rounded-xl transition"
           :class="abaAtiva === 'pesquisar' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
@@ -896,12 +969,19 @@
         <button @click="abaAtiva = 'cadastrar'"
           class="py-1.5 text-xs font-semibold rounded-xl transition"
           :class="abaAtiva === 'cadastrar' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
-          ➕ Cadastrar
+          ➕ Add
         </button>
         <button @click="abaAtiva = 'estoque'"
           class="py-1.5 text-xs font-semibold rounded-xl transition"
           :class="abaAtiva === 'estoque' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
           💊 Estoque
+        </button>
+        <button @click="abaAtiva = 'orcamentos'; carregarOrcamentos()"
+          class="py-1.5 text-xs font-semibold rounded-xl transition relative"
+          :class="abaAtiva === 'orcamentos' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
+          🏪 Comprar
+          <span x-show="orcamentos?.some(o => o.respostas?.length > 0 && o.status === 'aguardando_usuario')"
+            class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full"></span>
         </button>
         <button @click="abaAtiva = 'alarmes'; if (!alarmes) carregarAlarmes()"
           class="py-1.5 text-xs font-semibold rounded-xl transition relative"
@@ -1210,6 +1290,11 @@
                       class="text-xs text-gray-300 hover:text-emerald-600 transition leading-tight text-right">
                       ✓ Consumido
                     </button>
+                    <button @click="solicitarReposicao(item.id, item.nome)"
+                      class="text-xs text-gray-300 hover:text-blue-500 transition leading-tight text-right"
+                      title="Solicitar orçamento de farmácias">
+                      🛒 Repor
+                    </button>
                   </div>
                 </div>
               </template>
@@ -1347,6 +1432,89 @@
           </div>
         </div>
       </div><!-- /painel alarmes -->
+
+      <!-- PAINEL ORÇAMENTOS -->
+      <div x-show="abaAtiva === 'orcamentos'" class="space-y-4">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="font-bold text-gray-800 text-lg">Orçamentos</h2>
+              <p class="text-xs text-gray-400 mt-0.5">Solicitações de reposição enviadas para farmácias parceiras</p>
+            </div>
+            <button @click="carregarOrcamentos()" class="text-xs text-blue-500 hover:text-blue-700 font-semibold">↻ Atualizar</button>
+          </div>
+
+          <!-- Sem bairro -->
+          <div x-show="usuario && !usuario.bairro" class="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 flex gap-2 items-center mb-4">
+            <span class="text-amber-400 shrink-0">📍</span>
+            <p class="text-xs text-amber-700 flex-1">Cadastre seu <strong>bairro</strong> no perfil para que farmácias próximas recebam suas solicitações.</p>
+            <button @click="abrirEditarPerfil()" class="text-xs font-semibold text-amber-600 underline shrink-0">Adicionar</button>
+          </div>
+
+          <div x-show="!orcamentos" class="text-xs text-gray-300 text-center py-6">Carregando...</div>
+          <div x-show="orcamentos && orcamentos.length === 0" class="text-center py-8">
+            <p class="text-gray-300 text-sm">Nenhuma solicitação enviada ainda.</p>
+            <p class="text-xs text-gray-300 mt-1">Use o botão <strong>🛒 Repor</strong> em qualquer medicamento do seu estoque.</p>
+          </div>
+
+          <template x-for="sol in orcamentos" :key="sol.id">
+            <div class="border border-gray-100 rounded-2xl p-4 mb-3">
+              <div class="flex items-start justify-between gap-2 mb-2">
+                <div>
+                  <p class="font-semibold text-gray-800 text-sm" x-text="sol.medicamento"></p>
+                  <p class="text-xs text-gray-400" x-text="'Solicitado em ' + sol.criado_em"></p>
+                </div>
+                <span class="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
+                  :class="{
+                    'bg-yellow-50 text-yellow-600': sol.status === 'coletando',
+                    'bg-blue-50 text-blue-600': sol.status === 'aguardando_usuario',
+                    'bg-green-50 text-green-600': sol.status === 'fechado',
+                    'bg-gray-100 text-gray-400': sol.status === 'cancelado' || sol.status === 'sem_resposta'
+                  }"
+                  x-text="{coletando:'Aguardando respostas',aguardando_usuario:'Escolha uma farmácia',fechado:'Concluído',cancelado:'Cancelado',sem_resposta:'Sem respostas'}[sol.status] || sol.status">
+                </span>
+              </div>
+
+              <!-- Aguardando -->
+              <div x-show="sol.status === 'coletando'" class="text-xs text-gray-400 flex items-center gap-1.5">
+                <span class="inline-block w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+                <span x-text="sol.total_pendente + ' farmácia(s) ainda não respondeu. Aguarde...'"></span>
+              </div>
+
+              <!-- Respostas recebidas -->
+              <div x-show="sol.respostas && sol.respostas.length > 0" class="mt-3 space-y-2">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Propostas recebidas</p>
+                <template x-for="r in sol.respostas" :key="r.id">
+                  <div class="rounded-xl p-3 flex items-center justify-between gap-2"
+                    :class="r.status === 'ganhou' ? 'bg-green-50 border border-green-200' : r.status === 'perdeu' ? 'bg-gray-50 border border-gray-100 opacity-60' : 'bg-blue-50 border border-blue-100'">
+                    <div class="flex-1 min-w-0">
+                      <p class="font-semibold text-sm text-gray-800" x-text="r.farmacia_nome"></p>
+                      <p class="text-xs text-gray-600 mt-0.5">
+                        <span class="font-bold text-green-700" x-text="'R$ ' + Number(r.preco).toFixed(2).replace('.', ',')"></span>
+                        <span x-show="r.prazo_entrega"> · <span x-text="r.prazo_entrega"></span></span>
+                      </p>
+                      <p x-show="r.formas_pagamento" class="text-xs text-gray-400" x-text="r.formas_pagamento?.replace(/,/g, ' · ')"></p>
+                    </div>
+                    <div class="shrink-0">
+                      <span x-show="r.status === 'ganhou'" class="text-xs bg-green-600 text-white px-2 py-1 rounded-lg font-semibold">Escolhida ✓</span>
+                      <span x-show="r.status === 'perdeu'" class="text-xs text-gray-400">Não escolhida</span>
+                      <button x-show="r.status === 'respondido' && sol.status === 'aguardando_usuario'"
+                        @click="escolherFarmacia(sol.id, r.id, r.farmacia_nome)"
+                        class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-blue-700 transition">
+                        Escolher
+                      </button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <div x-show="sol.status === 'aguardando_usuario' && !sol.respostas?.length" class="text-xs text-gray-400 mt-2">
+                Nenhuma proposta recebida ainda.
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
 
       <!-- PAINEL HISTÓRICO -->
       <div x-show="abaAtiva === 'historico'" class="space-y-4">
@@ -1598,6 +1766,12 @@ function dosemed() {
     mostrarEscolha: false, mostrarCadastroFarmacia: false,
     cadastroFarmacia: { nome: '', email: '', cnpj: '', bairros: '', atende_manipulado: false },
     mostrarExcluirConta: false, confirmarExcluir: '', pinExcluir: '',
+    // orçamentos
+    orcamentos: null, orcamentosCarregando: false,
+    // modo público: farmácia responde via link/token
+    modoOrcamento: false, tokenOrcamento: null, orcamentoDados: null,
+    orcamentoForm: { preco: '', prazo_entrega: '', formas: { pix: true, cartao: false, dinheiro: false } },
+    orcamentoMsg: '', orcamentoEnviando: false,
     // disclaimer
     disclaimerFechado: false,
     // histórico
@@ -1669,6 +1843,13 @@ function dosemed() {
       this.carregarBulasIndex();
       window.addEventListener('beforeinstallprompt', () => { this.pwaDisponivel = true; });
       window.addEventListener('appinstalled', () => { this.pwaDisponivel = false; });
+      // Detecta URL /orcamento/TOKEN para modo de resposta de farmácia
+      const match = window.location.pathname.match(/^\/orcamento\/([A-Za-z0-9_-]+)$/);
+      if (match) {
+        this.modoOrcamento = true;
+        this.tokenOrcamento = match[1];
+        this.carregarOrcamento(match[1]);
+      }
     },
 
     instalarPWA() {
@@ -1856,8 +2037,63 @@ function dosemed() {
         this.estoque = data.estoque;
         this.prejuizoAcumulado = data.prejuizo_acumulado;
         this.valorEmRisco = data.valor_em_risco;
+        this.carregarOrcamentos();
       } catch {}
       this.carregando = false;
+    },
+
+    async carregarOrcamentos() {
+      try {
+        const r = await fetch(`/usuario/${encodeURIComponent(this.telefoneAtual)}/orcamentos`);
+        if (r.ok) this.orcamentos = await r.json();
+      } catch {}
+    },
+
+    async solicitarReposicao(itemId, nomeItem) {
+      if (!confirm(`Solicitar orçamentos para "${nomeItem}"?`)) return;
+      try {
+        const r = await fetch(`/estoque/${itemId}/solicitar-reposicao?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
+        const d = await r.json();
+        alert(d.mensagem || (r.ok ? 'Solicitação enviada!' : 'Erro ao solicitar.'));
+        if (r.ok) { this.carregarOrcamentos(); this.abaAtiva = 'orcamentos'; }
+      } catch { alert('Erro de conexão.'); }
+    },
+
+    async escolherFarmacia(solicitacaoId, respostaId, farmaciaNome) {
+      if (!confirm(`Confirmar escolha de "${farmaciaNome}"?`)) return;
+      try {
+        const r = await fetch(`/orcamento/${solicitacaoId}/escolher/${respostaId}?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
+        const d = await r.json();
+        if (r.ok) { alert(d.mensagem); this.carregarOrcamentos(); }
+        else alert(d.detail || 'Erro.');
+      } catch { alert('Erro de conexão.'); }
+    },
+
+    async carregarOrcamento(token) {
+      try {
+        const r = await fetch(`/orcamento/${token}`);
+        if (r.ok) this.orcamentoDados = await r.json();
+        else this.orcamentoDados = { erro: true };
+      } catch { this.orcamentoDados = { erro: true }; }
+    },
+
+    async enviarRespostaOrcamento() {
+      if (!this.orcamentoForm.preco || !this.orcamentoForm.prazo_entrega) {
+        this.orcamentoMsg = 'Preencha preço e prazo.'; return;
+      }
+      const formas = Object.entries(this.orcamentoForm.formas).filter(([,v])=>v).map(([k])=>k).join(',');
+      if (!formas) { this.orcamentoMsg = 'Selecione ao menos uma forma de pagamento.'; return; }
+      this.orcamentoEnviando = true; this.orcamentoMsg = '';
+      try {
+        const r = await fetch(`/orcamento/${this.tokenOrcamento}/responder`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ preco: parseFloat(this.orcamentoForm.preco), prazo_entrega: this.orcamentoForm.prazo_entrega, formas_pagamento: formas }),
+        });
+        const d = await r.json();
+        if (r.ok) { this.orcamentoDados = { ...this.orcamentoDados, status_resposta: 'respondido' }; this.orcamentoMsg = d.mensagem; }
+        else this.orcamentoMsg = d.detail || 'Erro ao enviar.';
+      } catch { this.orcamentoMsg = 'Erro de conexão.'; }
+      this.orcamentoEnviando = false;
     },
 
     async buscarDashboardFarmacia() {

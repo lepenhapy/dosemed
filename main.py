@@ -5,6 +5,7 @@ import json
 import base64
 import hashlib
 import random
+import secrets
 import smtplib
 import logging
 import requests
@@ -754,6 +755,12 @@ class EnriquecerPayload(BaseModel):
 class ExcluirContaPayload(BaseModel):
     pin: str
     confirmacao: str   # deve ser exatamente "EXCLUIR"
+
+
+class OrcamentoRespostaPayload(BaseModel):
+    preco: float
+    prazo_entrega: str
+    formas_pagamento: str  # ex: "pix,cartao,dinheiro"
 
 
 class ConfirmarChegadaPayload(BaseModel):
@@ -1622,6 +1629,51 @@ def admin_insights(telefone: str, db: Session = Depends(get_db)):
 
 # --- Leads ---
 
+def html_orcamento_farmacia(farmacia_nome: str, bairro: str, medicamento: str, pa: str, mg: str, manipulado: bool, token: str) -> str:
+    link = f"https://dosemed.onrender.com/orcamento/{token}"
+    tipo = "MANIPULADO" if manipulado else "Medicamento"
+    return f"""<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
+    <p style="color:#16a34a;font-weight:bold;font-size:18px">DoseMed — Solicitação de Orçamento</p>
+    <p>Olá, <strong>{farmacia_nome}</strong>!</p>
+    <p>Um paciente do bairro <strong>{bairro}</strong> precisa renovar o seguinte medicamento e está pedindo orçamento:</p>
+    <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:16px;border-radius:8px;margin:16px 0">
+      <p style="margin:0;font-size:15px"><strong>{tipo}: {medicamento}</strong></p>
+      {"<p style='margin:4px 0;color:#555'>Princípio ativo: "+pa+"</p>" if pa else ""}
+      {"<p style='margin:4px 0;color:#555'>Dosagem: "+mg+"</p>" if mg else ""}
+    </div>
+    <p>Clique abaixo para enviar sua proposta. O paciente receberá os orçamentos e escolherá a farmácia:</p>
+    <a href="{link}" style="display:inline-block;background:#16a34a;color:white;font-weight:bold;padding:12px 28px;border-radius:8px;text-decoration:none;margin:8px 0;font-size:15px">
+      Enviar Orçamento
+    </a>
+    <p style="color:#9ca3af;font-size:11px;margin-top:16px">DoseMed · Plataforma de controle de medicamentos em casa</p>
+    </div>"""
+
+
+def html_orcamento_ganhou(farmacia_nome: str, medicamento: str, bairro: str, preco: float, prazo: str, formas: str) -> str:
+    return f"""<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
+    <p style="color:#16a34a;font-weight:bold;font-size:20px">Parabéns, {farmacia_nome}!</p>
+    <p>O paciente do bairro <strong>{bairro}</strong> escolheu a sua farmácia:</p>
+    <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:16px;border-radius:8px;margin:16px 0">
+      <p style="margin:0;font-size:15px"><strong>{medicamento}</strong></p>
+      <p style="margin:4px 0;color:#555">Preço acordado: <strong>R$ {preco:.2f}</strong></p>
+      <p style="margin:4px 0;color:#555">Prazo: {prazo}</p>
+      <p style="margin:4px 0;color:#555">Pagamento: {formas}</p>
+    </div>
+    <p>Entre em contato com o paciente para combinar a entrega ou retirada. Boas vendas!</p>
+    <p style="color:#9ca3af;font-size:11px">DoseMed · Plataforma de controle de medicamentos</p>
+    </div>"""
+
+
+def html_orcamento_perdeu(farmacia_nome: str, medicamento: str) -> str:
+    return f"""<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
+    <p style="color:#6b7280;font-weight:bold;font-size:18px">DoseMed — Resultado do Orçamento</p>
+    <p>Olá, <strong>{farmacia_nome}</strong>.</p>
+    <p>O paciente escolheu outra farmácia para o fornecimento de <strong>{medicamento}</strong> desta vez.</p>
+    <p style="color:#555">Continue participando dos orçamentos para aumentar suas chances. Obrigado pela participação!</p>
+    <p style="color:#9ca3af;font-size:11px">DoseMed · Plataforma de controle de medicamentos</p>
+    </div>"""
+
+
 def html_lead_farmacia(farmacia_nome: str, bairro: str, medicamento: str, pa: str, mg: str, manipulado: bool) -> str:
     tipo = "💊 MANIPULADO" if manipulado else "Medicamento"
     return f"""<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
@@ -2392,14 +2444,201 @@ def solicitar_reposicao(item_id: int, telefone: str, db: Session = Depends(get_d
     db.flush()
 
     usuario = db.query(Usuario).filter(Usuario.telefone == tel).first()
-    n_leads = gerar_leads_para_item(db, item, usuario, origem="consumido") if usuario and usuario.bairro else 0
-    db.commit()
 
+    # Encontra farmácias elegíveis e cria OrcamentoResposta + Lead por farmácia
+    max_farm = int(get_config(db, "max_farmacias_orcamento", "4"))
+    farmacias = db.query(Farmacia).filter(Farmacia.ativo == 1).all()
+    enviados = 0
+    preco_chave = "preco_lead_manipulado" if item.manipulado else "preco_lead_comum"
+    preco_lead = float(get_config(db, preco_chave, "5.00"))
+
+    for f in farmacias:
+        if enviados >= max_farm:
+            break
+        if usuario and usuario.bairro:
+            bairros_f = [b.lower().strip() for b in (f.bairros or "").split(",") if b.strip()]
+            if bairros_f and usuario.bairro.lower().strip() not in bairros_f:
+                continue
+        if item.manipulado and not f.atende_manipulado:
+            continue
+
+        token = secrets.token_urlsafe(16)
+        db.add(OrcamentoResposta(
+            solicitacao_id=sol.id, farmacia_id=f.id,
+            token=token, status="pendente",
+        ))
+        db.add(Lead(
+            farmacia_id=f.id,
+            usuario_bairro=usuario.bairro if usuario else None,
+            medicamento=item.nome_medicamento,
+            principio_ativo=item.principio_ativo,
+            miligramas=item.miligramas,
+            manipulado=item.manipulado or 0,
+            origem="consumido", status="enviado",
+            preco_cobrado=preco_lead,
+        ))
+        if f.email:
+            html = html_orcamento_farmacia(
+                f.nome, usuario.bairro if usuario else "—",
+                item.nome_medicamento, item.principio_ativo or "",
+                item.miligramas or "", bool(item.manipulado), token,
+            )
+            enviar_email(f.email, f"DoseMed — Orçamento: {item.nome_medicamento}", html)
+        enviados += 1
+
+    db.commit()
     return {
         "ok": True, "solicitacao_id": sol.id,
-        "mensagem": f"Solicitação enviada para {n_leads} farmácia(s) parceira(s)." if n_leads
+        "mensagem": f"Solicitação enviada para {enviados} farmácia(s). Aguarde os orçamentos." if enviados
                     else "Solicitação registrada. Entraremos em contato em breve.",
     }
+
+
+@app.get("/orcamento/{token}")
+def ver_orcamento(token: str, db: Session = Depends(get_db)):
+    resp = db.query(OrcamentoResposta).filter(OrcamentoResposta.token == token).first()
+    if not resp:
+        raise HTTPException(status_code=404, detail="Orçamento não encontrado.")
+    sol = resp.solicitacao
+    f = resp.farmacia
+    expirou = bool(sol.expira_em and datetime.utcnow() > sol.expira_em)
+    return {
+        "token": token,
+        "farmacia_nome": f.nome,
+        "medicamento": sol.nome_med,
+        "quantidade": sol.quantidade_restante,
+        "status_resposta": resp.status,
+        "status_solicitacao": sol.status,
+        "expirou": expirou,
+        "preco": resp.preco,
+        "prazo_entrega": resp.prazo_entrega,
+        "formas_pagamento": resp.formas_pagamento,
+        "respondido_em": str(resp.respondido_em) if resp.respondido_em else None,
+    }
+
+
+@app.post("/orcamento/{token}/responder")
+def responder_orcamento(token: str, payload: OrcamentoRespostaPayload, db: Session = Depends(get_db)):
+    resp = db.query(OrcamentoResposta).filter(OrcamentoResposta.token == token).first()
+    if not resp:
+        raise HTTPException(status_code=404, detail="Orçamento não encontrado.")
+    if resp.status != "pendente":
+        raise HTTPException(status_code=400, detail="Este orçamento já foi respondido ou encerrado.")
+    sol = resp.solicitacao
+    if sol.status not in ("coletando", "aguardando_usuario"):
+        raise HTTPException(status_code=400, detail="Solicitação encerrada.")
+    if sol.expira_em and datetime.utcnow() > sol.expira_em:
+        resp.status = "expirou"
+        db.commit()
+        raise HTTPException(status_code=410, detail="Prazo de resposta expirado.")
+    if payload.preco <= 0:
+        raise HTTPException(status_code=400, detail="Preço deve ser maior que zero.")
+
+    resp.preco = payload.preco
+    resp.prazo_entrega = sanitizar(payload.prazo_entrega)[:100]
+    resp.formas_pagamento = payload.formas_pagamento[:100]
+    resp.status = "respondido"
+    resp.respondido_em = datetime.utcnow()
+    sol.status = "aguardando_usuario"
+    db.commit()
+
+    # Push ao paciente
+    subs = db.query(PushSub).filter(PushSub.usuario_id == sol.usuario_id).all()
+    usuario = db.query(Usuario).filter(Usuario.telefone == sol.usuario_id).first()
+    nome = usuario.nome.split()[0] if usuario else "você"
+    f = resp.farmacia
+    for sub in subs:
+        enviar_push(sub, "💊 Orçamento recebido!",
+                    f"{nome}, {f.nome} enviou uma proposta para {sol.nome_med}. Veja agora!")
+
+    return {"ok": True, "mensagem": "Orçamento enviado! O paciente será notificado."}
+
+
+@app.get("/usuario/{telefone}/orcamentos")
+def listar_orcamentos(telefone: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    sols = db.query(OrcamentoSolicitacao).filter(
+        OrcamentoSolicitacao.usuario_id == tel
+    ).order_by(OrcamentoSolicitacao.criado_em.desc()).limit(20).all()
+
+    result = []
+    for sol in sols:
+        respostas = db.query(OrcamentoResposta).filter(
+            OrcamentoResposta.solicitacao_id == sol.id,
+            OrcamentoResposta.status.in_(["respondido", "ganhou", "perdeu"])
+        ).order_by(OrcamentoResposta.preco).all()
+        result.append({
+            "id": sol.id,
+            "medicamento": sol.nome_med,
+            "status": sol.status,
+            "criado_em": str(sol.criado_em.date()) if sol.criado_em else None,
+            "expira_em": str(sol.expira_em) if sol.expira_em else None,
+            "total_pendente": db.query(OrcamentoResposta).filter(
+                OrcamentoResposta.solicitacao_id == sol.id,
+                OrcamentoResposta.status == "pendente"
+            ).count(),
+            "respostas": [{
+                "id": r.id,
+                "farmacia_nome": r.farmacia.nome,
+                "preco": r.preco,
+                "prazo_entrega": r.prazo_entrega,
+                "formas_pagamento": r.formas_pagamento,
+                "status": r.status,
+            } for r in respostas],
+        })
+    return result
+
+
+@app.post("/orcamento/{solicitacao_id}/escolher/{resposta_id}")
+def escolher_farmacia(solicitacao_id: int, resposta_id: int, telefone: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    sol = db.query(OrcamentoSolicitacao).filter(
+        OrcamentoSolicitacao.id == solicitacao_id,
+        OrcamentoSolicitacao.usuario_id == tel
+    ).first()
+    if not sol:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada.")
+    if sol.status != "aguardando_usuario":
+        raise HTTPException(status_code=400, detail="Solicitação não está aguardando escolha.")
+
+    vencedora = db.query(OrcamentoResposta).filter(
+        OrcamentoResposta.id == resposta_id,
+        OrcamentoResposta.solicitacao_id == solicitacao_id,
+        OrcamentoResposta.status == "respondido"
+    ).first()
+    if not vencedora:
+        raise HTTPException(status_code=404, detail="Resposta não encontrada.")
+
+    vencedora.status = "ganhou"
+    db.query(OrcamentoResposta).filter(
+        OrcamentoResposta.solicitacao_id == solicitacao_id,
+        OrcamentoResposta.id != resposta_id,
+        OrcamentoResposta.status == "respondido"
+    ).update({"status": "perdeu"})
+    sol.status = "fechado"
+    db.commit()
+
+    f = vencedora.farmacia
+    usuario = db.query(Usuario).filter(Usuario.telefone == sol.usuario_id).first()
+    bairro = usuario.bairro if usuario else "—"
+
+    if f.email:
+        enviar_email(f.email, f"DoseMed — Você foi escolhido! {sol.nome_med}",
+                     html_orcamento_ganhou(f.nome, sol.nome_med, bairro,
+                                           vencedora.preco, vencedora.prazo_entrega or "—",
+                                           vencedora.formas_pagamento or "—"))
+
+    perdedoras = db.query(OrcamentoResposta).filter(
+        OrcamentoResposta.solicitacao_id == solicitacao_id,
+        OrcamentoResposta.status == "perdeu"
+    ).all()
+    for p in perdedoras:
+        if p.farmacia.email:
+            enviar_email(p.farmacia.email, f"DoseMed — Resultado do orçamento: {sol.nome_med}",
+                         html_orcamento_perdeu(p.farmacia.nome, sol.nome_med))
+
+    return {"ok": True, "farmacia_nome": f.nome,
+            "mensagem": f"{f.nome} foi escolhida! Aguarde o contato da farmácia."}
 
 
 # --- Webhook Asaas ---
