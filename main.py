@@ -1542,7 +1542,7 @@ def admin_relatorios(telefone: str, db: Session = Depends(get_db)):
     farm_bairros: dict[str, int] = {}
     for f in farmacias_todas:
         farm_por_plano[f.plano or "lead"] = farm_por_plano.get(f.plano or "lead", 0) + 1
-        org = getattr(f, "origem", "admin") or "admin"
+        org = f.origem or "admin"
         farm_por_origem[org] = farm_por_origem.get(org, 0) + 1
         for b in (f.bairros or "").split(","):
             b = b.strip()
@@ -1852,7 +1852,7 @@ def serializar_farmacia(f: Farmacia, db: Session) -> dict:
         "plano": f.plano, "ativo": bool(f.ativo), "atende_manipulado": bool(f.atende_manipulado),
         "asaas_customer_id": f.asaas_customer_id, "asaas_subscription_id": f.asaas_subscription_id,
         "total_leads": total_leads, "leads_mes": leads_mes,
-        "origem": getattr(f, "origem", "admin") or "admin",
+        "origem": f.origem or "admin",
         "criado_em": str(f.criado_em.date()) if f.criado_em else None,
     }
 

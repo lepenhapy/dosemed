@@ -86,6 +86,7 @@ class Farmacia(Base):
     pin = Column(String, nullable=True)
     rating_total = Column(Float, default=0.0)
     rating_count = Column(Integer, default=0)
+    origem = Column(String, default="admin")
     criado_em = Column(DateTime, default=datetime.utcnow)
     leads = relationship("Lead", back_populates="farmacia")
     orcamento_respostas = relationship("OrcamentoResposta", back_populates="farmacia")
