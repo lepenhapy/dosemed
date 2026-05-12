@@ -163,3 +163,10 @@ class AlarmeRemedio(Base):
     dias = Column(String, default="1,2,3,4,5,6,7")  # 1=seg … 7=dom
     ativo = Column(Integer, default=1)
     criado_em = Column(DateTime, default=datetime.utcnow)
+
+
+class LogEvento(Base):
+    __tablename__ = "log_eventos"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tipo = Column(String, nullable=False)  # cadastro_usuario | exclusao_usuario | cadastro_farmacia | exclusao_farmacia
+    criado_em = Column(DateTime, default=datetime.utcnow)

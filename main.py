@@ -48,7 +48,7 @@ from PIL import Image
 from dotenv import load_dotenv
 
 load_dotenv()
-from models import Base, Usuario, Estoque, Pedido, CodigoRecuperacao, LogBusca, Farmacia, Lead, Configuracao, PushSub, AlarmeRemedio, OrcamentoSolicitacao, OrcamentoResposta
+from models import Base, Usuario, Estoque, Pedido, CodigoRecuperacao, LogBusca, Farmacia, Lead, Configuracao, PushSub, AlarmeRemedio, OrcamentoSolicitacao, OrcamentoResposta, LogEvento
 
 # --- Logging ---
 _log_handlers = [logging.StreamHandler()]
@@ -875,6 +875,7 @@ def criar_usuario(payload: UsuarioPayload, db: Session = Depends(get_db)):
         aceite_lgpd=datetime.utcnow() if payload.aceite_lgpd else None
     )
     db.add(usuario)
+    db.add(LogEvento(tipo="cadastro_usuario"))
     db.commit()
     logger.info(f"Novo usuário: {telefone}")
     return {"mensagem": "Usuário cadastrado com sucesso!", "telefone": telefone}
@@ -932,6 +933,7 @@ def excluir_usuario(telefone: str, payload: ExcluirContaPayload, db: Session = D
     db.query(Pedido).filter(Pedido.usuario_id == telefone).delete()
     db.query(CodigoRecuperacao).filter(CodigoRecuperacao.telefone == telefone).delete()
     db.delete(usuario)
+    db.add(LogEvento(tipo="exclusao_usuario"))
     db.commit()
 
     logger.info(f"Conta excluída (LGPD): {telefone}")
@@ -1579,6 +1581,87 @@ def admin_relatorios(telefone: str, db: Session = Depends(get_db)):
     }
 
 
+@app.get("/admin/crescimento")
+def admin_crescimento(telefone: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    if tel != ADMIN_PHONE:
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+
+    agora = datetime.utcnow()
+    corte_30d = agora - timedelta(days=30)
+    corte_7d  = agora - timedelta(days=7)
+    corte_mes = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    eventos = db.query(LogEvento).all()
+    eventos_30d = [ev for ev in eventos if ev.criado_em and ev.criado_em >= corte_30d]
+
+    cadastros_dia: dict[str, int] = {}
+    exclusoes_dia: dict[str, int] = {}
+    for ev in eventos_30d:
+        d = str(ev.criado_em.date())
+        if ev.tipo in ("cadastro_usuario", "cadastro_farmacia"):
+            cadastros_dia[d] = cadastros_dia.get(d, 0) + 1
+        elif ev.tipo in ("exclusao_usuario", "exclusao_farmacia"):
+            exclusoes_dia[d] = exclusoes_dia.get(d, 0) + 1
+
+    todos_dias = sorted(set(list(cadastros_dia.keys()) + list(exclusoes_dia.keys())))
+
+    total_cadastros = sum(1 for ev in eventos if ev.tipo in ("cadastro_usuario", "cadastro_farmacia"))
+    total_exclusoes = sum(1 for ev in eventos if ev.tipo in ("exclusao_usuario", "exclusao_farmacia"))
+    cadastros_7d = sum(1 for ev in eventos if ev.tipo in ("cadastro_usuario", "cadastro_farmacia") and ev.criado_em and ev.criado_em >= corte_7d)
+    cadastros_mes = sum(1 for ev in eventos if ev.tipo in ("cadastro_usuario", "cadastro_farmacia") and ev.criado_em and ev.criado_em >= corte_mes)
+    exclusoes_7d = sum(1 for ev in eventos if ev.tipo in ("exclusao_usuario", "exclusao_farmacia") and ev.criado_em and ev.criado_em >= corte_7d)
+
+    return {
+        "total_cadastros": total_cadastros,
+        "total_exclusoes": total_exclusoes,
+        "cadastros_7d": cadastros_7d,
+        "cadastros_mes": cadastros_mes,
+        "exclusoes_7d": exclusoes_7d,
+        "por_dia": [
+            {"data": d, "cadastros": cadastros_dia.get(d, 0), "exclusoes": exclusoes_dia.get(d, 0)}
+            for d in todos_dias
+        ],
+    }
+
+
+@app.post("/admin/reset-dados")
+def admin_reset_dados(telefone: str, confirmar: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    if tel != ADMIN_PHONE:
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    if confirmar != "CONFIRMAR_RESET":
+        raise HTTPException(status_code=400, detail="Confirmação inválida. Passe confirmar=CONFIRMAR_RESET")
+
+    FARM_TESTE = 8
+    PHONES_PRESERVAR = [ADMIN_PHONE, "6599339250"]
+
+    usuarios = db.query(Usuario).filter(Usuario.telefone.notin_(PHONES_PRESERVAR)).all()
+    excluidos = 0
+    for u in usuarios:
+        db.query(LogBusca).filter(LogBusca.usuario_id == u.telefone).update({"usuario_id": None})
+        sols = db.query(OrcamentoSolicitacao).filter(OrcamentoSolicitacao.usuario_id == u.telefone).all()
+        for sol in sols:
+            db.query(OrcamentoResposta).filter(OrcamentoResposta.solicitacao_id == sol.id).delete()
+        db.query(OrcamentoSolicitacao).filter(OrcamentoSolicitacao.usuario_id == u.telefone).delete()
+        db.query(PushSub).filter(PushSub.usuario_id == u.telefone).delete()
+        db.query(AlarmeRemedio).filter(AlarmeRemedio.usuario_id == u.telefone).delete()
+        db.query(Estoque).filter(Estoque.usuario_id == u.telefone).delete()
+        db.query(Pedido).filter(Pedido.usuario_id == u.telefone).delete()
+        db.query(CodigoRecuperacao).filter(CodigoRecuperacao.telefone == u.telefone).delete()
+        db.delete(u)
+        excluidos += 1
+
+    # Limpa leads demo da farmácia de teste
+    db.query(Lead).filter(Lead.farmacia_id == FARM_TESTE).delete()
+    # Zera log de eventos (dados de teste)
+    db.query(LogEvento).delete()
+
+    db.commit()
+    logger.info(f"[ADMIN] Reset de dados: {excluidos} usuários excluídos por {tel}")
+    return {"ok": True, "usuarios_excluidos": excluidos}
+
+
 @app.get("/admin/insights")
 def admin_insights(telefone: str, db: Session = Depends(get_db)):
     tel = validar_telefone(telefone)
@@ -2113,6 +2196,7 @@ def admin_excluir_usuario(telefone_alvo: str, telefone: str, db: Session = Depen
     db.query(Pedido).filter(Pedido.usuario_id == alvo).delete()
     db.query(CodigoRecuperacao).filter(CodigoRecuperacao.telefone == alvo).delete()
     db.delete(usuario)
+    db.add(LogEvento(tipo="exclusao_usuario"))
     db.commit()
     logger.info(f"[ADMIN] Usuário {alvo} excluído por {tel}")
     return {"ok": True, "mensagem": f"Usuário {alvo} excluído com sucesso."}
@@ -2288,6 +2372,7 @@ async def farmacia_auto_cadastro(request: Request, payload: FarmaciaCadastroPayl
     except Exception:
         pass
     db.add(f)
+    db.add(LogEvento(tipo="cadastro_farmacia"))
     db.commit()
     logger.info(f"Nova farmácia auto-cadastrada: {f.nome} ({digitos})")
     return {"ok": True, "farmacia_id": f.id, "mensagem": "Farmácia cadastrada! Defina seu PIN para acessar o painel."}
@@ -2389,6 +2474,7 @@ def excluir_farmacia(telefone: str, payload: ExcluirContaPayload, db: Session = 
     db.query(OrcamentoResposta).filter(OrcamentoResposta.farmacia_id == f.id).delete()
     db.query(Lead).filter(Lead.farmacia_id == f.id).delete()
     db.delete(f)
+    db.add(LogEvento(tipo="exclusao_farmacia"))
     db.commit()
 
     logger.info(f"Farmácia excluída (LGPD): {digitos} — {f.nome}")

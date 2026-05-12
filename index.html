@@ -363,10 +363,14 @@
   <!-- TELA DE ACESSO -->
   <div x-show="!modoOrcamento && !usuario && !mostrarCadastro && !mostrarDefinirPin && !mostrarEscolha && !mostrarCadastroFarmacia" x-cloak>
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+      <div class="text-center mb-6">
+        <div class="text-6xl mb-2">💊</div>
+        <h1 class="text-3xl font-black text-blue-600 tracking-tight">DoseMed</h1>
+        <p class="text-sm text-gray-400 mt-1">Guardião dos seus remédios</p>
+      </div>
       <div class="bg-blue-50 rounded-xl px-4 py-3 mb-6 text-xs text-blue-700 leading-relaxed">
         <strong>O que é o DoseMed?</strong> Uma ferramenta para controlar os medicamentos que você tem em casa, acompanhar validades e consultar informações de referência sobre os remédios. Não é um serviço médico — sempre consulte seu médico ou farmacêutico.
       </div>
-      <h1 class="text-2xl font-bold text-gray-800 mb-1">Seu estoque de medicamentos</h1>
       <p class="text-gray-400 text-sm mb-6">Acesse com seu número de telefone.</p>
       <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Telefone com DDD</label>
       <div class="flex gap-2 mb-3">
@@ -590,6 +594,8 @@
               :class="abaAdmin === 'leads' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Leads</button>
             <button @click="abaAdmin = 'precos'; if (!adminPrecos) carregarPrecos()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
               :class="abaAdmin === 'precos' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Preços</button>
+            <button @click="abaAdmin = 'crescimento'; if (!adminCrescimento) carregarCrescimento()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+              :class="abaAdmin === 'crescimento' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Crescimento</button>
           </div>
 
           <!-- ABA RESUMO -->
@@ -956,6 +962,71 @@
             </template>
           </div><!-- /aba preços -->
 
+          <!-- ABA CRESCIMENTO -->
+          <div x-show="abaAdmin === 'crescimento'" class="space-y-5">
+            <div x-show="crescimentoCarregando" class="text-center py-8 text-indigo-400 text-sm">Carregando...</div>
+            <div x-show="!adminCrescimento && !crescimentoCarregando" class="text-center py-6">
+              <button @click="carregarCrescimento()" class="text-xs text-indigo-500 underline">Carregar</button>
+            </div>
+            <template x-if="adminCrescimento">
+              <div class="space-y-5">
+                <!-- Métricas resumo -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div class="bg-indigo-50 rounded-xl p-4 text-center">
+                    <p class="text-2xl font-black text-indigo-600" x-text="adminCrescimento.total_cadastros"></p>
+                    <p class="text-xs text-indigo-400 mt-1">Total cadastros</p>
+                  </div>
+                  <div class="bg-blue-50 rounded-xl p-4 text-center">
+                    <p class="text-2xl font-black text-blue-600" x-text="adminCrescimento.cadastros_7d"></p>
+                    <p class="text-xs text-blue-400 mt-1">Novos (7d)</p>
+                  </div>
+                  <div class="bg-emerald-50 rounded-xl p-4 text-center">
+                    <p class="text-2xl font-black text-emerald-600" x-text="adminCrescimento.cadastros_mes"></p>
+                    <p class="text-xs text-emerald-400 mt-1">Este mês</p>
+                  </div>
+                  <div class="bg-red-50 rounded-xl p-4 text-center">
+                    <p class="text-2xl font-black text-red-500" x-text="adminCrescimento.total_exclusoes"></p>
+                    <p class="text-xs text-red-400 mt-1">Total exclusões</p>
+                  </div>
+                  <div class="bg-orange-50 rounded-xl p-4 text-center">
+                    <p class="text-2xl font-black text-orange-500" x-text="adminCrescimento.exclusoes_7d"></p>
+                    <p class="text-xs text-orange-400 mt-1">Exclusões (7d)</p>
+                  </div>
+                </div>
+
+                <!-- Gráfico cadastros/exclusões por dia -->
+                <div x-show="adminCrescimento.por_dia?.length > 0">
+                  <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Cadastros e exclusões (30 dias)</p>
+                  <canvas id="chartCrescimento" height="80"></canvas>
+                </div>
+                <div x-show="!adminCrescimento.por_dia?.length" class="text-center py-6 text-gray-300 text-sm">
+                  Sem dados ainda — eventos são registrados a partir de agora.
+                </div>
+
+                <!-- Reset de dados -->
+                <div class="border border-red-100 rounded-2xl p-5 bg-red-50 space-y-3">
+                  <p class="text-sm font-bold text-red-600">Reset de dados (pré-lançamento)</p>
+                  <p class="text-xs text-red-400 leading-relaxed">
+                    Remove todos os usuários e leads de teste. Preserva o admin (<strong>65993125115</strong>) e a farmácia de teste (<strong>6599339250</strong>).
+                    Esta ação é irreversível.
+                  </p>
+                  <div class="flex gap-2 items-center">
+                    <input x-model="resetConfirmar" type="text" placeholder="Digite CONFIRMAR_RESET"
+                      class="flex-1 border border-red-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-red-300 bg-white" />
+                    <button @click="executarReset()"
+                      :disabled="resetConfirmar !== 'CONFIRMAR_RESET'"
+                      class="bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-red-700 disabled:opacity-40 shrink-0">
+                      Resetar
+                    </button>
+                  </div>
+                  <div x-show="resetMsg" class="text-xs px-3 py-2 rounded-lg"
+                    :class="resetMsg.includes('sucesso') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'"
+                    x-text="resetMsg"></div>
+                </div>
+              </div>
+            </template>
+          </div><!-- /aba crescimento -->
+
         </div>
       </div>
 
@@ -1085,10 +1156,37 @@
       <!-- PAINEL CADASTRAR -->
       <div x-show="abaAtiva === 'cadastrar'" class="space-y-4">
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+
+          <!-- Modo câmera (padrão) -->
+          <div x-show="modoFoto && !reconhecendo" x-cloak>
+            <div class="text-center py-6">
+              <div class="text-7xl mb-3">📷</div>
+              <h3 class="font-bold text-gray-700 text-lg mb-1">Fotografe a embalagem</h3>
+              <p class="text-sm text-gray-400 mb-0.5">Aponte para a <strong>frente da caixa</strong> do remédio</p>
+              <p class="text-xs text-gray-300 mb-6">Deixe o nome e a dosagem bem visíveis na foto</p>
+              <label class="cursor-pointer inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-2xl text-base font-bold hover:bg-blue-700 active:scale-95 transition shadow-lg shadow-blue-100">
+                📷 Tirar foto da caixa
+                <input type="file" accept="image/*" capture="environment" class="hidden" @change="reconhecerImagem($event)" />
+              </label>
+              <div class="mt-5">
+                <button @click="modoFoto = false" class="text-xs text-gray-400 hover:text-gray-600 underline">Preencher manualmente</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Analisando foto -->
+          <div x-show="reconhecendo" class="text-center py-12">
+            <div class="text-5xl mb-4 animate-pulse">🔍</div>
+            <p class="font-semibold text-gray-600 mb-1">Identificando medicamento...</p>
+            <p class="text-xs text-gray-400">Aguarde enquanto analisamos a imagem</p>
+          </div>
+
+          <!-- Modo formulário -->
+          <div x-show="!modoFoto && !reconhecendo">
           <div class="flex items-center justify-between mb-4">
             <h3 class="font-semibold text-gray-700">Novo medicamento</h3>
             <label class="cursor-pointer flex items-center gap-1.5 bg-gray-50 border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition text-gray-500 hover:text-blue-600 text-xs font-semibold px-3 py-2 rounded-xl">
-              <span x-text="reconhecendo ? '⏳ Analisando...' : '📷 Foto da caixa'"></span>
+              📷 Nova foto
               <input type="file" accept="image/*" capture="environment" class="hidden" @change="reconhecerImagem($event)" :disabled="reconhecendo" />
             </label>
           </div>
@@ -1170,6 +1268,7 @@
             class="mt-3 w-full border border-blue-200 text-blue-600 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-50 transition">
             Ver estoque →
           </button>
+          </div><!-- /modo formulário -->
         </div>
       </div><!-- /cadastrar -->
 
@@ -1742,7 +1841,7 @@ function dosemed() {
     precoSistema: null,
     termoPesquisa: '', resultadosBula: [], estoquePorBula: [], buscandoBulas: false,
     carregando: false, erroLogin: '', mensagemWebhook: '', alertaPA: '',
-    reconhecendo: false, previewUrl: '', erroReconhecimento: '',
+    reconhecendo: false, previewUrl: '', erroReconhecimento: '', modoFoto: true,
     mostrarCadastro: false, cadastro: { nome: '', email: '', bairro: '', endereco: '', portaria: '' },
     modalItem: null, modalPerfil: false, editPerfil: { nome: '', email: '', bairro: '', endereco: '', portaria: '' },
     mostrarLGPD: false, lgpdAceito: false,
@@ -1757,7 +1856,7 @@ function dosemed() {
     isAdmin: false, temEmail: false, abaAtiva: 'pesquisar', abaAdmin: 'resumo', adminDados: null, adminCarregando: false,
     adminInsights: null, insightsCarregando: false,
     insightFiltros: { bairro: true, termo: true, tipo: true, ticket: true, periodo: true },
-    adminFarmacias: null, adminLeads: null, adminPrecos: null,
+    adminFarmacias: null, adminLeads: null, adminPrecos: null, adminCrescimento: null, crescimentoCarregando: false, resetConfirmar: '', resetMsg: '',
     modalFarmacia: null,
     // farmácia
     isFarmacia: false, farmacia: null, farmaciaCarregando: false,
@@ -2209,7 +2308,7 @@ function dosemed() {
         if (!r.ok) {
           const d = await r.json();
           this.erroReconhecimento = d.detail || 'Erro ao analisar imagem.';
-          this.reconhecendo = false; return;
+          this.reconhecendo = false; this.modoFoto = false; return;
         }
         const d = await r.json();
         if (d.nome_medicamento) this.novoMed.nome = d.nome_medicamento;
@@ -2218,6 +2317,7 @@ function dosemed() {
         if (d.fabricante) this.novoMed.fabricante = d.fabricante;
       } catch { this.erroReconhecimento = 'Erro de conexão ao analisar imagem.'; }
       this.reconhecendo = false;
+      this.modoFoto = false;
       event.target.value = '';
     },
 
@@ -2507,6 +2607,59 @@ function dosemed() {
         }
       } catch {}
       this.adminCarregando = false;
+    },
+
+    async carregarCrescimento() {
+      this.crescimentoCarregando = true;
+      try {
+        const r = await fetch(`/admin/crescimento?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) {
+          this.adminCrescimento = await r.json();
+          this.$nextTick(() => this.renderizarChartCrescimento());
+        }
+      } catch {}
+      this.crescimentoCarregando = false;
+    },
+
+    renderizarChartCrescimento() {
+      if (this.adminCrescimento?.por_dia?.length) {
+        const el = document.getElementById('chartCrescimento');
+        if (el) {
+          if (el._chartInstance) el._chartInstance.destroy();
+          el._chartInstance = new Chart(el, {
+            type: 'bar',
+            data: {
+              labels: this.adminCrescimento.por_dia.map(d => d.data.slice(5)),
+              datasets: [
+                { label: 'Cadastros', data: this.adminCrescimento.por_dia.map(d => d.cadastros), backgroundColor: '#818cf8', borderRadius: 4 },
+                { label: 'Exclusões', data: this.adminCrescimento.por_dia.map(d => d.exclusoes), backgroundColor: '#f87171', borderRadius: 4 }
+              ]
+            },
+            options: {
+              plugins: { legend: { display: true, position: 'top' } },
+              scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { stacked: false } }
+            }
+          });
+        }
+      }
+    },
+
+    async executarReset() {
+      if (this.resetConfirmar !== 'CONFIRMAR_RESET') return;
+      if (!confirm('Tem certeza? Esta ação é irreversível.')) return;
+      this.resetMsg = '';
+      try {
+        const r = await fetch(`/admin/reset-dados?telefone=${encodeURIComponent(this.telefoneAtual)}&confirmar=CONFIRMAR_RESET`, { method: 'POST' });
+        const d = await r.json();
+        if (r.ok) {
+          this.resetMsg = `Sucesso! ${d.usuarios_excluidos} usuários excluídos.`;
+          this.resetConfirmar = '';
+          this.adminCrescimento = null;
+          await this.carregarAdmin();
+        } else {
+          this.resetMsg = d.detail || 'Erro ao resetar.';
+        }
+      } catch { this.resetMsg = 'Erro de conexão.'; }
     },
 
     renderizarChart() {
