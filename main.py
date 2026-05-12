@@ -120,6 +120,7 @@ with engine.connect() as conn:
                 conn.commit()
                 logger.info(f"Migração: {tabela}.{col_nome} adicionado.")
             except Exception as ex:
+                conn.rollback()
                 msg = str(ex).lower()
                 if "already exists" not in msg and "duplicate column" not in msg:
                     logger.warning(f"Migração {tabela}.{col_nome}: {ex}")
@@ -2572,16 +2573,6 @@ def confirmar_chegada(payload: ConfirmarChegadaPayload, db: Session = Depends(ge
         db.commit()
         return {"mensagem": "Entrega confirmada e estoque atualizado!"}
     return {"mensagem": "Entrega confirmada. Informe a validade para atualizar o estoque."}
-
-
-@app.get("/debug/farmacia")
-def debug_farmacia(db: Session = Depends(get_db)):
-    import traceback
-    try:
-        count = db.query(Farmacia).count()
-        return {"ok": True, "count": count}
-    except Exception as e:
-        return {"ok": False, "erro": str(e), "trace": traceback.format_exc()}
 
 
 @app.exception_handler(Exception)
