@@ -1838,6 +1838,7 @@ class FarmaciaPayload(BaseModel):
     plano: Optional[str] = "lead"
     ativo: Optional[int] = 1
     atende_manipulado: Optional[int] = 0
+    origem: Optional[str] = None
 
 
 def serializar_farmacia(f: Farmacia, db: Session) -> dict:
@@ -1908,6 +1909,8 @@ def editar_farmacia(farmacia_id: int, telefone: str, payload: FarmaciaPayload, d
     f.nome = sanitizar(payload.nome); f.cnpj = payload.cnpj; f.email = payload.email.strip().lower()
     f.telefone_contato = payload.telefone_contato; f.bairros = payload.bairros
     f.plano = payload.plano or "lead"; f.ativo = payload.ativo; f.atende_manipulado = payload.atende_manipulado or 0
+    if payload.origem is not None:
+        f.origem = payload.origem
 
     # Se mudou para plano pago e não tem assinatura, criar
     if f.plano != "lead" and f.plano != plano_anterior and f.asaas_customer_id and not f.asaas_subscription_id:
