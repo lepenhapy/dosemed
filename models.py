@@ -101,6 +101,7 @@ class OrcamentoSolicitacao(Base):
     nome_med = Column(String, nullable=False)
     quantidade_restante = Column(Integer, nullable=True)
     status = Column(String, default="coletando")    # coletando | aguardando_usuario | fechado | cancelado | sem_resposta
+    entregue = Column(Integer, nullable=True)        # None=pendente, 1=sim, 0=problema
     criado_em = Column(DateTime, default=datetime.utcnow)
     expira_em = Column(DateTime, nullable=True)
     respostas = relationship("OrcamentoResposta", back_populates="solicitacao")
@@ -189,4 +190,16 @@ class LogEvento(Base):
     __tablename__ = "log_eventos"
     id = Column(Integer, primary_key=True, autoincrement=True)
     tipo = Column(String, nullable=False)  # cadastro_usuario | exclusao_usuario | cadastro_farmacia | exclusao_farmacia
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+
+class Feedback(Base):
+    __tablename__ = "feedbacks"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    usuario_id = Column(String, nullable=True)
+    nota = Column(Integer, nullable=False)           # 1–5
+    categoria = Column(String, nullable=False)       # sugestao | elogio | reclamacao | bug
+    mensagem = Column(Text, nullable=False)
+    cidade = Column(String, nullable=True)
+    bairro = Column(String, nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)

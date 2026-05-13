@@ -631,6 +631,8 @@
               :class="abaAdmin === 'crescimento' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Crescimento</button>
             <button @click="abaAdmin = 'anuncios'; if (!adminAnuncios) carregarAdminAnuncios()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
               :class="abaAdmin === 'anuncios' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Anúncios</button>
+            <button @click="abaAdmin = 'feedbacks'; if (!adminFeedbacks) carregarAdminFeedbacks()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+              :class="abaAdmin === 'feedbacks' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Feedbacks</button>
           </div>
 
           <!-- ABA RESUMO -->
@@ -1120,6 +1122,37 @@
             </template>
           </div><!-- /aba anuncios -->
 
+          <!-- ABA FEEDBACKS -->
+          <div x-show="abaAdmin === 'feedbacks'" class="space-y-4">
+            <div x-show="adminFeedbacksCarregando" class="text-center py-8 text-indigo-400 text-sm">Carregando...</div>
+            <div x-show="!adminFeedbacks && !adminFeedbacksCarregando" class="text-center py-6">
+              <button @click="carregarAdminFeedbacks()" class="text-xs text-indigo-500 underline">Carregar</button>
+            </div>
+            <template x-if="adminFeedbacks">
+              <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3" x-text="`${adminFeedbacks.length} feedback(s) recebido(s)`"></p>
+                <div x-show="!adminFeedbacks.length" class="text-center py-6 text-gray-300 text-sm">Nenhum feedback ainda.</div>
+                <div class="space-y-3">
+                  <template x-for="fb in adminFeedbacks" :key="fb.id">
+                    <div class="bg-white border border-gray-100 rounded-xl p-4">
+                      <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                          <span class="text-yellow-400 text-sm tracking-tight"
+                            x-text="'★'.repeat(fb.nota) + '☆'.repeat(5 - fb.nota)"></span>
+                          <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full capitalize" x-text="fb.categoria"></span>
+                        </div>
+                        <span class="text-xs text-gray-300" x-text="fb.criado_em?.slice(0,10)"></span>
+                      </div>
+                      <p class="text-sm text-gray-700" x-text="fb.mensagem"></p>
+                      <p x-show="fb.cidade || fb.bairro" class="text-xs text-gray-400 mt-1"
+                        x-text="[fb.cidade, fb.bairro].filter(Boolean).join(' · ')"></p>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div><!-- /aba feedbacks -->
+
         </div>
       </div>
 
@@ -1514,8 +1547,17 @@
             </div>
           </div>
 
+          <!-- Banner iOS: app não instalado → push não funciona -->
+          <div x-show="pwaIsIOS" class="mb-4 bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 items-start">
+            <span class="text-xl shrink-0">📲</span>
+            <div class="flex-1">
+              <p class="text-sm font-semibold text-blue-700">Instale o app para receber alarmes no iPhone</p>
+              <p class="text-xs text-blue-500 mt-1">No Safari: toque em <strong>↑ Compartilhar</strong> → <strong>Adicionar à Tela de Início</strong> → abra o DoseMed instalado. Sem isso o iPhone não entrega notificações push.</p>
+            </div>
+          </div>
+
           <!-- Status permissão push -->
-          <div x-show="pushStatus !== 'granted'" class="mb-4 rounded-xl p-4 flex gap-3 items-start"
+          <div x-show="pushStatus !== 'granted' && !pwaIsIOS" class="mb-4 rounded-xl p-4 flex gap-3 items-start"
             :class="pushStatus === 'denied' ? 'bg-red-50' : 'bg-amber-50'">
             <span class="text-xl shrink-0" x-text="pushStatus === 'denied' ? '🚫' : '🔔'"></span>
             <div class="flex-1">
@@ -1702,6 +1744,32 @@
 
               <div x-show="sol.status === 'aguardando_usuario' && !sol.respostas?.length" class="text-xs text-gray-400 mt-2">
                 Nenhuma proposta recebida ainda.
+              </div>
+
+              <!-- Confirmação de entrega (apenas pedidos fechados) -->
+              <div x-show="sol.status === 'fechado'" class="mt-3 pt-3 border-t border-gray-100">
+                <!-- Aguardando confirmação -->
+                <div x-show="sol.entregue === null || sol.entregue === undefined">
+                  <p class="text-xs font-semibold text-gray-500 mb-2">Foi entregue?</p>
+                  <div class="flex gap-2">
+                    <button @click="confirmarEntrega(sol.id, true)"
+                      class="flex-1 bg-green-600 text-white text-xs py-2 rounded-xl font-semibold hover:bg-green-700 transition">
+                      ✓ Sim, recebi
+                    </button>
+                    <button @click="entregaModal = sol.id; entregaMotivo = ''"
+                      class="flex-1 bg-red-50 text-red-600 border border-red-200 text-xs py-2 rounded-xl font-semibold hover:bg-red-100 transition">
+                      ✕ Não recebi
+                    </button>
+                  </div>
+                </div>
+                <!-- Entregue -->
+                <div x-show="sol.entregue === 1" class="text-xs text-green-600 font-semibold flex items-center gap-1">
+                  <span>✓</span> Entrega confirmada
+                </div>
+                <!-- Problema -->
+                <div x-show="sol.entregue === 0" class="text-xs text-red-500 font-semibold flex items-center gap-1">
+                  <span>⚠️</span> Problema reportado — nosso time foi notificado
+                </div>
               </div>
             </div>
           </template>
@@ -2071,6 +2139,7 @@ function dosemed() {
     insightFiltros: { bairro: true, termo: true, tipo: true, ticket: true, periodo: true },
     adminFarmacias: null, adminLeads: null, adminPrecos: null, adminCrescimento: null, crescimentoCarregando: false, resetConfirmar: '', resetMsg: '',
     adminAnuncios: null, adminAnunciosCarregando: false,
+    adminFeedbacks: null, adminFeedbacksCarregando: false,
     // anúncio push farmácia
     anuncioForm: { texto: '', titulo: '', publico: 'bairro', genero_alvo: '' },
     anunciosCriados: null, anuncioEnviando: false, anuncioMsg: '', anuncioResultado: null,
@@ -2082,8 +2151,13 @@ function dosemed() {
     mostrarEscolha: false, mostrarCadastroFarmacia: false,
     cadastroFarmacia: { nome: '', email: '', cnpj: '', bairros: '', atende_manipulado: false },
     mostrarExcluirConta: false, confirmarExcluir: '', pinExcluir: '',
+    // feedback
+    feedbackModal: false,
+    feedbackForm: { nota: 0, categoria: 'sugestao', mensagem: '', cidade: '', bairro: '' },
+    feedbackEnviando: false, feedbackMsg: '',
     // orçamentos
     orcamentos: null, orcamentosCarregando: false,
+    entregaModal: null, entregaMotivo: '', entregaEnviando: false,
     // modo público: farmácia responde via link/token
     modoOrcamento: false, tokenOrcamento: null, orcamentoDados: null,
     orcamentoForm: { preco: '', prazo_entrega: '', formas: { pix: true, cartao: false, dinheiro: false } },
@@ -2379,13 +2453,26 @@ function dosemed() {
     },
 
     async escolherFarmacia(solicitacaoId, respostaId, farmaciaNome) {
-      if (!confirm(`Confirmar escolha de "${farmaciaNome}"?`)) return;
+      if (!confirm(`Confirmar escolha de "${farmaciaNome}"?\n\nApós confirmar, a farmácia receberá seu pedido por e-mail.`)) return;
       try {
         const r = await fetch(`/orcamento/${solicitacaoId}/escolher/${respostaId}?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
         const d = await r.json();
-        if (r.ok) { alert(d.mensagem); this.carregarOrcamentos(); }
+        if (r.ok) { await this.carregarOrcamentos(); }
         else alert(d.detail || 'Erro.');
       } catch { alert('Erro de conexão.'); }
+    },
+
+    async confirmarEntrega(solId, entregue) {
+      this.entregaEnviando = true;
+      try {
+        const r = await fetch(`/orcamento/${solId}/confirmar-entrega`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefone: this.telefoneAtual, entregue, motivo: this.entregaMotivo || null })
+        });
+        if (r.ok) { this.entregaModal = null; this.entregaMotivo = ''; await this.carregarOrcamentos(); }
+        else { const e = await r.json(); alert(e.detail || 'Erro.'); }
+      } catch { alert('Erro de conexão.'); }
+      this.entregaEnviando = false;
     },
 
     async carregarOrcamento(token) {
@@ -2901,6 +2988,54 @@ function dosemed() {
       } catch { alert('Erro de conexão.'); }
     },
 
+    abrirFeedback() {
+      this.feedbackForm = {
+        nota: 0,
+        categoria: 'sugestao',
+        mensagem: '',
+        cidade: '',
+        bairro: this.usuario?.bairro || ''
+      };
+      this.feedbackMsg = '';
+      this.feedbackModal = true;
+    },
+
+    async enviarFeedback() {
+      if (!this.feedbackForm.nota) { this.feedbackMsg = 'Selecione uma nota de 1 a 5.'; return; }
+      if ((this.feedbackForm.mensagem || '').trim().length < 5) { this.feedbackMsg = 'Mensagem muito curta (mínimo 5 caracteres).'; return; }
+      this.feedbackEnviando = true; this.feedbackMsg = '';
+      try {
+        const r = await fetch('/feedback', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            usuario_id: this.telefoneAtual || null,
+            nota: this.feedbackForm.nota,
+            categoria: this.feedbackForm.categoria,
+            mensagem: this.feedbackForm.mensagem,
+            cidade: this.feedbackForm.cidade || null,
+            bairro: this.feedbackForm.bairro || null,
+          })
+        });
+        if (r.ok) {
+          this.feedbackMsg = '✓ Obrigado pelo seu feedback!';
+          setTimeout(() => { this.feedbackModal = false; this.feedbackMsg = ''; }, 2200);
+        } else {
+          const e = await r.json();
+          this.feedbackMsg = e.detail || 'Erro ao enviar. Tente novamente.';
+        }
+      } catch { this.feedbackMsg = 'Erro de conexão.'; }
+      this.feedbackEnviando = false;
+    },
+
+    async carregarAdminFeedbacks() {
+      this.adminFeedbacksCarregando = true;
+      try {
+        const r = await fetch(`/admin/feedbacks?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) this.adminFeedbacks = await r.json();
+      } catch {}
+      this.adminFeedbacksCarregando = false;
+    },
+
     async carregarAnunciosFarmacia() {
       try {
         const r = await fetch(`/farmacia/anuncios?telefone=${encodeURIComponent(this.telefoneAtual)}`);
@@ -3253,6 +3388,9 @@ function dosemed() {
       this.mostrarEscolha = false; this.mostrarCadastroFarmacia = false;
       this.cadastroFarmacia = { nome: '', email: '', cnpj: '', bairros: '', atende_manipulado: false };
       this.mostrarExcluirConta = false; this.confirmarExcluir = ''; this.pinExcluir = '';
+      this.entregaModal = null; this.entregaMotivo = ''; this.entregaEnviando = false;
+      this.feedbackModal = false; this.feedbackForm = { nota: 0, categoria: 'sugestao', mensagem: '', cidade: '', bairro: '' }; this.feedbackMsg = '';
+      this.adminFeedbacks = null; this.adminFeedbacksCarregando = false;
     }
   }
 }
@@ -3332,6 +3470,113 @@ function dosemed() {
     <p class="text-xs text-center text-gray-300 mt-2">Ao continuar, você concorda com os termos acima.</p>
   </div>
 </div>
+
+<!-- MODAL: PROBLEMA DE ENTREGA -->
+<div x-show="entregaModal !== null" x-cloak
+  class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center px-0 sm:px-4"
+  @click.self="entregaModal = null">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-sm p-6">
+    <h2 class="font-bold text-gray-800 mb-1">O que aconteceu?</h2>
+    <p class="text-xs text-gray-400 mb-4">Descreva o problema para que possamos ajudar.</p>
+    <textarea x-model="entregaMotivo" rows="3" maxlength="300"
+      placeholder="ex: A farmácia não entrou em contato, produto errado, prazo não cumprido..."
+      class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none mb-4"></textarea>
+    <div class="flex gap-2">
+      <button @click="entregaModal = null" class="flex-1 border border-gray-200 text-gray-400 py-2.5 rounded-xl text-sm hover:bg-gray-50">Cancelar</button>
+      <button @click="confirmarEntrega(entregaModal, false)" :disabled="entregaEnviando"
+        class="flex-1 bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 disabled:opacity-40">
+        <span x-text="entregaEnviando ? 'Enviando...' : 'Reportar problema'"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FEEDBACK -->
+<div x-show="feedbackModal" x-cloak
+  class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center px-0 sm:px-4"
+  @click.self="feedbackModal = false">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-bold text-gray-800">Fale conosco</h2>
+      <button @click="feedbackModal = false" class="text-gray-300 hover:text-gray-500 text-xl leading-none">✕</button>
+    </div>
+
+    <!-- Estrelas -->
+    <div class="mb-5">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Como você avalia o DoseMed?</p>
+      <div class="flex gap-2 justify-center">
+        <template x-for="n in [1,2,3,4,5]" :key="n">
+          <button @click="feedbackForm.nota = n"
+            class="text-3xl transition select-none"
+            :class="n <= feedbackForm.nota ? 'text-yellow-400' : 'text-gray-200 hover:text-yellow-200'">★</button>
+        </template>
+      </div>
+    </div>
+
+    <!-- Categoria -->
+    <div class="mb-4">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Tipo</p>
+      <div class="flex gap-2 flex-wrap">
+        <template x-for="cat in [{v:'sugestao',l:'Sugestão'},{v:'elogio',l:'Elogio'},{v:'reclamacao',l:'Reclamação'},{v:'bug',l:'Bug'}]" :key="cat.v">
+          <button @click="feedbackForm.categoria = cat.v"
+            class="text-xs px-3 py-1.5 rounded-xl border transition font-medium"
+            :class="feedbackForm.categoria === cat.v ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-blue-300'">
+            <span x-text="cat.l"></span>
+          </button>
+        </template>
+      </div>
+    </div>
+
+    <!-- Mensagem -->
+    <div class="mb-4">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Mensagem *</p>
+      <textarea x-model="feedbackForm.mensagem" rows="3" maxlength="1000"
+        placeholder="Conte o que você pensa..."
+        class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"></textarea>
+    </div>
+
+    <!-- Localização -->
+    <div class="grid grid-cols-2 gap-3 mb-5">
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Cidade</label>
+        <input x-model="feedbackForm.cidade" type="text" placeholder="Cuiabá"
+          class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Bairro</label>
+        <input x-model="feedbackForm.bairro" type="text" placeholder="Centro"
+          class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+    </div>
+
+    <p x-show="feedbackMsg" class="text-sm text-center mb-3"
+      :class="feedbackMsg.startsWith('✓') ? 'text-green-600 font-semibold' : 'text-red-500'"
+      x-text="feedbackMsg"></p>
+    <button @click="enviarFeedback()" :disabled="feedbackEnviando"
+      class="w-full bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 transition">
+      <span x-text="feedbackEnviando ? 'Enviando...' : 'Enviar feedback'"></span>
+    </button>
+  </div>
+</div>
+
+<!-- FOOTER LGPD / INFO -->
+<footer class="max-w-3xl mx-auto px-5 py-6 mt-2 border-t border-gray-100">
+  <div class="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-300">
+    <div class="flex items-center gap-1.5">
+      <span>💊</span>
+      <span class="font-semibold text-gray-400">DoseMed</span>
+      <span>v1.0 · Controle de medicamentos em casa</span>
+    </div>
+    <div class="flex flex-wrap gap-x-3 gap-y-1 justify-center items-center">
+      <button @click="abrirFeedback()" class="hover:text-gray-500 transition underline">Fale conosco</button>
+      <span>·</span>
+      <span>LGPD — seus dados são seus. <button @click="mostrarLGPD = true" class="underline hover:text-gray-500 transition">Saiba mais</button></span>
+      <span>·</span>
+      <a href="mailto:contato@dosemed.app" class="hover:text-gray-500 transition">contato@dosemed.app</a>
+    </div>
+  </div>
+  <p class="text-center text-xs text-gray-200 mt-2">As informações de bula têm caráter educativo e não substituem orientação médica. Em emergências: 192 SAMU · 193 Bombeiros.</p>
+</footer>
 
 </body>
 </html>

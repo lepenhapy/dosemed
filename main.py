@@ -48,7 +48,7 @@ from PIL import Image
 from dotenv import load_dotenv
 
 load_dotenv()
-from models import Base, Usuario, Estoque, Pedido, CodigoRecuperacao, LogBusca, Farmacia, Lead, Configuracao, PushSub, AlarmeRemedio, OrcamentoSolicitacao, OrcamentoResposta, LogEvento, AnuncioPush
+from models import Base, Usuario, Estoque, Pedido, CodigoRecuperacao, LogBusca, Farmacia, Lead, Configuracao, PushSub, AlarmeRemedio, OrcamentoSolicitacao, OrcamentoResposta, LogEvento, AnuncioPush, Feedback
 
 # --- Logging ---
 _log_handlers = [logging.StreamHandler()]
@@ -111,6 +111,7 @@ _migracoes = {
     ],
     "alarmes": [],
     "push_subs": [],
+    "orcamentos_solicitacoes": ["entregue INTEGER"],
 }
 with engine.connect() as conn:
     for tabela, colunas in _migracoes.items():
@@ -130,7 +131,8 @@ with engine.connect() as conn:
 if not DATABASE_URL.startswith("sqlite"):
     _tabelas_seq = ["estoque", "pedidos", "codigos_recuperacao", "log_buscas",
                     "farmacias", "leads", "push_subs", "alarmes",
-                    "orcamentos_solicitacoes", "orcamentos_respostas"]
+                    "orcamentos_solicitacoes", "orcamentos_respostas",
+                    "log_eventos", "anuncios_push", "feedbacks"]
     with engine.connect() as conn:
         for _t in _tabelas_seq:
             try:
@@ -154,6 +156,8 @@ _CONFIG_DEFAULT = {
     "dias_alerta_reposicao": ("5",     "Dias restantes para disparar alerta de reposição de remédio"),
     "minutos_disputa_lead":  ("30",    "Minutos que farmácias têm para responder um orçamento"),
     "max_farmacias_orcamento":("4",    "Máximo de farmácias notificadas por orçamento"),
+    "preco_anuncio_bairro":  ("30.00", "Preço anúncio push — público bairro (R$)"),
+    "preco_anuncio_todos":   ("70.00", "Preço anúncio push — público todos os bairros (R$)"),
 }
 with SessionLocal() as _sess:
     for chave, (valor, descricao) in _CONFIG_DEFAULT.items():
@@ -327,6 +331,7 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=()"
+    response.headers["Content-Security-Policy"] = "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     return response
 
 # --- Bulas ---
@@ -779,6 +784,21 @@ class ConfirmarChegadaPayload(BaseModel):
     validade: Optional[str] = None
 
 
+class FeedbackPayload(BaseModel):
+    usuario_id: Optional[str] = None
+    nota: int                    # 1–5
+    categoria: str               # sugestao | elogio | reclamacao | bug
+    mensagem: str
+    cidade: Optional[str] = None
+    bairro: Optional[str] = None
+
+
+class EntregaPayload(BaseModel):
+    telefone: str
+    entregue: bool
+    motivo: Optional[str] = None
+
+
 class PushSubPayload(BaseModel):
     telefone: str
     endpoint: str
@@ -866,7 +886,8 @@ def get_usuario(telefone: str, db: Session = Depends(get_db)):
 
 
 @app.post("/usuario")
-def criar_usuario(payload: UsuarioPayload, db: Session = Depends(get_db)):
+@limiter.limit("10/hour")
+async def criar_usuario(request: Request, payload: UsuarioPayload, db: Session = Depends(get_db)):
     telefone = validar_telefone(payload.telefone)
     if db.query(Usuario).filter(Usuario.telefone == telefone).first():
         raise HTTPException(status_code=409, detail="Telefone já cadastrado.")
@@ -1869,18 +1890,11 @@ def cron_notificacoes_vencimento():
             if not itens_atencao:
                 continue
 
-            # Notificação por e-mail ao usuário
-            if u.email:
-                lista = [serializar_item(i) for i in itens_atencao]
-                ok, _ = enviar_email(u.email, "DoseMed — Medicamentos com atenção no seu estoque", html_vencimento(u.nome, lista))
-                if ok:
-                    emails_enviados += 1
-
-            # Geração de leads para farmácias parceiras
+            # Geração de leads para farmácias parceiras (push vai pelo cron_verificar_estoque_baixo)
             for item in itens_atencao:
                 leads_gerados += gerar_leads_para_item(db, item, u, origem="cron")
 
-        logger.info(f"[CRON] {emails_enviados} e-mails enviados, {leads_gerados} leads gerados")
+        logger.info(f"[CRON vencimentos] {leads_gerados} leads gerados")
     except Exception as e:
         logger.error(f"[CRON] Erro: {e}")
     finally:
@@ -1955,11 +1969,12 @@ def cron_verificar_estoque_baixo():
 
 if SCHEDULER_OK:
     _scheduler = BackgroundScheduler(daemon=True)
-    _scheduler.add_job(cron_notificacoes_vencimento, CronTrigger(hour=8, minute=0),
+    # Horários em UTC: 12:00 UTC = 09:00 BRT (UTC-3)
+    _scheduler.add_job(cron_notificacoes_vencimento, CronTrigger(hour=12, minute=0),
                        id="vencimentos", replace_existing=True, max_instances=1, coalesce=True)
     _scheduler.add_job(cron_disparar_alarmes, CronTrigger(minute="*"),
                        id="alarmes", replace_existing=True, max_instances=1, coalesce=True)
-    _scheduler.add_job(cron_verificar_estoque_baixo, CronTrigger(hour=9, minute=0),
+    _scheduler.add_job(cron_verificar_estoque_baixo, CronTrigger(hour=12, minute=15),
                        id="estoque_baixo", replace_existing=True, max_instances=1, coalesce=True)
 else:
     _scheduler = None
@@ -2675,6 +2690,7 @@ def listar_orcamentos(telefone: str, db: Session = Depends(get_db)):
             "id": sol.id,
             "medicamento": sol.nome_med,
             "status": sol.status,
+            "entregue": sol.entregue,  # None=aguardando, 1=sim, 0=problema
             "criado_em": str(sol.criado_em.date()) if sol.criado_em else None,
             "expira_em": str(sol.expira_em) if sol.expira_em else None,
             "total_pendente": db.query(OrcamentoResposta).filter(
@@ -2745,9 +2761,38 @@ def escolher_farmacia(solicitacao_id: int, resposta_id: int, telefone: str, db: 
             "mensagem": f"{f.nome} foi escolhida! Aguarde o contato da farmácia."}
 
 
-# --- Anúncios Push ---
+@app.post("/orcamento/{sol_id}/confirmar-entrega")
+def confirmar_entrega_orcamento(sol_id: int, payload: EntregaPayload, db: Session = Depends(get_db)):
+    tel = validar_telefone(payload.telefone)
+    sol = db.query(OrcamentoSolicitacao).filter(
+        OrcamentoSolicitacao.id == sol_id,
+        OrcamentoSolicitacao.usuario_id == tel
+    ).first()
+    if not sol:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada.")
+    if sol.status != "fechado":
+        raise HTTPException(status_code=400, detail="Solicitação não está fechada.")
 
-PRECO_ANUNCIO = {"bairro": 30.0, "todos": 70.0}
+    sol.entregue = 1 if payload.entregue else 0
+    db.commit()
+
+    if not payload.entregue:
+        vencedora = db.query(OrcamentoResposta).filter(
+            OrcamentoResposta.solicitacao_id == sol_id,
+            OrcamentoResposta.status == "ganhou"
+        ).first()
+        farmacia_nome = vencedora.farmacia.nome if vencedora else "farmácia desconhecida"
+        motivo = sanitizar(payload.motivo or "Sem motivo informado")[:200]
+        admin_subs = db.query(PushSub).filter(PushSub.usuario_id == ADMIN_PHONE).all()
+        for sub in admin_subs:
+            enviar_push(sub, "⚠️ Problema de entrega",
+                        f"{sol.nome_med} — {farmacia_nome}: {motivo}")
+        logger.warning(f"Entrega NÃO confirmada: sol_id={sol_id}, farmacia={farmacia_nome}, motivo={motivo}")
+
+    return {"ok": True}
+
+
+# --- Anúncios Push ---
 
 
 def html_anuncio_confirmacao(farmacia_nome: str, texto: str, total: int, publico: str) -> str:
@@ -2812,10 +2857,11 @@ def farmacia_criar_anuncio(payload: AnuncioCriarPayload, db: Session = Depends(g
         raise HTTPException(status_code=401, detail="PIN incorreto.")
     if not payload.texto.strip():
         raise HTTPException(status_code=400, detail="Texto do anúncio é obrigatório.")
-    if payload.publico not in PRECO_ANUNCIO:
+    if payload.publico not in ("bairro", "todos"):
         raise HTTPException(status_code=400, detail="Público inválido. Use 'bairro' ou 'todos'.")
 
-    preco = PRECO_ANUNCIO[payload.publico]
+    chave_preco = "preco_anuncio_bairro" if payload.publico == "bairro" else "preco_anuncio_todos"
+    preco = float(get_config(db, chave_preco, "30.00" if payload.publico == "bairro" else "70.00"))
     genero_alvo = payload.genero_alvo if payload.genero_alvo in ("M", "F") else None
 
     anuncio = AnuncioPush(
@@ -3095,6 +3141,50 @@ def confirmar_chegada(payload: ConfirmarChegadaPayload, db: Session = Depends(ge
         return {"mensagem": "Entrega confirmada e estoque atualizado!"}
     return {"mensagem": "Entrega confirmada. Informe a validade para atualizar o estoque."}
 
+
+
+@app.post("/feedback")
+@limiter.limit("5/hour")
+async def enviar_feedback(request: Request, payload: FeedbackPayload, db: Session = Depends(get_db)):
+    if not (1 <= payload.nota <= 5):
+        raise HTTPException(status_code=400, detail="Nota deve ser entre 1 e 5.")
+    if payload.categoria not in {"sugestao", "elogio", "reclamacao", "bug"}:
+        raise HTTPException(status_code=400, detail="Categoria inválida.")
+    msg = re.sub(r"[<>]", "", (payload.mensagem or "").strip())[:1000]
+    if len(msg) < 5:
+        raise HTTPException(status_code=400, detail="Mensagem muito curta.")
+    fb = Feedback(
+        usuario_id=re.sub(r"\D", "", payload.usuario_id or "")[:20] or None,
+        nota=payload.nota,
+        categoria=payload.categoria,
+        mensagem=msg,
+        cidade=sanitizar(payload.cidade or "")[:100] or None,
+        bairro=sanitizar(payload.bairro or "")[:100] or None,
+    )
+    db.add(fb)
+    db.commit()
+    logger.info(f"Feedback recebido: nota={payload.nota} cat={payload.categoria}")
+    return {"ok": True}
+
+
+@app.get("/admin/feedbacks")
+def admin_feedbacks(telefone: str, db: Session = Depends(get_db)):
+    if re.sub(r"\D", "", telefone) != ADMIN_PHONE:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+    feedbacks = db.query(Feedback).order_by(Feedback.criado_em.desc()).limit(200).all()
+    return [
+        {
+            "id": f.id,
+            "usuario_id": f.usuario_id,
+            "nota": f.nota,
+            "categoria": f.categoria,
+            "mensagem": f.mensagem,
+            "cidade": f.cidade,
+            "bairro": f.bairro,
+            "criado_em": f.criado_em.isoformat() if f.criado_em else None,
+        }
+        for f in feedbacks
+    ]
 
 
 @app.exception_handler(Exception)
