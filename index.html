@@ -1103,16 +1103,23 @@
                       <div class="shrink-0 space-y-1 text-right">
                         <span class="text-xs font-semibold px-2 py-0.5 rounded-full block"
                           :class="{
-                            'bg-yellow-100 text-yellow-600': a.status === 'aguardando_pagamento',
-                            'bg-blue-100 text-blue-600': a.status === 'pago',
+                            'bg-yellow-100 text-yellow-700': a.status === 'aguardando_pagamento',
+                            'bg-blue-100 text-blue-700': a.status === 'pago',
                             'bg-green-100 text-green-700': a.status === 'disparado'
                           }"
-                          x-text="a.status === 'aguardando_pagamento' ? '⏳ Aguardando' : a.status === 'pago' ? '💰 Pago' : '✓ Disparado'">
+                          x-text="a.status === 'aguardando_pagamento' ? '⏳ Aguard. pgto' : a.status === 'pago' ? '💰 Pago' : '✓ Disparado'">
                         </span>
-                        <button x-show="a.status !== 'disparado'"
+                        <!-- Pagamento ainda não confirmado: botão para confirmar manualmente (Asaas offline/sem CNPJ) -->
+                        <button x-show="a.status === 'aguardando_pagamento'"
+                          @click="adminConfirmarPagamento(a.id)"
+                          class="text-xs bg-yellow-500 text-white px-2 py-1 rounded-lg hover:bg-yellow-600 font-semibold block w-full mt-1">
+                          Confirmar pgto
+                        </button>
+                        <!-- Pagamento confirmado: liberar disparo após revisar o conteúdo -->
+                        <button x-show="a.status === 'pago'"
                           @click="adminDispararAnuncio(a.id)"
-                          class="text-xs bg-indigo-600 text-white px-2 py-1 rounded-lg hover:bg-indigo-700 font-semibold">
-                          Disparar
+                          class="text-xs bg-indigo-600 text-white px-2 py-1 rounded-lg hover:bg-indigo-700 font-semibold block w-full mt-1">
+                          Liberar disparo
                         </button>
                       </div>
                     </div>
@@ -2049,14 +2056,20 @@
 
             <button @click="criarAnuncio()" :disabled="anuncioEnviando || !anuncioForm.texto.trim()"
               class="w-full bg-green-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-green-700 disabled:opacity-40 transition">
-              <span x-text="anuncioEnviando ? 'Criando...' : '📢 Criar anúncio — R$ ' + (anuncioForm.publico === 'todos' ? '70' : '30')"></span>
+              <span x-text="anuncioEnviando ? 'Criando...' : '📢 Criar anúncio — R$ ' + (anuncioForm.publico === 'todos' ? (precosAnuncio.todos ?? '70') : (precosAnuncio.bairro ?? '30'))"></span>
             </button>
 
             <!-- Resultado -->
-            <div x-show="anuncioResultado" x-cloak class="bg-green-50 border border-green-100 rounded-xl p-4 space-y-1">
+            <div x-show="anuncioResultado" x-cloak class="bg-green-50 border border-green-100 rounded-xl p-4 space-y-2">
               <p class="text-sm font-bold text-green-700">✅ Anúncio criado!</p>
-              <p class="text-xs text-green-600" x-text="anuncioResultado?.instrucao"></p>
               <p class="text-xs text-gray-500">Valor: <strong x-text="'R$ ' + anuncioResultado?.preco"></strong> · Público: <strong x-text="anuncioResultado?.publico"></strong></p>
+              <template x-if="anuncioResultado?.pix_link">
+                <a :href="anuncioResultado.pix_link" target="_blank" rel="noopener"
+                  class="block w-full text-center bg-green-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-green-700 transition">
+                  💳 Pagar agora →
+                </a>
+              </template>
+              <p x-show="!anuncioResultado?.pix_link" class="text-xs text-green-600" x-text="anuncioResultado?.instrucao"></p>
             </div>
             <div x-show="anuncioMsg" x-cloak class="text-xs text-red-500 text-center" x-text="anuncioMsg"></div>
           </div>
@@ -2081,15 +2094,23 @@
                   <p class="text-xs text-gray-300 mt-0.5" x-text="a.criado_em"></p>
                 </div>
                 <div class="shrink-0 text-right">
-                  <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
-                    :class="{
-                      'bg-yellow-100 text-yellow-600': a.status === 'aguardando_pagamento',
-                      'bg-blue-100 text-blue-600': a.status === 'pago',
-                      'bg-green-100 text-green-700': a.status === 'disparado',
-                      'bg-gray-100 text-gray-500': a.status === 'cancelado'
-                    }"
-                    x-text="a.status === 'aguardando_pagamento' ? 'Aguardando pgto' : a.status === 'pago' ? 'Pago' : a.status === 'disparado' ? '✓ Disparado' : 'Cancelado'">
-                  </span>
+                  <template x-if="a.status === 'aguardando_pagamento' && a.pix_link">
+                    <a :href="a.pix_link" target="_blank" rel="noopener"
+                      class="inline-block text-xs font-bold px-3 py-1 rounded-full bg-green-600 text-white hover:bg-green-700 transition">
+                      💳 Pagar →
+                    </a>
+                  </template>
+                  <template x-if="!(a.status === 'aguardando_pagamento' && a.pix_link)">
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                      :class="{
+                        'bg-yellow-100 text-yellow-600': a.status === 'aguardando_pagamento',
+                        'bg-blue-100 text-blue-600': a.status === 'pago',
+                        'bg-green-100 text-green-700': a.status === 'disparado',
+                        'bg-gray-100 text-gray-500': a.status === 'cancelado'
+                      }"
+                      x-text="a.status === 'aguardando_pagamento' ? '⏳ Aguard. pgto' : a.status === 'pago' ? 'Pago' : a.status === 'disparado' ? '✓ Disparado' : 'Cancelado'">
+                    </span>
+                  </template>
                   <p x-show="a.total_enviados != null" class="text-xs text-gray-400 mt-1" x-text="a.total_enviados + ' envios'"></p>
                 </div>
               </div>
@@ -2983,8 +3004,18 @@ function dosemed() {
       this.adminAnunciosCarregando = false;
     },
 
+    async adminConfirmarPagamento(id) {
+      if (!confirm('Confirmar pagamento manualmente? Use só se o pagamento foi feito fora do Asaas.')) return;
+      try {
+        const r = await fetch(`/admin/anuncio/${id}/confirmar-pagamento?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
+        const d = await r.json();
+        if (r.ok) { this.adminAnuncios = null; await this.carregarAdminAnuncios(); }
+        else alert(d.detail || 'Erro.');
+      } catch { alert('Erro de conexão.'); }
+    },
+
     async adminDispararAnuncio(id) {
-      if (!confirm('Confirmar disparo manual deste anúncio?')) return;
+      if (!confirm('Revisei o conteúdo e confirmo o disparo deste anúncio?')) return;
       try {
         const r = await fetch(`/admin/anuncio/${id}/disparar?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
         const d = await r.json();

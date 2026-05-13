@@ -236,6 +236,30 @@ def _asaas_url(path: str) -> str:
     return f"{base}{path}"
 
 
+def asaas_criar_link_pagamento(valor: float, descricao: str, ref_externa: str):
+    """Cria link de pagamento PIX sem precisar de cliente/CNPJ. Retorna (url, link_id, erro)."""
+    if not os.getenv("ASAAS_KEY"):
+        return None, None, "ASAAS_KEY não configurada"
+    payload = {
+        "name": descricao[:50],
+        "value": round(valor, 2),
+        "billingType": "PIX",
+        "externalReference": ref_externa,
+        "description": descricao,
+    }
+    try:
+        r = requests.post(_asaas_url("/paymentLinks"), json=payload, headers=_asaas_headers(), timeout=30)
+        if r.ok:
+            data = r.json()
+            return data.get("url"), data.get("id"), None
+        erro = f"HTTP {r.status_code}: {r.text[:300]}"
+        logger.warning(f"Asaas criar link pagamento falhou — {erro}")
+        return None, None, erro
+    except Exception as e:
+        logger.error(f"Asaas criar link pagamento: {e}")
+        return None, None, str(e)
+
+
 def asaas_criar_cliente(nome: str, email: str, cnpj: str = None):
     """Retorna (customer_id, erro). customer_id é None em caso de falha."""
     if not os.getenv("ASAAS_KEY"):
@@ -278,13 +302,13 @@ def asaas_criar_assinatura(customer_id: str, valor: float, descricao: str) -> st
 
 
 def asaas_criar_cobranca(customer_id: str, valor: float, descricao: str, vencimento: str = None):
-    """Retorna (charge_id, erro_str). charge_id é None em caso de falha."""
+    """Retorna (charge_id, invoice_url, erro_str). charge_id é None em caso de falha."""
     if not os.getenv("ASAAS_KEY"):
-        return None, "ASAAS_KEY não configurada"
+        return None, None, "ASAAS_KEY não configurada"
     if not customer_id:
-        return None, "customer_id ausente"
+        return None, None, "customer_id ausente"
     if valor <= 0:
-        return None, f"valor inválido: {valor}"
+        return None, None, f"valor inválido: {valor}"
     from datetime import date
     payload = {
         "customer": customer_id,
@@ -296,13 +320,14 @@ def asaas_criar_cobranca(customer_id: str, valor: float, descricao: str, vencime
     try:
         r = requests.post(_asaas_url("/payments"), json=payload, headers=_asaas_headers(), timeout=30)
         if r.ok:
-            return r.json().get("id"), None
+            data = r.json()
+            return data.get("id"), data.get("invoiceUrl"), None
         erro = f"HTTP {r.status_code}: {r.text[:300]}"
         logger.warning(f"Asaas criar cobrança falhou — {erro}")
-        return None, erro
+        return None, None, erro
     except Exception as e:
         logger.error(f"Asaas criar cobrança: {e}")
-        return None, str(e)
+        return None, None, str(e)
 
 
 def asaas_listar_cobrancas(customer_id: str) -> list:
@@ -2125,7 +2150,7 @@ def faturar_leads(farmacia_id: int, telefone: str, db: Session = Depends(get_db)
 
     valor_total = sum(l.preco_cobrado or 0 for l in leads_nao_faturados)
     mes_atual = datetime.utcnow().strftime("%m/%Y")
-    charge_id, asaas_erro = asaas_criar_cobranca(
+    charge_id, _, asaas_erro = asaas_criar_cobranca(
         f.asaas_customer_id, valor_total,
         f"DoseMed — {len(leads_nao_faturados)} leads em {mes_atual} — {f.nome}"
     )
@@ -2876,33 +2901,31 @@ def farmacia_criar_anuncio(payload: AnuncioCriarPayload, db: Session = Depends(g
     db.add(anuncio)
     db.flush()
 
-    # Tenta gerar cobrança Asaas
-    customer_id = farm.asaas_customer_id
-    if not customer_id and farm.cnpj:
-        customer_id, _ = asaas_criar_cliente(farm.nome, farm.email, farm.cnpj)
-        if customer_id:
-            farm.asaas_customer_id = customer_id
-
-    charge_id = pix_link = None
-    if customer_id:
-        charge_id, asaas_erro = asaas_criar_cobranca(
-            customer_id, preco,
-            f"DoseMed Anúncio Push — {payload.publico}",
-            str((datetime.utcnow().date() + timedelta(days=3)))
-        )
-        if charge_id:
-            anuncio.asaas_charge_id = charge_id
+    # Gera link de pagamento PIX via Asaas (não requer cliente/CNPJ)
+    publico_desc = "seu bairro/região" if payload.publico == "bairro" else "todos os bairros"
+    pix_link = link_id = asaas_erro = None
+    pix_link, link_id, asaas_erro = asaas_criar_link_pagamento(
+        preco,
+        f"DoseMed Anúncio Push — {publico_desc}",
+        f"anuncio_{anuncio.id}"
+    )
+    if pix_link:
+        anuncio.pix_link = pix_link
+    if link_id:
+        anuncio.asaas_charge_id = link_id
     db.commit()
 
-    publico_desc = "seu bairro/região" if payload.publico == "bairro" else "todos os bairros"
+    if asaas_erro:
+        logger.warning(f"Anúncio #{anuncio.id}: link Asaas falhou — {asaas_erro}")
+
     return {
         "ok": True,
         "anuncio_id": anuncio.id,
         "preco": preco,
         "publico": publico_desc,
-        "asaas_charge_id": charge_id,
-        "instrucao": "Pagamento gerado no Asaas. Após confirmação, o anúncio será disparado automaticamente." if charge_id
-                     else "Nenhuma cobrança Asaas gerada (CNPJ ausente ou Asaas não configurado). O admin irá confirmar e disparar o anúncio manualmente.",
+        "pix_link": pix_link,
+        "instrucao": "Clique em 'Pagar agora' para concluir o pagamento. Após a confirmação o anúncio entrará em análise." if pix_link
+                     else f"Não foi possível gerar o link de pagamento ({asaas_erro}). Contate o suporte.",
     }
 
 
@@ -2923,6 +2946,7 @@ def farmacia_listar_anuncios(telefone: str, db: Session = Depends(get_db)):
     anuncios = db.query(AnuncioPush).filter(AnuncioPush.farmacia_id == farm.id).order_by(AnuncioPush.criado_em.desc()).limit(20).all()
     return [{"id": a.id, "texto": a.texto, "titulo": a.titulo, "publico": a.publico,
              "genero_alvo": a.genero_alvo, "status": a.status, "preco": a.preco,
+             "pix_link": a.pix_link,
              "total_enviados": a.total_enviados,
              "criado_em": str(a.criado_em.date()) if a.criado_em else None,
              "disparado_em": str(a.disparado_em) if a.disparado_em else None} for a in anuncios]
@@ -2952,6 +2976,21 @@ def admin_listar_anuncios(telefone: str, db: Session = Depends(get_db)):
     }
 
 
+@app.post("/admin/anuncio/{anuncio_id}/confirmar-pagamento")
+def admin_confirmar_pagamento_anuncio(anuncio_id: int, telefone: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    if tel != ADMIN_PHONE:
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    anuncio = db.query(AnuncioPush).filter(AnuncioPush.id == anuncio_id).first()
+    if not anuncio:
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado.")
+    if anuncio.status != "aguardando_pagamento":
+        raise HTTPException(status_code=400, detail=f"Status atual: {anuncio.status}. Só é possível confirmar quando aguardando pagamento.")
+    anuncio.status = "pago"
+    db.commit()
+    return {"ok": True}
+
+
 @app.post("/admin/anuncio/{anuncio_id}/disparar")
 def admin_disparar_anuncio(anuncio_id: int, telefone: str, db: Session = Depends(get_db)):
     tel = validar_telefone(telefone)
@@ -2962,8 +3001,8 @@ def admin_disparar_anuncio(anuncio_id: int, telefone: str, db: Session = Depends
         raise HTTPException(status_code=404, detail="Anúncio não encontrado.")
     if anuncio.status == "disparado":
         raise HTTPException(status_code=400, detail="Anúncio já foi disparado.")
-    anuncio.status = "pago"
-    db.commit()
+    if anuncio.status != "pago":
+        raise HTTPException(status_code=400, detail="Pagamento ainda não confirmado. Confirme o pagamento antes de disparar.")
     total = _disparar_anuncio_push(anuncio, db)
     return {"ok": True, "total_enviados": total}
 
@@ -2983,12 +3022,20 @@ async def webhook_asaas(request: Request, db: Session = Depends(get_db)):
             for l in leads:
                 l.status = "pago"
             db.commit()
-            # Verifica se é pagamento de anúncio push
+            # Identifica anúncio: primeiro por charge_id direto, depois por externalReference (link de pagamento)
             anuncio = db.query(AnuncioPush).filter(AnuncioPush.asaas_charge_id == charge_id).first()
+            if not anuncio:
+                ext_ref = payment.get("externalReference", "")
+                if ext_ref.startswith("anuncio_"):
+                    try:
+                        ad_id = int(ext_ref.split("_", 1)[1])
+                        anuncio = db.query(AnuncioPush).filter(AnuncioPush.id == ad_id).first()
+                    except (ValueError, IndexError):
+                        pass
             if anuncio and anuncio.status == "aguardando_pagamento":
                 anuncio.status = "pago"
                 db.commit()
-                _disparar_anuncio_push(anuncio, db)
+                logger.info(f"[ASAAS] Anúncio #{anuncio.id} marcado como pago — aguardando liberação admin")
     except Exception as e:
         logger.error(f"[ASAAS] Webhook erro: {e}")
     return {"ok": True}
