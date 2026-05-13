@@ -238,28 +238,65 @@ def _asaas_url(path: str) -> str:
 
 
 def asaas_criar_link_pagamento(valor: float, descricao: str, ref_externa: str):
-    """Cria link de pagamento PIX sem precisar de cliente/CNPJ. Retorna (url, link_id, erro)."""
+    """Tenta paymentLinks; se falhar, cria cliente sem CNPJ + cobrança. Retorna (url, charge_ref, erro)."""
     if not os.getenv("ASAAS_KEY"):
         return None, None, "ASAAS_KEY não configurada"
-    payload = {
-        "name": descricao[:50],
-        "value": round(valor, 2),
-        "billingType": "UNDEFINED",
-        "dueDateLimitDays": 3,
-        "externalReference": ref_externa,
-        "description": descricao,
-    }
+
+    # Tentativa 1: payment link (não exige cliente)
+    for billing in ("BOLETO", "PIX", "CREDIT_CARD"):
+        payload_link = {
+            "name": descricao[:50],
+            "value": round(valor, 2),
+            "billingType": billing,
+            "chargeType": "DETACHED",
+            "dueDateLimitDays": 5,
+            "externalReference": ref_externa,
+            "description": descricao,
+        }
+        try:
+            r = requests.post(_asaas_url("/paymentLinks"), json=payload_link,
+                              headers=_asaas_headers(), timeout=30)
+            if r.ok:
+                data = r.json()
+                url = data.get("url")
+                if url:
+                    logger.info(f"Asaas paymentLink criado ({billing}) — {url}")
+                    return url, data.get("id"), None
+        except Exception:
+            pass
+
+    # Tentativa 2: cliente anônimo + cobrança (retorna invoiceUrl)
+    from datetime import date
+    payload_cli = {"name": descricao[:40], "email": "pagamento@dosemed.app"}
     try:
-        r = requests.post(_asaas_url("/paymentLinks"), json=payload, headers=_asaas_headers(), timeout=30)
-        if r.ok:
-            data = r.json()
-            return data.get("url"), data.get("id"), None
-        erro = f"HTTP {r.status_code}: {r.text[:300]}"
-        logger.warning(f"Asaas criar link pagamento falhou — {erro}")
-        return None, None, erro
+        rc = requests.post(_asaas_url("/customers"), json=payload_cli,
+                           headers=_asaas_headers(), timeout=30)
+        if rc.ok:
+            customer_id = rc.json().get("id")
+            if customer_id:
+                venc = str((date.today() + timedelta(days=3)))
+                payload_charge = {
+                    "customer": customer_id,
+                    "billingType": "PIX",
+                    "value": round(valor, 2),
+                    "dueDate": venc,
+                    "description": descricao,
+                    "externalReference": ref_externa,
+                }
+                rp = requests.post(_asaas_url("/payments"), json=payload_charge,
+                                   headers=_asaas_headers(), timeout=30)
+                if rp.ok:
+                    data = rp.json()
+                    url = data.get("invoiceUrl")
+                    logger.info(f"Asaas cobrança anônima criada — {url}")
+                    return url, data.get("id"), None
+                logger.warning(f"Asaas cobrança falhou: {rp.status_code} {rp.text[:200]}")
+        else:
+            logger.warning(f"Asaas cliente anônimo falhou: {rc.status_code} {rc.text[:200]}")
     except Exception as e:
-        logger.error(f"Asaas criar link pagamento: {e}")
-        return None, None, str(e)
+        logger.error(f"Asaas fallback: {e}")
+
+    return None, None, "Não foi possível gerar cobrança no Asaas (verifique configurações da conta)"
 
 
 def asaas_criar_cliente(nome: str, email: str, cnpj: str = None):
