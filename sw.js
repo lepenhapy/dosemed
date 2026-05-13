@@ -1,4 +1,4 @@
-const CACHE = 'dosemed-v15';
+const CACHE = 'dosemed-v16';
 const SHELL = ['/'];
 
 self.addEventListener('install', e => {

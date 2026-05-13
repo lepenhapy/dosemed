@@ -2879,8 +2879,17 @@ def html_anuncio_confirmacao(farmacia_nome: str, texto: str, total: int, publico
     </div>"""
 
 
-def _disparar_anuncio_push(anuncio: AnuncioPush, db: Session) -> int:
+def _disparar_anuncio_push(anuncio: AnuncioPush, db: Session, modo_teste: bool = False) -> int:
     farmacia = db.query(Farmacia).filter(Farmacia.id == anuncio.farmacia_id).first()
+
+    if modo_teste:
+        # Envia apenas para o admin — não altera status do anúncio
+        subs = db.query(PushSub).filter(PushSub.usuario_id == ADMIN_PHONE).all()
+        titulo = (anuncio.titulo or (farmacia.nome if farmacia else "DoseMed")) + " [TESTE]"
+        total = sum(1 for sub in subs if enviar_push(sub, titulo, anuncio.texto))
+        logger.info(f"[ANUNCIO TESTE] {anuncio.id}: {total} push enviados apenas ao admin")
+        return total
+
     bairros_farm: set[str] = set()
     if anuncio.publico == "bairro" and farmacia and farmacia.bairros:
         bairros_farm = {b.strip().lower() for b in farmacia.bairros.split(",") if b.strip()}
@@ -3033,19 +3042,20 @@ def admin_confirmar_pagamento_anuncio(anuncio_id: int, telefone: str, db: Sessio
 
 
 @app.post("/admin/anuncio/{anuncio_id}/disparar")
-def admin_disparar_anuncio(anuncio_id: int, telefone: str, db: Session = Depends(get_db)):
+def admin_disparar_anuncio(anuncio_id: int, telefone: str, modo_teste: bool = False, db: Session = Depends(get_db)):
     tel = validar_telefone(telefone)
     if tel != ADMIN_PHONE:
         raise HTTPException(status_code=403, detail="Acesso restrito.")
     anuncio = db.query(AnuncioPush).filter(AnuncioPush.id == anuncio_id).first()
     if not anuncio:
         raise HTTPException(status_code=404, detail="Anúncio não encontrado.")
-    if anuncio.status == "disparado":
-        raise HTTPException(status_code=400, detail="Anúncio já foi disparado.")
-    if anuncio.status != "pago":
-        raise HTTPException(status_code=400, detail="Pagamento ainda não confirmado. Confirme o pagamento antes de disparar.")
-    total = _disparar_anuncio_push(anuncio, db)
-    return {"ok": True, "total_enviados": total}
+    if not modo_teste:
+        if anuncio.status == "disparado":
+            raise HTTPException(status_code=400, detail="Anúncio já foi disparado.")
+        if anuncio.status != "pago":
+            raise HTTPException(status_code=400, detail="Pagamento ainda não confirmado. Confirme o pagamento antes de disparar.")
+    total = _disparar_anuncio_push(anuncio, db, modo_teste=modo_teste)
+    return {"ok": True, "total_enviados": total, "modo_teste": modo_teste}
 
 
 @app.delete("/admin/anuncio/{anuncio_id}")

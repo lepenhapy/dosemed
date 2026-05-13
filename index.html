@@ -1068,6 +1068,15 @@
 
           <!-- ABA ANÚNCIOS -->
           <div x-show="abaAdmin === 'anuncios'" class="space-y-4">
+            <!-- Modo teste global -->
+            <label class="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3 cursor-pointer select-none">
+              <input type="checkbox" x-model="anuncioModoTeste" class="w-4 h-4 accent-amber-500">
+              <div>
+                <p class="text-sm font-semibold text-amber-700">Modo teste ativo</p>
+                <p class="text-xs text-amber-500">Quando marcado, o disparo vai apenas para o admin — os demais usuários não recebem.</p>
+              </div>
+            </label>
+
             <div x-show="adminAnunciosCarregando" class="text-center py-8 text-indigo-400 text-sm">Carregando...</div>
             <div x-show="!adminAnuncios && !adminAnunciosCarregando" class="text-center py-6">
               <button @click="carregarAdminAnuncios()" class="text-xs text-indigo-500 underline">Carregar</button>
@@ -1117,9 +1126,15 @@
                           class="text-xs bg-yellow-500 text-white px-2 py-1 rounded-lg hover:bg-yellow-600 font-semibold block w-full mt-1">
                           Confirmar pgto
                         </button>
-                        <!-- Pagamento confirmado: liberar disparo após revisar o conteúdo -->
-                        <button x-show="a.status === 'pago'"
-                          @click="adminDispararAnuncio(a.id)"
+                        <!-- Teste: sempre disponível quando modo teste ativo -->
+                        <button x-show="anuncioModoTeste"
+                          @click="adminDispararAnuncio(a.id, true)"
+                          class="text-xs bg-amber-500 text-white px-2 py-1 rounded-lg hover:bg-amber-600 font-semibold block w-full mt-1">
+                          🧪 Testar (só admin)
+                        </button>
+                        <!-- Disparo real: só quando pago e modo teste desligado -->
+                        <button x-show="a.status === 'pago' && !anuncioModoTeste"
+                          @click="adminDispararAnuncio(a.id, false)"
                           class="text-xs bg-indigo-600 text-white px-2 py-1 rounded-lg hover:bg-indigo-700 font-semibold block w-full mt-1">
                           Liberar disparo
                         </button>
@@ -2191,7 +2206,7 @@ function dosemed() {
     adminInsights: null, insightsCarregando: false,
     insightFiltros: { bairro: true, termo: true, tipo: true, ticket: true, periodo: true },
     adminFarmacias: null, adminLeads: null, adminPrecos: null, adminCrescimento: null, crescimentoCarregando: false, resetConfirmar: '', resetMsg: '',
-    adminAnuncios: null, adminAnunciosCarregando: false,
+    adminAnuncios: null, adminAnunciosCarregando: false, anuncioModoTeste: true,
     adminBuscas: null,
     adminFeedbacks: null, adminFeedbacksCarregando: false,
     // anúncio push farmácia
@@ -3061,13 +3076,20 @@ function dosemed() {
       } catch { alert('Erro de conexão.'); }
     },
 
-    async adminDispararAnuncio(id) {
-      if (!confirm('Revisei o conteúdo e confirmo o disparo deste anúncio?')) return;
+    async adminDispararAnuncio(id, modoTeste = false) {
+      const msg = modoTeste
+        ? 'Enviar notificação de TESTE (só o admin recebe)?'
+        : 'Revisei o conteúdo e confirmo o disparo para TODOS os usuários?';
+      if (!confirm(msg)) return;
       try {
-        const r = await fetch(`/admin/anuncio/${id}/disparar?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
+        const url = `/admin/anuncio/${id}/disparar?telefone=${encodeURIComponent(this.telefoneAtual)}&modo_teste=${modoTeste}`;
+        const r = await fetch(url, { method: 'POST' });
         const d = await r.json();
-        if (r.ok) { alert(`Disparado! ${d.total_enviados} usuários notificados.`); this.adminAnuncios = null; await this.carregarAdminAnuncios(); }
-        else alert(d.detail || 'Erro.');
+        if (r.ok) {
+          const destino = modoTeste ? 'admin (teste)' : 'usuários';
+          alert(`Enviado para ${d.total_enviados} ${destino}.`);
+          this.adminAnuncios = null; await this.carregarAdminAnuncios();
+        } else alert(d.detail || 'Erro.');
       } catch { alert('Erro de conexão.'); }
     },
 
