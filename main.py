@@ -2894,7 +2894,7 @@ def farmacia_criar_anuncio(payload: AnuncioCriarPayload, db: Session = Depends(g
             anuncio.asaas_charge_id = charge_id
     db.commit()
 
-    publico_desc = "seu bairro/região (R$ 30)" if payload.publico == "bairro" else "todos os bairros (R$ 70)"
+    publico_desc = "seu bairro/região" if payload.publico == "bairro" else "todos os bairros"
     return {
         "ok": True,
         "anuncio_id": anuncio.id,
@@ -2903,6 +2903,14 @@ def farmacia_criar_anuncio(payload: AnuncioCriarPayload, db: Session = Depends(g
         "asaas_charge_id": charge_id,
         "instrucao": "Pagamento gerado no Asaas. Após confirmação, o anúncio será disparado automaticamente." if charge_id
                      else "Nenhuma cobrança Asaas gerada (CNPJ ausente ou Asaas não configurado). O admin irá confirmar e disparar o anúncio manualmente.",
+    }
+
+
+@app.get("/farmacia/precos-anuncio")
+def farmacia_precos_anuncio(db: Session = Depends(get_db)):
+    return {
+        "bairro": float(get_config(db, "preco_anuncio_bairro", "30.00")),
+        "todos": float(get_config(db, "preco_anuncio_todos", "70.00")),
     }
 
 

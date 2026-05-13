@@ -2015,7 +2015,8 @@
                     <p class="text-sm font-semibold text-gray-700">Meu bairro / região</p>
                     <p class="text-xs text-gray-400">Usuários nos bairros que você atende</p>
                   </div>
-                  <span class="ml-auto text-sm font-black text-green-600 shrink-0">R$ 30</span>
+                  <span class="ml-auto text-sm font-black text-green-600 shrink-0"
+                    x-text="precosAnuncio.bairro ? 'R$ ' + precosAnuncio.bairro : 'R$ 30'"></span>
                 </label>
                 <label class="flex items-start gap-3 cursor-pointer p-3 rounded-xl border-2 transition"
                   :class="anuncioForm.publico === 'todos' ? 'border-green-400 bg-green-50' : 'border-gray-100 hover:border-gray-200'">
@@ -2024,7 +2025,8 @@
                     <p class="text-sm font-semibold text-gray-700">Todos os usuários</p>
                     <p class="text-xs text-gray-400">Todos os bairros cadastrados no DoseMed</p>
                   </div>
-                  <span class="ml-auto text-sm font-black text-green-600 shrink-0">R$ 70</span>
+                  <span class="ml-auto text-sm font-black text-green-600 shrink-0"
+                    x-text="precosAnuncio.todos ? 'R$ ' + precosAnuncio.todos : 'R$ 70'"></span>
                 </label>
               </div>
             </div>
@@ -2143,6 +2145,7 @@ function dosemed() {
     // anúncio push farmácia
     anuncioForm: { texto: '', titulo: '', publico: 'bairro', genero_alvo: '' },
     anunciosCriados: null, anuncioEnviando: false, anuncioMsg: '', anuncioResultado: null,
+    precosAnuncio: { bairro: null, todos: null },
     modalFarmacia: null,
     // farmácia
     isFarmacia: false, farmacia: null, farmaciaCarregando: false,
@@ -2514,6 +2517,8 @@ function dosemed() {
         this.farmaciaEditBairros = data.farmacia.bairros || '';
         this.farmaciaEditManipulado = !!data.farmacia.atende_manipulado;
         this.abaAtiva = 'farmacia';
+        // carrega preços de anúncio dinamicamente
+        fetch('/farmacia/precos-anuncio').then(r => r.ok ? r.json() : null).then(p => { if (p) this.precosAnuncio = p; }).catch(() => {});
       } catch {}
       this.farmaciaCarregando = false;
     },
