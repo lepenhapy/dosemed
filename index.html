@@ -631,6 +631,8 @@
               :class="abaAdmin === 'crescimento' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Crescimento</button>
             <button @click="abaAdmin = 'anuncios'; if (!adminAnuncios) carregarAdminAnuncios()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
               :class="abaAdmin === 'anuncios' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Anúncios</button>
+            <button @click="abaAdmin = 'buscas'; if (!adminBuscas) carregarAdminBuscas()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+              :class="abaAdmin === 'buscas' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Buscas</button>
             <button @click="abaAdmin = 'feedbacks'; if (!adminFeedbacks) carregarAdminFeedbacks()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
               :class="abaAdmin === 'feedbacks' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Feedbacks</button>
           </div>
@@ -649,8 +651,8 @@
               <!-- Counters -->
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div class="bg-indigo-50 rounded-xl p-4 text-center">
-                  <p class="text-2xl font-black text-indigo-600" x-text="adminDados.total_usuarios"></p>
-                  <p class="text-xs text-indigo-400 mt-1">Usuários total</p>
+                  <p class="text-2xl font-black text-indigo-600" x-text="adminDados.usuarios_reais ?? adminDados.total_usuarios"></p>
+                  <p class="text-xs text-indigo-400 mt-1">Usuários reais</p>
                   <p class="text-xs text-indigo-300 mt-0.5">
                     +<span x-text="adminDados.novos_usuarios_7d"></span> 7d &nbsp;·&nbsp;
                     +<span x-text="adminDados.novos_usuarios_30d"></span> 30d
@@ -1121,6 +1123,10 @@
                           class="text-xs bg-indigo-600 text-white px-2 py-1 rounded-lg hover:bg-indigo-700 font-semibold block w-full mt-1">
                           Liberar disparo
                         </button>
+                        <button @click="adminExcluirAnuncio(a.id)"
+                          class="text-xs bg-red-100 text-red-500 px-2 py-1 rounded-lg hover:bg-red-200 font-semibold block w-full mt-1">
+                          Excluir
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1128,6 +1134,30 @@
               </div>
             </template>
           </div><!-- /aba anuncios -->
+
+          <!-- ABA BUSCAS -->
+          <div x-show="abaAdmin === 'buscas'" class="space-y-3">
+            <div x-show="!adminBuscas" class="text-center py-6">
+              <button @click="carregarAdminBuscas()" class="text-xs text-indigo-500 underline">Carregar</button>
+            </div>
+            <template x-if="adminBuscas">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between mb-1">
+                  <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Últimas 200 buscas</p>
+                  <button @click="adminBuscas = null; carregarAdminBuscas()" class="text-xs text-indigo-500 underline">↻</button>
+                </div>
+                <div x-show="adminBuscas.length === 0" class="text-center py-6 text-gray-300 text-xs">Nenhuma busca registrada.</div>
+                <template x-for="b in adminBuscas" :key="b.id">
+                  <div class="flex items-center gap-3 py-2 border-b border-gray-50 text-xs">
+                    <span class="shrink-0 w-16 text-gray-300" x-text="b.data"></span>
+                    <span class="shrink-0 px-1.5 py-0.5 rounded text-gray-500 bg-gray-100 font-mono" x-text="b.tipo"></span>
+                    <span class="flex-1 font-medium text-gray-700 truncate" x-text="b.termo"></span>
+                    <span class="shrink-0 text-gray-400" x-text="b.bairro || b.estado || ''"></span>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div><!-- /aba buscas -->
 
           <!-- ABA FEEDBACKS -->
           <div x-show="abaAdmin === 'feedbacks'" class="space-y-4">
@@ -2162,6 +2192,7 @@ function dosemed() {
     insightFiltros: { bairro: true, termo: true, tipo: true, ticket: true, periodo: true },
     adminFarmacias: null, adminLeads: null, adminPrecos: null, adminCrescimento: null, crescimentoCarregando: false, resetConfirmar: '', resetMsg: '',
     adminAnuncios: null, adminAnunciosCarregando: false,
+    adminBuscas: null,
     adminFeedbacks: null, adminFeedbacksCarregando: false,
     // anúncio push farmácia
     anuncioForm: { texto: '', titulo: '', publico: 'bairro', genero_alvo: '' },
@@ -3004,6 +3035,22 @@ function dosemed() {
       this.adminAnunciosCarregando = false;
     },
 
+    async carregarAdminBuscas() {
+      try {
+        const r = await fetch(`/admin/buscas-recentes?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) this.adminBuscas = await r.json();
+      } catch {}
+    },
+
+    async adminExcluirAnuncio(id) {
+      if (!confirm('Excluir este anúncio permanentemente?')) return;
+      try {
+        const r = await fetch(`/admin/anuncio/${id}?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'DELETE' });
+        if (r.ok) { this.adminAnuncios = null; await this.carregarAdminAnuncios(); }
+        else { const d = await r.json(); alert(d.detail || 'Erro.'); }
+      } catch { alert('Erro de conexão.'); }
+    },
+
     async adminConfirmarPagamento(id) {
       if (!confirm('Confirmar pagamento manualmente? Use só se o pagamento foi feito fora do Asaas.')) return;
       try {
@@ -3596,22 +3643,24 @@ function dosemed() {
 </div>
 
 <!-- FOOTER LGPD / INFO -->
-<footer class="max-w-3xl mx-auto px-5 py-6 mt-2 border-t border-gray-100">
-  <div class="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-300">
-    <div class="flex items-center gap-1.5">
-      <span>💊</span>
-      <span class="font-semibold text-gray-400">DoseMed</span>
-      <span>v1.0 · Controle de medicamentos em casa</span>
-    </div>
-    <div class="flex flex-wrap gap-x-3 gap-y-1 justify-center items-center">
-      <button @click="abrirFeedback()" class="hover:text-gray-500 transition underline">Fale conosco</button>
+<footer class="max-w-3xl mx-auto px-5 py-8 mt-4 border-t border-gray-200">
+  <div class="flex flex-col items-center gap-4">
+    <button @click="abrirFeedback()"
+      class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow transition">
+      💬 Fale conosco
+    </button>
+    <div class="flex flex-wrap gap-x-4 gap-y-1 justify-center text-xs text-gray-400">
+      <span class="flex items-center gap-1">💊 <span class="font-semibold text-gray-500">DoseMed</span> · controle de medicamentos</span>
       <span>·</span>
-      <span>LGPD — seus dados são seus. <button @click="mostrarLGPD = true" class="underline hover:text-gray-500 transition">Saiba mais</button></span>
+      <button @click="mostrarLGPD = true" class="underline hover:text-gray-600 transition">Privacidade (LGPD)</button>
       <span>·</span>
-      <a href="mailto:contato@dosemed.app" class="hover:text-gray-500 transition">contato@dosemed.app</a>
+      <a href="mailto:contato@dosemed.app" class="hover:text-gray-600 transition">contato@dosemed.app</a>
     </div>
+    <p class="text-center text-xs text-gray-400 leading-relaxed">
+      As informações de bula têm caráter educativo e não substituem orientação médica.<br>
+      Em emergências: <strong>192 SAMU</strong> · <strong>193 Bombeiros</strong>
+    </p>
   </div>
-  <p class="text-center text-xs text-gray-200 mt-2">As informações de bula têm caráter educativo e não substituem orientação médica. Em emergências: 192 SAMU · 193 Bombeiros.</p>
 </footer>
 
 </body>

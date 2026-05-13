@@ -65,6 +65,7 @@ logger = logging.getLogger("dosemed")
 
 # --- Config ---
 ADMIN_PHONE = "65993125115"
+TEST_PHONES = [ADMIN_PHONE, "6599339250"]  # excluídos de métricas reais
 
 DDD_ESTADO = {
     11: "SP", 12: "SP", 13: "SP", 14: "SP", 15: "SP", 16: "SP", 17: "SP", 18: "SP", 19: "SP",
@@ -243,7 +244,8 @@ def asaas_criar_link_pagamento(valor: float, descricao: str, ref_externa: str):
     payload = {
         "name": descricao[:50],
         "value": round(valor, 2),
-        "billingType": "PIX",
+        "billingType": "UNDEFINED",
+        "dueDateLimitDays": 3,
         "externalReference": ref_externa,
         "description": descricao,
     }
@@ -1590,6 +1592,7 @@ def admin_relatorios(telefone: str, db: Session = Depends(get_db)):
 
     # Total de usuários cadastrados
     total_usuarios = db.query(Usuario).count()
+    usuarios_reais = db.query(Usuario).filter(Usuario.telefone.notin_(TEST_PHONES)).count()
     total_itens = db.query(Estoque).filter(Estoque.status != "consumido").count()
 
     # Novos usuários (por aceite_lgpd)
@@ -1627,6 +1630,7 @@ def admin_relatorios(telefone: str, db: Session = Depends(get_db)):
         "total_buscas": len(logs),
         "usuarios_unicos_buscas": usuarios_unicos,
         "total_usuarios": total_usuarios,
+        "usuarios_reais": usuarios_reais,
         "novos_usuarios_7d": novos_7d,
         "novos_usuarios_30d": novos_30d,
         "total_itens_estoque": total_itens,
@@ -3007,6 +3011,19 @@ def admin_disparar_anuncio(anuncio_id: int, telefone: str, db: Session = Depends
     return {"ok": True, "total_enviados": total}
 
 
+@app.delete("/admin/anuncio/{anuncio_id}")
+def admin_excluir_anuncio(anuncio_id: int, telefone: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    if tel != ADMIN_PHONE:
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    anuncio = db.query(AnuncioPush).filter(AnuncioPush.id == anuncio_id).first()
+    if not anuncio:
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado.")
+    db.delete(anuncio)
+    db.commit()
+    return {"ok": True}
+
+
 # --- Webhook Asaas ---
 
 @app.post("/webhook/asaas")
@@ -3141,11 +3158,14 @@ async def reconhecer_imagem(request: Request, arquivo: UploadFile = File(...)):
             messages=[{"role": "user", "content": [
                 {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
                 {"type": "text", "text": (
-                    "Esta é uma embalagem de medicamento. Extraia as informações e retorne SOMENTE um JSON válido, "
-                    "sem texto adicional:\n"
-                    '{"nome_medicamento":"nome comercial","principio_ativo":"substância ativa",'
-                    '"miligramas":"dosagem ex 500mg","fabricante":"laboratório fabricante"}\n'
-                    "Use null para campos não encontrados."
+                    "Esta é uma embalagem de medicamento brasileiro. Leia todas as informações visíveis e retorne SOMENTE um JSON válido, sem texto adicional.\n"
+                    "Regras importantes:\n"
+                    "1. nome_medicamento: use o nome comercial oficial (como registrado na ANVISA), corrigindo abreviações ou erros de impressão/OCR. Ex: 'Dorflex' e não 'DORFLEX ®'\n"
+                    "2. principio_ativo: use a DCI (Denominação Comum Internacional) em português, grafada corretamente. Ex: 'dipirona monoidratada', 'losartana potássica'\n"
+                    "3. miligramas: apenas o número e unidade. Ex: '500mg', '10mg/ml'\n"
+                    "4. fabricante: nome do laboratório como aparece na embalagem\n"
+                    "Se não conseguir ler um campo com confiança, use null.\n"
+                    'Retorne exatamente: {"nome_medicamento":"...","principio_ativo":"...","miligramas":"...","fabricante":"..."}'
                 )}
             ]}]
         )
@@ -3220,6 +3240,17 @@ async def enviar_feedback(request: Request, payload: FeedbackPayload, db: Sessio
     db.commit()
     logger.info(f"Feedback recebido: nota={payload.nota} cat={payload.categoria}")
     return {"ok": True}
+
+
+@app.get("/admin/buscas-recentes")
+def admin_buscas_recentes(telefone: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    if tel != ADMIN_PHONE:
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    buscas = db.query(LogBusca).order_by(LogBusca.timestamp.desc()).limit(200).all()
+    return [{"id": b.id, "termo": b.termo, "tipo": b.tipo, "bairro": b.bairro,
+             "estado": b.estado, "usuario_id": b.usuario_id,
+             "data": b.timestamp.strftime("%d/%m %H:%M") if b.timestamp else None} for b in buscas]
 
 
 @app.get("/admin/feedbacks")
