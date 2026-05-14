@@ -31,6 +31,7 @@ class Estoque(Base):
     data_validade = Column(Date, nullable=True)
     quantidade = Column(Integer, default=1)
     manipulado = Column(Integer, default=0)
+    uso_continuo = Column(Integer, default=0)
     iniciado = Column(Integer, default=0)
     data_consumo = Column(DateTime, nullable=True)
     preco_real = Column(Float, nullable=True)

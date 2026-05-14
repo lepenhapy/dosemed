@@ -97,7 +97,7 @@ Base.metadata.create_all(bind=engine)
 # Migrações seguras (add-only)
 _migracoes = {
     "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "aceite_lgpd TIMESTAMP", "genero TEXT"],
-    "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo TIMESTAMP"],
+    "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo TIMESTAMP", "uso_continuo INTEGER DEFAULT 0"],
     "log_buscas": ["bairro TEXT"],
     "leads": ["asaas_charge_id TEXT", "criado_em TIMESTAMP"],
     "farmacias": [
@@ -689,6 +689,7 @@ def serializar_item(i) -> dict:
         "miligramas": i.miligramas,
         "fabricante": i.fabricante,
         "manipulado": bool(i.manipulado),
+        "uso_continuo": bool(i.uso_continuo),
         "iniciado": bool(i.iniciado),
         "quantidade": i.quantidade or 1,
         "preco_real": i.preco_real,
@@ -771,6 +772,7 @@ class WebhookPayload(BaseModel):
     validade: Optional[str] = None
     quantidade: Optional[int] = 1
     manipulado: Optional[bool] = False
+    uso_continuo: Optional[bool] = False
     preco_real: Optional[float] = None
     nome_usuario: Optional[str] = None
 
@@ -797,6 +799,7 @@ class VerificarCodigoPayload(BaseModel):
 class EditarItemPayload(BaseModel):
     nome_medicamento: Optional[str] = None
     principio_ativo: Optional[str] = None
+    uso_continuo: Optional[bool] = None
     miligramas: Optional[str] = None
     fabricante: Optional[str] = None
     validade: Optional[str] = None
@@ -1262,6 +1265,7 @@ def webhook(payload: WebhookPayload, db: Session = Depends(get_db)):
         fabricante=sanitizar(payload.fabricante or ""),
         quantidade=max(1, payload.quantidade or 1),
         manipulado=1 if payload.manipulado else 0,
+        uso_continuo=1 if payload.uso_continuo else 0,
         preco_real=payload.preco_real,
         data_validade=data_val,
         categoria_valor=categoria,
@@ -1352,6 +1356,8 @@ def editar_item(item_id: int, payload: EditarItemPayload, db: Session = Depends(
         item.quantidade = max(1, payload.quantidade)
     if payload.manipulado is not None:
         item.manipulado = 1 if payload.manipulado else 0
+    if payload.uso_continuo is not None:
+        item.uso_continuo = 1 if payload.uso_continuo else 0
     if payload.preco_real is not None:
         item.preco_real = payload.preco_real if payload.preco_real > 0 else None
     db.commit()
@@ -1663,6 +1669,30 @@ def admin_relatorios(telefone: str, db: Session = Depends(get_db)):
                 farm_bairros[b] = farm_bairros.get(b, 0) + 1
     farm_bairros_list = sorted(farm_bairros.items(), key=lambda x: -x[1])
 
+    # Medicamentos por usuário e uso contínuo
+    itens_ativos = db.query(Estoque).filter(Estoque.status != "consumido").all()
+    continuo_cnt: dict[str, int] = {}
+    for it in itens_ativos:
+        if it.uso_continuo:
+            k = it.nome_medicamento.strip().lower()
+            continuo_cnt[k] = continuo_cnt.get(k, 0) + 1
+    top_continuo = sorted(continuo_cnt.items(), key=lambda x: -x[1])[:15]
+
+    usuarios_com_itens = db.query(Usuario).filter(Usuario.telefone.notin_(TEST_PHONES)).all()
+    por_usuario = []
+    for u in usuarios_com_itens:
+        itens_u = [it for it in itens_ativos if it.usuario_id == u.telefone]
+        if itens_u:
+            por_usuario.append({
+                "nome": u.nome,
+                "bairro": u.bairro,
+                "total": len(itens_u),
+                "continuo": sum(1 for it in itens_u if it.uso_continuo),
+                "meds": [{"nome": it.nome_medicamento, "continuo": bool(it.uso_continuo),
+                           "miligramas": it.miligramas} for it in itens_u],
+            })
+    por_usuario.sort(key=lambda x: -x["total"])
+
     return {
         "total_buscas": len(logs),
         "usuarios_unicos_buscas": usuarios_unicos,
@@ -1671,6 +1701,9 @@ def admin_relatorios(telefone: str, db: Session = Depends(get_db)):
         "novos_usuarios_7d": novos_7d,
         "novos_usuarios_30d": novos_30d,
         "total_itens_estoque": total_itens,
+        "uso_continuo_total": sum(1 for it in itens_ativos if it.uso_continuo),
+        "top_uso_continuo": [{"nome": n, "count": c} for n, c in top_continuo],
+        "por_usuario": por_usuario,
         "por_tipo": por_tipo,
         "top_termos": [{"termo": t, "count": c} for t, c in top_termos],
         "top_estados": [{"estado": e, "count": c} for e, c in top_estados],

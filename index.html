@@ -661,6 +661,7 @@
                 <div class="bg-blue-50 rounded-xl p-4 text-center">
                   <p class="text-2xl font-black text-blue-600" x-text="adminDados.total_itens_estoque"></p>
                   <p class="text-xs text-blue-400 mt-1">Itens no estoque</p>
+                  <p class="text-xs text-blue-300 mt-0.5">🔵 <span x-text="adminDados.uso_continuo_total"></span> uso contínuo</p>
                 </div>
                 <div class="bg-emerald-50 rounded-xl p-4 text-center">
                   <p class="text-2xl font-black text-emerald-600" x-text="adminDados.total_buscas"></p>
@@ -678,6 +679,45 @@
                   class="text-xs bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-emerald-700 flex items-center gap-1.5">
                   ⬇ Exportar CSV
                 </button>
+              </div>
+
+              <!-- Uso contínuo — leads quentes -->
+              <div x-show="adminDados.top_uso_continuo?.length">
+                <p class="text-xs font-bold text-blue-400 uppercase tracking-wide mb-2">🔥 Leads quentes — uso contínuo</p>
+                <div class="space-y-1">
+                  <template x-for="m in adminDados.top_uso_continuo" :key="m.nome">
+                    <div class="flex items-center justify-between text-sm py-1 border-b border-gray-50">
+                      <span class="text-gray-700 capitalize" x-text="m.nome"></span>
+                      <span class="font-bold text-blue-600" x-text="m.count + ' paciente' + (m.count > 1 ? 's' : '')"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Medicamentos por usuário -->
+              <div x-show="adminDados.por_usuario?.length">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Medicamentos por usuário</p>
+                <div class="space-y-2">
+                  <template x-for="u in adminDados.por_usuario" :key="u.nome">
+                    <div class="bg-gray-50 rounded-xl p-3">
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-semibold text-gray-700" x-text="u.nome"></span>
+                        <div class="flex items-center gap-2 text-xs">
+                          <span class="text-gray-400" x-text="u.bairro || 'bairro n/i'"></span>
+                          <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-bold" x-text="u.total + ' med'"></span>
+                          <span x-show="u.continuo > 0" class="bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-bold" x-text="u.continuo + ' contínuo'"></span>
+                        </div>
+                      </div>
+                      <div class="flex flex-wrap gap-1 mt-1">
+                        <template x-for="m in u.meds" :key="m.nome">
+                          <span class="text-xs px-2 py-0.5 rounded-full"
+                            :class="m.continuo ? 'bg-blue-100 text-blue-700 font-medium' : 'bg-gray-100 text-gray-500'"
+                            x-text="m.nome + (m.miligramas ? ' ' + m.miligramas : '')"></span>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </div>
               </div>
 
               <!-- Buscas por tipo -->
@@ -1424,10 +1464,15 @@
               <input x-model="novoMed.validade" type="date"
                 class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
-            <div class="sm:col-span-2">
+            <div class="sm:col-span-2 flex flex-col gap-2">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" x-model="novoMed.manipulado" class="rounded" />
                 <span class="text-sm text-gray-500">Medicamento manipulado / fórmula magistral</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" x-model="novoMed.usoContinuo" class="rounded accent-blue-600" />
+                <span class="text-sm text-gray-600 font-medium">Uso contínuo</span>
+                <span class="text-xs text-gray-400">(tomo regularmente, todo mês)</span>
               </label>
             </div>
           </div>
@@ -1533,6 +1578,7 @@
                   <div class="flex items-start gap-1 flex-wrap pr-12">
                     <p class="text-sm font-semibold text-gray-700 group-hover:text-blue-600 transition" x-text="item.nome"></p>
                     <span x-show="item.manipulado" class="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded font-medium">Manipulado</span>
+                    <span x-show="item.uso_continuo" class="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-medium">Uso contínuo</span>
                     <span x-show="item.iniciado" class="text-xs bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-medium">Aberto ~70%</span>
                   </div>
 
@@ -2186,7 +2232,7 @@ function dosemed() {
     telefoneInput: '', telefoneAtual: '', usuario: null,
     estoque: { vencidos: [], atencao: [], ok: [] },
     prejuizoAcumulado: 0, valorEmRisco: 0,
-    novoMed: { nome: '', principioAtivo: '', miligramas: '', fabricante: '', validade: '', quantidade: 1, manipulado: false, precoReal: null },
+    novoMed: { nome: '', principioAtivo: '', miligramas: '', fabricante: '', validade: '', quantidade: 1, manipulado: false, usoContinuo: false, precoReal: null },
     precoSistema: null,
     termoPesquisa: '', resultadosBula: [], estoquePorBula: [], buscandoBulas: false,
     carregando: false, erroLogin: '', mensagemWebhook: '', alertaPA: '',
@@ -2659,6 +2705,7 @@ function dosemed() {
             validade: this.novoMed.validade || null,
             quantidade: this.novoMed.quantidade || 1,
             manipulado: this.novoMed.manipulado || false,
+            uso_continuo: this.novoMed.usoContinuo || false,
             preco_real: this.novoMed.precoReal || null
           })
         });
@@ -2666,7 +2713,7 @@ function dosemed() {
         this.mensagemWebhook = data.mensagem;
         this.alertaPA = data.alerta_principio_ativo || '';
         if (data.mensagem?.includes('sucesso')) {
-          this.novoMed = { nome: '', principioAtivo: '', miligramas: '', fabricante: '', validade: '', quantidade: 1, manipulado: false, precoReal: null };
+          this.novoMed = { nome: '', principioAtivo: '', miligramas: '', fabricante: '', validade: '', quantidade: 1, manipulado: false, usoContinuo: false, precoReal: null };
           this.precoSistema = null;
           await this.buscarDashboard();
         }
