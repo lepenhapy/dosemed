@@ -8,11 +8,17 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="DoseMed" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="shortcut icon" href="/icon-192.png" type="image/png" />
   <link rel="manifest" href="/manifest.json" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <style>[x-cloak]{display:none!important}</style>
+  <style>
+    [x-cloak]{display:none!important}
+    .no-scrollbar::-webkit-scrollbar{display:none}
+    .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+  </style>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -447,6 +453,64 @@
       </div>
 
       <p x-show="erroLogin" x-cloak class="text-red-400 text-xs mt-2" x-text="erroLogin"></p>
+
+      <!-- Link planos farmácia -->
+      <div class="mt-6 pt-5 border-t border-gray-100 text-center">
+        <button @click="modalPlanos = true"
+          class="text-xs text-gray-400 hover:text-blue-500 transition underline">
+          🏪 Sou farmácia — ver planos e funcionalidades
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PLANOS (acessível sem login) -->
+  <div x-show="modalPlanos" x-cloak class="fixed inset-0 bg-black/50 z-40 flex items-end sm:items-center justify-center px-4 pb-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[88vh] overflow-y-auto" @click.outside="modalPlanos = false">
+      <div class="sticky top-0 bg-white rounded-t-2xl border-b border-gray-100 px-5 py-4 flex items-center justify-between">
+        <p class="font-bold text-gray-800">Planos para farmácias</p>
+        <button @click="modalPlanos = false" class="text-gray-300 hover:text-gray-500 text-xl leading-none">✕</button>
+      </div>
+      <div class="p-5 space-y-4">
+
+        <!-- Plan cards -->
+        <template x-for="pl in [
+          { nome:'🌱 Lead — Gratuito', preco:'R$ 0', cor:'green', itens:['Cadastro da farmácia','Leads automáticos do seu bairro','Dashboard de leads','Perfil visível no app'], nao:['Leads ilimitados','Promoções push segmentadas','Insights de medicamentos'] },
+          { nome:'🚀 Pro', preco:'R$ 299/mês', cor:'blue', itens:['Tudo do Lead','Leads ilimitados','Promoções push por categoria','Insights de buscas da região','Sistema de orçamentos','Suporte prioritário'], nao:[] },
+          { nome:'🧪 Manipulado', preco:'R$ 699/mês', cor:'amber', itens:['Tudo do Pro','Leads de manipulados','Segmentação por nicho','Destaque como farmácia de manipulação'], nao:[] }
+        ]" :key="pl.nome">
+          <div class="border border-gray-100 rounded-2xl p-4 space-y-2">
+            <div class="flex justify-between items-center">
+              <p class="font-bold text-sm text-gray-800" x-text="pl.nome"></p>
+              <p class="text-sm font-black"
+                :class="pl.cor==='green'?'text-gray-500':pl.cor==='blue'?'text-blue-600':'text-amber-600'"
+                x-text="pl.preco"></p>
+            </div>
+            <ul class="space-y-1">
+              <template x-for="it in pl.itens" :key="it">
+                <li class="text-xs text-gray-600 flex gap-1.5"><span class="text-green-500 font-bold">✓</span><span x-text="it"></span></li>
+              </template>
+              <template x-for="it in pl.nao" :key="it">
+                <li class="text-xs text-gray-300 flex gap-1.5"><span>✗</span><span x-text="it"></span></li>
+              </template>
+            </ul>
+          </div>
+        </template>
+
+        <!-- Legal -->
+        <div class="bg-gray-50 rounded-xl p-4 text-xs text-gray-400 space-y-1 leading-relaxed">
+          <p class="font-semibold text-gray-500">Informações legais</p>
+          <p>• Cobranças mensais via Asaas (PIX, cartão ou boleto). Sem fidelidade — cancele a qualquer momento sem multa.</p>
+          <p>• Leads dependem de usuários ativos na sua região.</p>
+          <p>• Dados de pacientes compartilhados somente com consentimento do usuário (LGPD — Lei 13.709/2018).</p>
+          <p>• Dúvidas: <strong class="text-gray-500">contato@dosemed.app</strong></p>
+        </div>
+
+        <button @click="mostrarCadastroFarmacia = true; modalPlanos = false"
+          class="w-full bg-green-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-green-700 transition">
+          Cadastrar minha farmácia — grátis
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1148,7 +1212,9 @@
                           · <span x-text="a.genero_alvo === 'M' ? '♂ Masculino' : a.genero_alvo === 'F' ? '♀ Feminino' : '👥 Todos'"></span>
                           · R$ <span x-text="a.preco"></span>
                           <span x-show="a.total_enviados != null"> · <strong x-text="a.total_enviados + ' envios'"></strong></span>
+                          <span x-show="a.total_interesses > 0" class="text-orange-500"> · <strong x-text="a.total_interesses + ' interesse(s)'"></strong></span>
                         </p>
+                        <p x-show="a.produto" class="text-xs text-orange-600 font-semibold mt-0.5" x-text="a.produto + (a.preco_por ? ' · R$ ' + a.preco_por?.toFixed(2) : '')"></p>
                         <p class="text-xs text-gray-300 mt-0.5" x-text="a.criado_em"></p>
                       </div>
                       <div class="shrink-0 space-y-1 text-right">
@@ -1249,31 +1315,31 @@
       </div>
 
       <!-- ABAS DE NAVEGAÇÃO (usuário) -->
-      <div x-show="abaAtiva !== 'admin' && !isFarmacia" class="grid grid-cols-6 gap-0.5 bg-white rounded-2xl border border-gray-100 shadow-sm p-1">
+      <div x-show="abaAtiva !== 'admin' && !isFarmacia" class="flex overflow-x-auto no-scrollbar gap-0.5 bg-white rounded-2xl border border-gray-100 shadow-sm p-1">
         <button @click="abaAtiva = 'pesquisar'; $nextTick(() => document.getElementById('inputPesquisa')?.focus())"
-          class="py-1.5 text-xs font-semibold rounded-xl transition"
+          class="shrink-0 flex-1 min-w-[3rem] py-1.5 text-[10px] font-semibold rounded-xl transition"
           :class="abaAtiva === 'pesquisar' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
           🔍 Buscar
         </button>
         <button @click="abaAtiva = 'cadastrar'"
-          class="py-1.5 text-xs font-semibold rounded-xl transition"
+          class="shrink-0 flex-1 min-w-[3rem] py-1.5 text-[10px] font-semibold rounded-xl transition"
           :class="abaAtiva === 'cadastrar' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
           ➕ Add
         </button>
         <button @click="abaAtiva = 'estoque'"
-          class="py-1.5 text-xs font-semibold rounded-xl transition"
+          class="shrink-0 flex-1 min-w-[3rem] py-1.5 text-[10px] font-semibold rounded-xl transition"
           :class="abaAtiva === 'estoque' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
           💊 Estoque
         </button>
         <button @click="abaAtiva = 'orcamentos'; carregarOrcamentos()"
-          class="py-1.5 text-xs font-semibold rounded-xl transition relative"
+          class="shrink-0 flex-1 min-w-[3rem] py-1.5 text-[10px] font-semibold rounded-xl transition relative"
           :class="abaAtiva === 'orcamentos' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
           🏪 Comprar
           <span x-show="orcamentos?.some(o => o.respostas?.length > 0 && o.status === 'aguardando_usuario')"
             class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full"></span>
         </button>
         <button @click="abaAtiva = 'alarmes'; if (!alarmes) carregarAlarmes()"
-          class="py-1.5 text-xs font-semibold rounded-xl transition relative"
+          class="shrink-0 flex-1 min-w-[3rem] py-1.5 text-[10px] font-semibold rounded-xl transition relative"
           :class="abaAtiva === 'alarmes' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
           ⏰ Alarmes
           <span x-show="alarmes?.filter(a=>a.ativo).length > 0"
@@ -1281,9 +1347,16 @@
             x-text="alarmes?.filter(a=>a.ativo).length"></span>
         </button>
         <button @click="abaAtiva = 'historico'; if (!historicoDados) carregarHistorico()"
-          class="py-1.5 text-xs font-semibold rounded-xl transition"
+          class="shrink-0 flex-1 min-w-[3rem] py-1.5 text-[10px] font-semibold rounded-xl transition"
           :class="abaAtiva === 'historico' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
           📋 Histórico
+        </button>
+        <button @click="abaAtiva = 'promocoes'; carregarPromocoes()"
+          class="shrink-0 flex-1 min-w-[3.5rem] py-1.5 text-[10px] font-semibold rounded-xl transition relative"
+          :class="abaAtiva === 'promocoes' ? 'bg-orange-500 text-white' : 'text-gray-400 hover:bg-gray-50'">
+          🏷️ Promos
+          <span x-show="promocoes?.filter(p => !p.ja_interessou).length > 0"
+            class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full border border-white"></span>
         </button>
       </div>
 
@@ -1943,6 +2016,144 @@
         </div>
       </div><!-- /painel histórico -->
 
+      <!-- PAINEL PROMOÇÕES -->
+      <div x-show="abaAtiva === 'promocoes'" x-cloak class="space-y-4">
+
+        <!-- Modal: confirmar interesse -->
+        <div x-show="modalInteresse" x-cloak
+          class="fixed inset-0 z-50 bg-black/50 flex items-end justify-center p-4"
+          @click.self="modalInteresse = null">
+          <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">Confirmar interesse</h3>
+            <p class="text-sm text-gray-600">Ao confirmar, a farmácia receberá suas informações de contato:</p>
+            <div class="bg-blue-50 rounded-xl p-4 space-y-1 text-sm">
+              <p><span class="text-gray-400">Nome:</span> <strong x-text="usuario?.nome"></strong></p>
+              <p><span class="text-gray-400">Bairro:</span> <strong x-text="usuario?.bairro || '—'"></strong></p>
+              <p><span class="text-gray-400">WhatsApp:</span> <strong x-text="telefoneAtual"></strong></p>
+            </div>
+            <p x-show="interesseMsg" class="text-sm text-red-500" x-text="interesseMsg"></p>
+            <div class="flex gap-3">
+              <button @click="modalInteresse = null; interesseMsg = ''"
+                class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50">
+                Cancelar
+              </button>
+              <button @click="confirmarInteresse()" :disabled="interesseEnviando"
+                class="flex-1 py-2.5 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 disabled:opacity-40">
+                <span x-text="interesseEnviando ? 'Enviando...' : 'Confirmar interesse'"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cards de promoções -->
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-gray-800">Promoções para você</h2>
+          <button @click="carregarPromocoes()" :disabled="promocoesCarregando"
+            class="text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 px-3 py-1.5 rounded-lg font-semibold">
+            <span x-text="promocoesCarregando ? 'Carregando...' : '↺ Atualizar'"></span>
+          </button>
+        </div>
+
+        <div x-show="promocoesCarregando" class="text-center py-10 text-gray-300 text-sm">Carregando promoções...</div>
+
+        <div x-show="!promocoesCarregando && promocoes !== null && promocoes.length === 0"
+          class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+          <p class="text-4xl mb-3">🏷️</p>
+          <p class="text-gray-400 text-sm">Nenhuma promoção disponível no seu bairro agora.</p>
+          <p class="text-gray-300 text-xs mt-1">As promoções aparecem aqui quando farmácias da sua região anunciarem.</p>
+        </div>
+
+        <template x-for="p in (promocoes || [])" :key="p.id">
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <!-- Header da promo -->
+            <div class="bg-gradient-to-r from-orange-500 to-orange-400 px-5 py-3 flex items-center justify-between">
+              <div>
+                <p class="text-white font-bold text-sm" x-text="p.farmacia_nome"></p>
+                <p x-show="p.titulo" class="text-orange-100 text-xs" x-text="p.titulo"></p>
+              </div>
+              <div class="flex gap-2">
+                <span x-show="p.ja_tem"
+                  class="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  ✓ Já tenho
+                </span>
+                <span x-show="p.ja_interessou"
+                  class="bg-green-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  ✓ Interesse enviado
+                </span>
+              </div>
+            </div>
+
+            <div class="p-5 space-y-3">
+              <!-- Produto e preço -->
+              <div x-show="p.produto" class="flex items-start justify-between gap-3">
+                <p class="font-bold text-gray-800 text-base" x-text="p.produto"></p>
+                <div class="text-right shrink-0">
+                  <p x-show="p.preco_de" class="text-xs text-gray-300 line-through" x-text="'R$ ' + p.preco_de?.toFixed(2).replace('.',',')"></p>
+                  <p x-show="p.preco_por" class="text-lg font-black text-orange-500" x-text="'R$ ' + p.preco_por?.toFixed(2).replace('.',',')"></p>
+                </div>
+              </div>
+
+              <!-- Texto do anúncio -->
+              <p class="text-sm text-gray-600" x-text="p.texto"></p>
+
+              <!-- Detalhes -->
+              <div class="flex flex-wrap gap-2 text-xs">
+                <span x-show="p.data_expiracao" class="bg-gray-50 text-gray-400 px-2 py-1 rounded-lg">
+                  ⏱ Válido até <span x-text="formatarData(p.data_expiracao)"></span>
+                </span>
+                <span x-show="p.tem_entrega && !p.valor_frete" class="bg-green-50 text-green-600 px-2 py-1 rounded-lg font-semibold">🚚 Entrega grátis</span>
+                <span x-show="p.tem_entrega && p.valor_frete" class="bg-blue-50 text-blue-500 px-2 py-1 rounded-lg">
+                  🚚 Frete R$ <span x-text="p.valor_frete?.toFixed(2).replace('.',',')"></span>
+                </span>
+                <template x-for="f in (p.formas_pagamento || [])" :key="f">
+                  <span class="bg-gray-50 text-gray-400 px-2 py-1 rounded-lg" x-text="f === 'pix' ? '💠 PIX' : f === 'cartao' ? '💳 Cartão' : '💵 Dinheiro'"></span>
+                </template>
+              </div>
+
+              <!-- Botão de interesse -->
+              <button x-show="!p.ja_interessou"
+                @click="manifestarInteresse(p)"
+                class="w-full mt-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition">
+                🙋 Tenho interesse
+              </button>
+              <div x-show="p.ja_interessou" class="w-full mt-1 py-2.5 bg-green-50 text-green-600 text-sm font-semibold rounded-xl text-center">
+                ✅ Interesse registrado — a farmácia entrará em contato
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Histórico de interesses -->
+        <template x-if="historicoInteresses && historicoInteresses.length > 0">
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Histórico de promoções</p>
+            <template x-for="h in historicoInteresses" :key="h.id">
+              <div class="flex items-center gap-3 py-3 border-t border-gray-50 first:border-t-0">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-gray-700 truncate" x-text="h.produto || h.titulo || 'Promoção'"></p>
+                  <p class="text-xs text-gray-400" x-text="h.farmacia_nome"></p>
+                  <p x-show="h.preco_por" class="text-xs text-orange-500 font-semibold" x-text="'R$ ' + h.preco_por?.toFixed(2).replace('.',',')"></p>
+                </div>
+                <div class="text-right shrink-0">
+                  <span :class="h.expirou ? 'bg-gray-100 text-gray-400' : 'bg-green-100 text-green-600'"
+                    class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                    x-text="h.expirou ? 'Expirado' : 'Ativo'">
+                  </span>
+                  <p class="text-xs text-gray-300 mt-1" x-text="h.criado_em ? formatarData(h.criado_em) : ''"></p>
+                  <a x-show="h.farmacia_whatsapp && !h.expirou"
+                    :href="'https://wa.me/55' + h.farmacia_whatsapp"
+                    target="_blank" rel="noopener"
+                    class="text-xs text-green-600 underline mt-0.5 block">
+                    WhatsApp →
+                  </a>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+      </div><!-- /painel promoções -->
+
       <!-- PAINEL FARMÁCIA -->
       <div x-show="abaAtiva === 'farmacia'" class="space-y-5">
 
@@ -1966,6 +2177,11 @@
             class="flex-1 py-1.5 text-xs font-semibold rounded-xl transition"
             :class="abaFarmacia === 'anunciar' ? 'bg-green-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
             📢 Anunciar
+          </button>
+          <button @click="abaFarmacia = 'planos'"
+            class="flex-1 py-1.5 text-xs font-semibold rounded-xl transition"
+            :class="abaFarmacia === 'planos' ? 'bg-green-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
+            💳 Planos
           </button>
         </div>
 
@@ -2079,26 +2295,237 @@
           </template>
         </div>
 
+        <!-- PLANOS -->
+        <div x-show="abaFarmacia === 'planos'" class="space-y-4">
+
+          <!-- Plano atual -->
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Seu plano atual</p>
+            <p class="text-lg font-black capitalize"
+              :class="{
+                'text-gray-500': farmacia?.farmacia?.plano === 'lead',
+                'text-blue-600': farmacia?.farmacia?.plano === 'pro' || farmacia?.farmacia?.plano === 'basico',
+                'text-amber-600': farmacia?.farmacia?.plano === 'manipulado'
+              }"
+              x-text="farmacia?.farmacia?.plano === 'lead' ? '🌱 Lead — Gratuito' :
+                       farmacia?.farmacia?.plano === 'pro'  ? '🚀 Pro — R$299/mês' :
+                       farmacia?.farmacia?.plano === 'manipulado' ? '🧪 Manipulado — R$699/mês' :
+                       farmacia?.farmacia?.plano ?? '—'">
+            </p>
+          </div>
+
+          <!-- Cards dos planos -->
+          <template x-for="plano in [
+            {
+              id: 'lead',
+              nome: '🌱 Lead',
+              preco: 'Gratuito',
+              cor: 'gray',
+              link: null,
+              itens: [
+                'Cadastro completo da farmácia',
+                'Leads automáticos do seu bairro',
+                'Dashboard de leads recebidos',
+                'Perfil visível para pacientes no app'
+              ],
+              nao: [
+                'Leads ilimitados',
+                'Promoções push segmentadas',
+                'Insights de medicamentos',
+                'Prioridade no suporte'
+              ]
+            },
+            {
+              id: 'pro',
+              nome: '🚀 Pro',
+              preco: 'R$299/mês',
+              cor: 'blue',
+              link: 'https://dosemed.onrender.com',
+              itens: [
+                'Tudo do plano Lead',
+                'Leads ilimitados',
+                'Promoções push por categoria terapêutica',
+                'Insights: medicamentos mais buscados no bairro',
+                'Sistema de orçamentos com pacientes',
+                'Suporte prioritário'
+              ],
+              nao: []
+            },
+            {
+              id: 'manipulado',
+              nome: '🧪 Manipulado',
+              preco: 'R$699/mês',
+              cor: 'amber',
+              link: 'https://dosemed.onrender.com',
+              itens: [
+                'Tudo do plano Pro',
+                'Leads específicos de manipulados',
+                'Segmentação por nicho (hormônios, derma, oncológico)',
+                'Destaque como farmácia de manipulação no app'
+              ],
+              nao: []
+            }
+          ]" :key="plano.id">
+            <div class="bg-white rounded-2xl border-2 shadow-sm p-5 space-y-3"
+              :class="{
+                'border-gray-200': farmacia?.farmacia?.plano !== plano.id,
+                'border-blue-500': farmacia?.farmacia?.plano === plano.id && plano.id === 'pro',
+                'border-amber-400': farmacia?.farmacia?.plano === plano.id && plano.id === 'manipulado',
+                'border-green-500': farmacia?.farmacia?.plano === plano.id && plano.id === 'lead'
+              }">
+              <div class="flex items-center justify-between">
+                <p class="font-black text-gray-800" x-text="plano.nome"></p>
+                <div class="flex items-center gap-2">
+                  <span x-show="farmacia?.farmacia?.plano === plano.id"
+                    class="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Atual</span>
+                  <span class="font-bold text-sm"
+                    :class="plano.id==='lead' ? 'text-gray-500' : plano.id==='pro' ? 'text-blue-600' : 'text-amber-600'"
+                    x-text="plano.preco"></span>
+                </div>
+              </div>
+
+              <ul class="space-y-1.5">
+                <template x-for="item in plano.itens" :key="item">
+                  <li class="flex items-start gap-2 text-xs text-gray-600">
+                    <span class="text-green-500 font-bold shrink-0 mt-0.5">✓</span>
+                    <span x-text="item"></span>
+                  </li>
+                </template>
+                <template x-for="item in plano.nao" :key="item">
+                  <li class="flex items-start gap-2 text-xs text-gray-300">
+                    <span class="shrink-0 mt-0.5">✗</span>
+                    <span x-text="item"></span>
+                  </li>
+                </template>
+              </ul>
+
+              <template x-if="plano.link && farmacia?.farmacia?.plano !== plano.id && farmacia?.farmacia?.plano === 'lead'">
+                <a :href="plano.link" target="_blank"
+                  class="block w-full text-center py-2.5 rounded-xl text-sm font-bold text-white transition"
+                  :class="plano.id === 'pro' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-amber-500 hover:bg-amber-600'">
+                  Assinar <span x-text="plano.nome"></span>
+                </a>
+              </template>
+            </div>
+          </template>
+
+          <!-- Informações legais e transparência -->
+          <div class="bg-gray-50 rounded-2xl border border-gray-100 p-5 space-y-2">
+            <p class="text-xs font-bold text-gray-600 uppercase tracking-wide">Informações importantes</p>
+            <ul class="space-y-1.5 text-xs text-gray-500 leading-relaxed">
+              <li>• Planos pagos são cobrados mensalmente via Asaas (PIX, cartão ou boleto).</li>
+              <li>• Não há fidelidade mínima — cancele quando quiser sem multa.</li>
+              <li>• O downgrade para o plano Gratuito ocorre no ciclo seguinte ao cancelamento.</li>
+              <li>• Leads não são garantidos — dependem de usuários ativos no seu bairro.</li>
+              <li>• O plano Pro inclui até 1 campanha de push por mês inclusa; campanhas adicionais têm custo por disparo conforme tabela no painel.</li>
+              <li>• Dados dos pacientes são compartilhados somente com consentimento expresso do usuário (conforme LGPD — Lei 13.709/2018).</li>
+              <li>• Para cancelamento ou dúvidas: <strong>contato@dosemed.app</strong></li>
+            </ul>
+          </div>
+
+        </div>
+
         <!-- ANUNCIAR -->
         <div x-show="abaFarmacia === 'anunciar'" class="space-y-4">
 
           <!-- Formulário novo anúncio -->
           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-            <h3 class="font-bold text-gray-700">Novo anúncio push</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Envie uma notificação direto no celular dos usuários cadastrados. Pagamento via PIX (Asaas) — após confirmação o disparo é automático.</p>
+            <h3 class="font-bold text-gray-700">Nova promoção</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Crie uma promoção segmentada. Após o pagamento, ela aparece na aba Promoções dos usuários que usam os medicamentos da categoria escolhida.</p>
 
-            <!-- Mensagem -->
+            <!-- Produto -->
             <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Mensagem da notificação *</label>
-              <textarea x-model="anuncioForm.texto" rows="3" maxlength="200" placeholder="ex: Promoção relâmpago! Até 30% off em genéricos. Visite a Farmácia Central."
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Produto promocionado *</label>
+              <input x-model="anuncioForm.produto" type="text" maxlength="100" placeholder="ex: Metformina 500mg — Caixa com 60 comprimidos"
+                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+            </div>
+
+            <!-- Preços -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Preço normal (R$) <span class="font-normal text-gray-300">riscado</span></label>
+                <input x-model.number="anuncioForm.preco_de" type="number" step="0.01" min="0" placeholder="ex: 45.90"
+                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Preço promocional (R$) *</label>
+                <input x-model.number="anuncioForm.preco_por" type="number" step="0.01" min="0" placeholder="ex: 32.90"
+                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+              </div>
+            </div>
+
+            <!-- Validade e WhatsApp -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Válido até</label>
+                <input x-model="anuncioForm.data_expiracao" type="date"
+                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">WhatsApp contato</label>
+                <input x-model="anuncioForm.whatsapp_contato" type="tel" inputmode="numeric" maxlength="11" placeholder="65999999999"
+                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+              </div>
+            </div>
+
+            <!-- Entrega -->
+            <div>
+              <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                <input type="checkbox" x-model="anuncioForm.tem_entrega" class="w-4 h-4 accent-green-600 rounded" />
+                Faz entrega
+              </label>
+              <div x-show="anuncioForm.tem_entrega" class="mt-2">
+                <input x-model.number="anuncioForm.valor_frete" type="number" step="0.01" min="0" placeholder="Valor do frete (0 = grátis)"
+                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+              </div>
+            </div>
+
+            <!-- Formas de pagamento -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Formas de pagamento aceitas</label>
+              <div class="flex gap-3 flex-wrap">
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+                  <input type="checkbox" x-model="anuncioForm.formas_pagamento.pix" class="accent-green-600" /> PIX
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+                  <input type="checkbox" x-model="anuncioForm.formas_pagamento.cartao" class="accent-green-600" /> Cartão
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+                  <input type="checkbox" x-model="anuncioForm.formas_pagamento.dinheiro" class="accent-green-600" /> Dinheiro
+                </label>
+              </div>
+            </div>
+
+            <!-- Categorias terapêuticas -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Segmentar por categoria <span class="font-normal text-gray-300">(mostra apenas para quem usa esses meds)</span></label>
+              <div class="flex flex-wrap gap-2">
+                <template x-for="cat in categoriasLista" :key="cat.id">
+                  <label class="flex items-center gap-1.5 cursor-pointer text-xs px-3 py-1.5 rounded-full border transition"
+                    :class="anuncioForm.categorias.includes(cat.id) ? 'border-green-400 bg-green-50 text-green-700 font-semibold' : 'border-gray-200 text-gray-500 hover:border-gray-300'">
+                    <input type="checkbox" class="sr-only"
+                      :checked="anuncioForm.categorias.includes(cat.id)"
+                      @change="e => { if(e.target.checked) anuncioForm.categorias.push(cat.id); else anuncioForm.categorias = anuncioForm.categorias.filter(c=>c!==cat.id) }" />
+                    <span x-text="cat.label"></span>
+                  </label>
+                </template>
+                <span x-show="categoriasLista.length === 0" class="text-xs text-gray-300">Carregando...</span>
+              </div>
+              <p x-show="anuncioForm.categorias.length === 0" class="text-xs text-amber-500 mt-1">Sem categoria = todos os usuários do público selecionado</p>
+            </div>
+
+            <!-- Mensagem da notificação -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Mensagem da notificação push *</label>
+              <textarea x-model="anuncioForm.texto" rows="2" maxlength="200" placeholder="ex: Desconto especial para quem usa Metformina! Confira."
                 class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"></textarea>
               <p class="text-xs text-gray-300 text-right mt-0.5" x-text="(anuncioForm.texto.length) + '/200'"></p>
             </div>
 
             <!-- Título opcional -->
             <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Título <span class="font-normal normal-case text-gray-300">(opcional — padrão: nome da farmácia)</span></label>
-              <input x-model="anuncioForm.titulo" type="text" maxlength="60" placeholder="ex: Oferta especial DoseMed"
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Título <span class="font-normal normal-case text-gray-300">(opcional)</span></label>
+              <input x-model="anuncioForm.titulo" type="text" maxlength="60" placeholder="ex: Promoção especial para diabéticos"
                 class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
             </div>
 
@@ -2147,7 +2574,7 @@
 
             <button @click="criarAnuncio()" :disabled="anuncioEnviando || !anuncioForm.texto.trim()"
               class="w-full bg-green-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-green-700 disabled:opacity-40 transition">
-              <span x-text="anuncioEnviando ? 'Criando...' : '📢 Criar anúncio — R$ ' + (anuncioForm.publico === 'todos' ? (precosAnuncio.todos ?? '70') : (precosAnuncio.bairro ?? '30'))"></span>
+              <span x-text="anuncioEnviando ? 'Criando...' : '📢 Criar promoção — R$ ' + (anuncioForm.publico === 'todos' ? (precosAnuncio.todos ?? '70') : (precosAnuncio.bairro ?? '30'))"></span>
             </button>
 
             <!-- Resultado -->
@@ -2203,6 +2630,7 @@
                     </span>
                   </template>
                   <p x-show="a.total_enviados != null" class="text-xs text-gray-400 mt-1" x-text="a.total_enviados + ' envios'"></p>
+                  <p x-show="a.total_interesses > 0" class="text-xs text-orange-500 font-semibold mt-0.5" x-text="a.total_interesses + ' interesse(s)'"></p>
                 </div>
               </div>
             </template>
@@ -2256,15 +2684,19 @@ function dosemed() {
     adminBuscas: null,
     adminFeedbacks: null, adminFeedbacksCarregando: false,
     // anúncio push farmácia
-    anuncioForm: { texto: '', titulo: '', publico: 'bairro', genero_alvo: '' },
+    anuncioForm: { texto: '', titulo: '', publico: 'bairro', genero_alvo: '', produto: '', preco_de: '', preco_por: '', data_expiracao: '', tem_entrega: false, valor_frete: '', formas_pagamento: { pix: true, cartao: false, dinheiro: false }, whatsapp_contato: '', categorias: [] },
     anunciosCriados: null, anuncioEnviando: false, anuncioMsg: '', anuncioResultado: null,
     precosAnuncio: { bairro: null, todos: null },
+    // promoções
+    promocoes: null, promocoesCarregando: false, historicoInteresses: null,
+    modalInteresse: null, interesseEnviando: false, interesseMsg: '',
+    categoriasLista: [],
     modalFarmacia: null,
     // farmácia
     isFarmacia: false, farmacia: null, farmaciaCarregando: false,
     abaFarmacia: 'leads', farmaciaInsights: null,
     farmaciaEditBairros: '', farmaciaEditManipulado: false, farmaciaPerfilMsg: '',
-    mostrarEscolha: false, mostrarCadastroFarmacia: false,
+    mostrarEscolha: false, mostrarCadastroFarmacia: false, modalPlanos: false,
     cadastroFarmacia: { nome: '', email: '', cnpj: '', bairros: '', atende_manipulado: false },
     mostrarExcluirConta: false, confirmarExcluir: '', pinExcluir: '',
     // feedback
@@ -2347,6 +2779,7 @@ function dosemed() {
     init() {
       this.disclaimerFechado = localStorage.getItem('dm_disc') === '1';
       this.carregarBulasIndex();
+      fetch('/categorias').then(r => r.ok ? r.json() : []).then(d => { this.categoriasLista = d; }).catch(() => {});
       // beforeinstallprompt dispara cedo — checa se já foi capturado antes do Alpine iniciar
       this.pwaDisponivel = !!window._pwaPrompt;
       window.addEventListener('beforeinstallprompt', () => { this.pwaDisponivel = true; });
@@ -3195,9 +3628,49 @@ function dosemed() {
       } catch {}
     },
 
+    async carregarPromocoes() {
+      if (!this.telefoneAtual) return;
+      this.promocoesCarregando = true;
+      try {
+        const [rp, rh] = await Promise.all([
+          fetch(`/promocoes?telefone=${encodeURIComponent(this.telefoneAtual)}`),
+          fetch(`/promocoes/historico/${encodeURIComponent(this.telefoneAtual)}`),
+        ]);
+        if (rp.ok) this.promocoes = await rp.json();
+        if (rh.ok) this.historicoInteresses = await rh.json();
+      } catch {}
+      this.promocoesCarregando = false;
+    },
+
+    manifestarInteresse(promo) {
+      this.modalInteresse = promo;
+      this.interesseMsg = '';
+    },
+
+    async confirmarInteresse() {
+      if (!this.modalInteresse) return;
+      this.interesseEnviando = true; this.interesseMsg = '';
+      try {
+        const r = await fetch(`/promocoes/${this.modalInteresse.id}/interesse`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefone: this.telefoneAtual })
+        });
+        const d = await r.json();
+        if (r.ok) {
+          this.modalInteresse = null;
+          await this.carregarPromocoes();
+        } else { this.interesseMsg = d.detail || 'Erro ao registrar interesse.'; }
+      } catch { this.interesseMsg = 'Erro de conexão.'; }
+      this.interesseEnviando = false;
+    },
+
     async criarAnuncio() {
       if (!this.anuncioForm.texto.trim()) return;
       this.anuncioEnviando = true; this.anuncioMsg = ''; this.anuncioResultado = null;
+      const formas = [];
+      if (this.anuncioForm.formas_pagamento.pix) formas.push('pix');
+      if (this.anuncioForm.formas_pagamento.cartao) formas.push('cartao');
+      if (this.anuncioForm.formas_pagamento.dinheiro) formas.push('dinheiro');
       try {
         const r = await fetch('/farmacia/anuncio/criar', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -3208,12 +3681,21 @@ function dosemed() {
             titulo: this.anuncioForm.titulo || null,
             publico: this.anuncioForm.publico,
             genero_alvo: this.anuncioForm.genero_alvo || null,
+            produto: this.anuncioForm.produto || null,
+            preco_de: this.anuncioForm.preco_de || null,
+            preco_por: this.anuncioForm.preco_por || null,
+            data_expiracao: this.anuncioForm.data_expiracao || null,
+            tem_entrega: this.anuncioForm.tem_entrega,
+            valor_frete: this.anuncioForm.tem_entrega ? (this.anuncioForm.valor_frete || 0) : null,
+            formas_pagamento: formas.length ? JSON.stringify(formas) : null,
+            whatsapp_contato: this.anuncioForm.whatsapp_contato || null,
+            categorias: this.anuncioForm.categorias.length ? JSON.stringify(this.anuncioForm.categorias) : null,
           })
         });
         const d = await r.json();
         if (r.ok) {
           this.anuncioResultado = d;
-          this.anuncioForm = { texto: '', titulo: '', publico: 'bairro', genero_alvo: '' };
+          this.anuncioForm = { texto: '', titulo: '', publico: 'bairro', genero_alvo: '', produto: '', preco_de: '', preco_por: '', data_expiracao: '', tem_entrega: false, valor_frete: '', formas_pagamento: { pix: true, cartao: false, dinheiro: false }, whatsapp_contato: '', categorias: [] };
           await this.carregarAnunciosFarmacia();
         } else { this.anuncioMsg = d.detail || 'Erro ao criar anúncio.'; }
       } catch { this.anuncioMsg = 'Erro de conexão.'; }

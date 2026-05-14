@@ -1,4 +1,4 @@
-const CACHE = 'dosemed-v17';
+const CACHE = 'dosemed-v19';
 const SHELL = ['/'];
 
 self.addEventListener('install', e => {
@@ -38,7 +38,9 @@ self.addEventListener('fetch', e => {
       url.pathname.startsWith('/admin/anuncio') ||
       url.pathname.startsWith('/farmacia/anuncio') ||
       url.pathname.startsWith('/feedback') ||
-      url.pathname.startsWith('/admin/feedbacks')) {
+      url.pathname.startsWith('/admin/feedbacks') ||
+      url.pathname.startsWith('/promocoes') ||
+      url.pathname.startsWith('/categorias')) {
     e.respondWith(fetch(e.request).catch(() => new Response('{"erro":"offline"}', { headers: { 'Content-Type': 'application/json' } })));
     return;
   }
