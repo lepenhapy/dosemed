@@ -2201,6 +2201,99 @@ def cron_expirar_interesses():
         db.close()
 
 
+def cron_backup_db():
+    """Dump JSON de todas as tabelas principais, comprimido e enviado por e-mail."""
+    import gzip, json
+    from email.mime.base import MIMEBase
+    from email import encoders as _enc
+
+    backup_email = os.getenv("BACKUP_EMAIL", os.getenv("SMTP_USER", "")).strip()
+    if not backup_email:
+        logger.warning("[BACKUP] BACKUP_EMAIL não configurado — backup ignorado")
+        return
+
+    db = SessionLocal()
+    try:
+        tabelas = [
+            ("usuarios",              Usuario),
+            ("estoque",               Estoque),
+            ("farmacias",             Farmacia),
+            ("alarmes",               AlarmeRemedio),
+            ("leads",                 Lead),
+            ("push_subs",             PushSub),
+            ("orcamentos_solic",      OrcamentoSolicitacao),
+            ("orcamentos_resp",       OrcamentoResposta),
+        ]
+
+        def _serial(o):
+            if hasattr(o, "isoformat"):
+                return o.isoformat()
+            return str(o)
+
+        dump: dict = {}
+        for nome, modelo in tabelas:
+            rows = db.query(modelo).all()
+            dump[nome] = [
+                {c.name: getattr(row, c.name) for c in modelo.__table__.columns}
+                for row in rows
+            ]
+
+        json_bytes = json.dumps(dump, default=_serial, ensure_ascii=False).encode("utf-8")
+        gz_bytes   = gzip.compress(json_bytes, compresslevel=9)
+
+        hoje    = datetime.utcnow().strftime("%Y-%m-%d")
+        n_users = len(dump.get("usuarios", []))
+        n_meds  = len(dump.get("estoque",  []))
+        fname   = f"dosemed-backup-{hoje}.json.gz"
+
+        # Monta e-mail com anexo via SMTP direto (sem depender de Brevo/Resend)
+        host  = os.getenv("SMTP_HOST",     "").strip()
+        port  = int(os.getenv("SMTP_PORT", "587").strip() or "587")
+        user  = os.getenv("SMTP_USER",     "").strip()
+        senha = os.getenv("SMTP_PASSWORD", "").replace(" ", "")
+
+        if not (host and user and senha):
+            logger.warning("[BACKUP] SMTP não configurado — backup não enviado")
+            return
+
+        import socket, ssl as _ssl
+        msg = MIMEMultipart()
+        msg["Subject"] = f"DoseMed — Backup diário {hoje}"
+        msg["From"]    = user
+        msg["To"]      = backup_email
+        msg.attach(MIMEText(
+            f"<p style='font-family:Arial'>Backup automático de <b>{hoje}</b>.<br>"
+            f"Usuários: <b>{n_users}</b> · Itens em estoque: <b>{n_meds}</b><br>"
+            f"Tamanho: {len(gz_bytes)/1024:.1f} KB (gzip)</p>",
+            "html"
+        ))
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(gz_bytes)
+        _enc.encode_base64(part)
+        part.add_header("Content-Disposition", f'attachment; filename="{fname}"')
+        msg.attach(part)
+
+        try:
+            host_ip = socket.gethostbyname(host)
+            ctx = _ssl.create_default_context()
+            if port == 465:
+                with smtplib.SMTP_SSL(host_ip, port, context=ctx, timeout=20) as s:
+                    s.login(user, senha)
+                    s.sendmail(user, backup_email, msg.as_string())
+            else:
+                with smtplib.SMTP(host_ip, port, timeout=20) as s:
+                    s.ehlo(); s.starttls(context=ctx); s.login(user, senha)
+                    s.sendmail(user, backup_email, msg.as_string())
+            logger.info(f"[BACKUP] {fname} enviado para {backup_email} ({len(gz_bytes)/1024:.1f} KB)")
+        except Exception as e:
+            logger.error(f"[BACKUP] Falha ao enviar e-mail: {e}")
+
+    except Exception as e:
+        logger.error(f"[BACKUP] Erro ao gerar dump: {e}")
+    finally:
+        db.close()
+
+
 if SCHEDULER_OK:
     _scheduler = BackgroundScheduler(daemon=True)
     # Horários em UTC: 12:00 UTC = 09:00 BRT (UTC-3)
@@ -2212,6 +2305,8 @@ if SCHEDULER_OK:
                        id="estoque_baixo", replace_existing=True, max_instances=1, coalesce=True)
     _scheduler.add_job(cron_expirar_interesses, CronTrigger(hour=3, minute=0),
                        id="interesses", replace_existing=True, max_instances=1, coalesce=True)
+    _scheduler.add_job(cron_backup_db, CronTrigger(hour=6, minute=30),
+                       id="backup_db", replace_existing=True, max_instances=1, coalesce=True)
 else:
     _scheduler = None
 
