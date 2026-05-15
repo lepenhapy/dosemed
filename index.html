@@ -260,6 +260,10 @@
         <input x-model="editPerfil.bairro" type="text" placeholder="ex: Jardim América" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
       </div>
       <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Data de nascimento</label>
+        <input x-model="editPerfil.dataNasc" type="date" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div>
         <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Sexo</label>
         <div class="flex gap-3">
           <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
@@ -637,18 +641,25 @@
               class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sexo <span class="text-gray-300 normal-case font-normal">(opcional — para ofertas relevantes)</span></label>
-          <div class="flex gap-3">
-            <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
-              <input type="radio" x-model="cadastro.genero" value="M" class="accent-blue-600" /> Masculino
-            </label>
-            <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
-              <input type="radio" x-model="cadastro.genero" value="F" class="accent-blue-600" /> Feminino
-            </label>
-            <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
-              <input type="radio" x-model="cadastro.genero" value="" class="accent-blue-600" /> Prefiro não dizer
-            </label>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sexo <span class="text-gray-300 normal-case font-normal">(opcional)</span></label>
+            <div class="flex flex-col gap-1.5">
+              <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+                <input type="radio" x-model="cadastro.genero" value="M" class="accent-blue-600" /> Masculino
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+                <input type="radio" x-model="cadastro.genero" value="F" class="accent-blue-600" /> Feminino
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+                <input type="radio" x-model="cadastro.genero" value="" class="accent-blue-600" /> Não dizer
+              </label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Nascimento <span class="text-gray-300 normal-case font-normal">(opcional)</span></label>
+            <input x-model="cadastro.dataNasc" type="date"
+              class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
         </div>
         <div>
@@ -1156,6 +1167,47 @@
                 <div x-show="!adminCrescimento.por_dia?.length" class="text-center py-6 text-gray-300 text-sm">
                   Sem dados ainda — eventos são registrados a partir de agora.
                 </div>
+
+                <!-- Perfil demográfico -->
+                <template x-if="adminCrescimento.genero">
+                  <div class="space-y-4">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Perfil dos usuários (<span x-text="adminCrescimento.total_usuarios"></span> total)</p>
+                    <!-- Gênero -->
+                    <div>
+                      <p class="text-xs text-gray-400 mb-2">Por sexo</p>
+                      <div class="grid grid-cols-3 gap-2">
+                        <div class="bg-blue-50 rounded-xl p-3 text-center">
+                          <p class="text-xl font-black text-blue-600" x-text="adminCrescimento.genero.M"></p>
+                          <p class="text-xs text-blue-400 mt-0.5">Masculino</p>
+                        </div>
+                        <div class="bg-pink-50 rounded-xl p-3 text-center">
+                          <p class="text-xl font-black text-pink-500" x-text="adminCrescimento.genero.F"></p>
+                          <p class="text-xs text-pink-400 mt-0.5">Feminino</p>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-3 text-center">
+                          <p class="text-xl font-black text-gray-400" x-text="adminCrescimento.genero.nao_informado"></p>
+                          <p class="text-xs text-gray-300 mt-0.5">Não informado</p>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Faixas etárias -->
+                    <div x-show="adminCrescimento.faixas_etarias">
+                      <p class="text-xs text-gray-400 mb-2">Por faixa etária</p>
+                      <div class="space-y-1.5">
+                        <template x-for="fa in adminCrescimento.faixas_etarias" :key="fa.faixa">
+                          <div class="flex items-center gap-3">
+                            <span class="text-xs text-gray-500 w-24 shrink-0" x-text="fa.faixa"></span>
+                            <div class="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                              <div class="h-full bg-indigo-400 rounded-full transition-all"
+                                :style="'width: ' + (adminCrescimento.total_usuarios > 0 ? Math.round(fa.count / adminCrescimento.total_usuarios * 100) : 0) + '%'"></div>
+                            </div>
+                            <span class="text-xs font-semibold text-gray-500 w-8 text-right" x-text="fa.count"></span>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                </template>
 
                 <!-- Reset de dados -->
                 <div class="border border-red-100 rounded-2xl p-5 bg-red-50 space-y-3">
@@ -2476,68 +2528,70 @@
         <div x-show="abaFarmacia === 'anunciar'" class="space-y-4">
 
           <!-- Formulário novo anúncio -->
-          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-            <h3 class="font-bold text-gray-700">Nova promoção</h3>
-            <p class="text-xs text-gray-400 leading-relaxed">Crie uma promoção segmentada. Após o pagamento, ela aparece na aba Promoções dos usuários que usam os medicamentos da categoria escolhida.</p>
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+            <div>
+              <h3 class="font-bold text-gray-800 text-base">Nova promoção</h3>
+              <p class="text-xs text-gray-500 leading-relaxed mt-1">Crie uma promoção segmentada. Após o pagamento, ela aparece na aba Promoções dos usuários que usam os medicamentos da categoria escolhida.</p>
+            </div>
 
             <!-- Produto -->
             <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Produto promocionado *</label>
+              <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Produto promocionado *</label>
               <input x-model="anuncioForm.produto" type="text" maxlength="100" placeholder="ex: Metformina 500mg — Caixa com 60 comprimidos"
-                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                class="w-full border border-gray-300 bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white" />
             </div>
 
             <!-- Preços -->
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Preço normal (R$) <span class="font-normal text-gray-300">riscado</span></label>
+                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Preço normal (R$) <span class="font-normal normal-case text-gray-400">riscado</span></label>
                 <input x-model.number="anuncioForm.preco_de" type="number" step="0.01" min="0" placeholder="ex: 45.90"
-                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                  class="w-full border border-gray-300 bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white" />
               </div>
               <div>
-                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Preço promocional (R$) *</label>
+                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Preço promo (R$) *</label>
                 <input x-model.number="anuncioForm.preco_por" type="number" step="0.01" min="0" placeholder="ex: 32.90"
-                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                  class="w-full border border-gray-300 bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white" />
               </div>
             </div>
 
             <!-- Validade e WhatsApp -->
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Válido até</label>
+                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Válido até</label>
                 <input x-model="anuncioForm.data_expiracao" type="date"
-                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                  class="w-full border border-gray-300 bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white" />
               </div>
               <div>
-                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">WhatsApp contato</label>
+                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">WhatsApp contato</label>
                 <input x-model="anuncioForm.whatsapp_contato" type="tel" inputmode="numeric" maxlength="11" placeholder="65999999999"
-                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                  class="w-full border border-gray-300 bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white" />
               </div>
             </div>
 
             <!-- Entrega -->
             <div>
-              <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+              <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
                 <input type="checkbox" x-model="anuncioForm.tem_entrega" class="w-4 h-4 accent-green-600 rounded" />
                 Faz entrega
               </label>
               <div x-show="anuncioForm.tem_entrega" class="mt-2">
                 <input x-model.number="anuncioForm.valor_frete" type="number" step="0.01" min="0" placeholder="Valor do frete (0 = grátis)"
-                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                  class="w-full border border-gray-300 bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white" />
               </div>
             </div>
 
             <!-- Formas de pagamento -->
             <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Formas de pagamento aceitas</label>
-              <div class="flex gap-3 flex-wrap">
-                <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+              <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Formas de pagamento aceitas</label>
+              <div class="flex gap-4 flex-wrap">
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-gray-700">
                   <input type="checkbox" x-model="anuncioForm.formas_pagamento.pix" class="accent-green-600" /> PIX
                 </label>
-                <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-gray-700">
                   <input type="checkbox" x-model="anuncioForm.formas_pagamento.cartao" class="accent-green-600" /> Cartão
                 </label>
-                <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-gray-700">
                   <input type="checkbox" x-model="anuncioForm.formas_pagamento.dinheiro" class="accent-green-600" /> Dinheiro
                 </label>
               </div>
@@ -2545,57 +2599,57 @@
 
             <!-- Categorias terapêuticas -->
             <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Segmentar por categoria <span class="font-normal text-gray-300">(mostra apenas para quem usa esses meds)</span></label>
+              <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Segmentar por categoria <span class="font-normal normal-case text-gray-500">(mostra apenas para quem usa esses meds)</span></label>
               <div class="flex flex-wrap gap-2">
                 <template x-for="cat in categoriasLista" :key="cat.id">
                   <label class="flex items-center gap-1.5 cursor-pointer text-xs px-3 py-1.5 rounded-full border transition"
-                    :class="anuncioForm.categorias.includes(cat.id) ? 'border-green-400 bg-green-50 text-green-700 font-semibold' : 'border-gray-200 text-gray-500 hover:border-gray-300'">
+                    :class="anuncioForm.categorias.includes(cat.id) ? 'border-green-400 bg-green-50 text-green-700 font-semibold' : 'border-gray-300 text-gray-600 hover:border-gray-400'">
                     <input type="checkbox" class="sr-only"
                       :checked="anuncioForm.categorias.includes(cat.id)"
                       @change="e => { if(e.target.checked) anuncioForm.categorias.push(cat.id); else anuncioForm.categorias = anuncioForm.categorias.filter(c=>c!==cat.id) }" />
                     <span x-text="cat.label"></span>
                   </label>
                 </template>
-                <span x-show="categoriasLista.length === 0" class="text-xs text-gray-300">Carregando...</span>
+                <span x-show="categoriasLista.length === 0" class="text-xs text-gray-400">Carregando...</span>
               </div>
               <p x-show="anuncioForm.categorias.length === 0" class="text-xs text-amber-500 mt-1">Sem categoria = todos os usuários do público selecionado</p>
             </div>
 
             <!-- Mensagem da notificação -->
             <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Mensagem da notificação push *</label>
+              <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Mensagem da notificação push *</label>
               <textarea x-model="anuncioForm.texto" rows="2" maxlength="200" placeholder="ex: Desconto especial para quem usa Metformina! Confira."
-                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"></textarea>
-              <p class="text-xs text-gray-300 text-right mt-0.5" x-text="(anuncioForm.texto.length) + '/200'"></p>
+                class="w-full border border-gray-300 bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white resize-none"></textarea>
+              <p class="text-xs text-gray-400 text-right mt-0.5" x-text="(anuncioForm.texto.length) + '/200'"></p>
             </div>
 
             <!-- Título opcional -->
             <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Título <span class="font-normal normal-case text-gray-300">(opcional)</span></label>
+              <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Título <span class="font-normal normal-case text-gray-400">(opcional)</span></label>
               <input x-model="anuncioForm.titulo" type="text" maxlength="60" placeholder="ex: Promoção especial para diabéticos"
-                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                class="w-full border border-gray-300 bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white" />
             </div>
 
             <!-- Público -->
             <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Público-alvo</label>
+              <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Público-alvo</label>
               <div class="space-y-2">
                 <label class="flex items-start gap-3 cursor-pointer p-3 rounded-xl border-2 transition"
-                  :class="anuncioForm.publico === 'bairro' ? 'border-green-400 bg-green-50' : 'border-gray-100 hover:border-gray-200'">
+                  :class="anuncioForm.publico === 'bairro' ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-gray-300'">
                   <input type="radio" x-model="anuncioForm.publico" value="bairro" class="accent-green-600 mt-0.5" />
                   <div>
                     <p class="text-sm font-semibold text-gray-700">Meu bairro / região</p>
-                    <p class="text-xs text-gray-400">Usuários nos bairros que você atende</p>
+                    <p class="text-xs text-gray-500">Usuários nos bairros que você atende</p>
                   </div>
                   <span class="ml-auto text-sm font-black text-green-600 shrink-0"
                     x-text="precosAnuncio.bairro ? 'R$ ' + precosAnuncio.bairro : 'R$ 30'"></span>
                 </label>
                 <label class="flex items-start gap-3 cursor-pointer p-3 rounded-xl border-2 transition"
-                  :class="anuncioForm.publico === 'todos' ? 'border-green-400 bg-green-50' : 'border-gray-100 hover:border-gray-200'">
+                  :class="anuncioForm.publico === 'todos' ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-gray-300'">
                   <input type="radio" x-model="anuncioForm.publico" value="todos" class="accent-green-600 mt-0.5" />
                   <div>
                     <p class="text-sm font-semibold text-gray-700">Todos os usuários</p>
-                    <p class="text-xs text-gray-400">Todos os bairros cadastrados no DoseMed</p>
+                    <p class="text-xs text-gray-500">Todos os bairros cadastrados no DoseMed</p>
                   </div>
                   <span class="ml-auto text-sm font-black text-green-600 shrink-0"
                     x-text="precosAnuncio.todos ? 'R$ ' + precosAnuncio.todos : 'R$ 70'"></span>
@@ -2605,16 +2659,35 @@
 
             <!-- Gênero alvo -->
             <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Filtrar por sexo <span class="font-normal normal-case text-gray-300">(opcional)</span></label>
-              <div class="flex gap-3 flex-wrap">
-                <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+              <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Filtrar por sexo <span class="font-normal normal-case text-gray-400">(opcional)</span></label>
+              <div class="flex gap-4 flex-wrap">
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-gray-700">
                   <input type="radio" x-model="anuncioForm.genero_alvo" value="" class="accent-green-600" /> Todos
                 </label>
-                <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-gray-700">
                   <input type="radio" x-model="anuncioForm.genero_alvo" value="M" class="accent-green-600" /> Masculino
                 </label>
-                <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-gray-700">
                   <input type="radio" x-model="anuncioForm.genero_alvo" value="F" class="accent-green-600" /> Feminino
+                </label>
+              </div>
+            </div>
+
+            <!-- Faixa etária -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Filtrar por faixa etária <span class="font-normal normal-case text-gray-400">(opcional)</span></label>
+              <div class="flex gap-4 flex-wrap">
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-gray-700">
+                  <input type="radio" x-model="anuncioForm.faixa_etaria" value="" class="accent-green-600" /> Todas as idades
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-gray-700">
+                  <input type="radio" x-model="anuncioForm.faixa_etaria" value="18-35" class="accent-green-600" /> 18–35 anos
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-gray-700">
+                  <input type="radio" x-model="anuncioForm.faixa_etaria" value="36-55" class="accent-green-600" /> 36–55 anos
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-gray-700">
+                  <input type="radio" x-model="anuncioForm.faixa_etaria" value="56+" class="accent-green-600" /> 56+ anos
                 </label>
               </div>
             </div>
@@ -2712,8 +2785,8 @@ function dosemed() {
     termoPesquisa: '', resultadosBula: [], estoquePorBula: [], buscandoBulas: false,
     carregando: false, erroLogin: '', mensagemWebhook: '', alertaPA: '',
     reconhecendo: false, previewUrl: '', erroReconhecimento: '', modoFoto: true,
-    mostrarCadastro: false, cadastro: { nome: '', email: '', cidade: '', bairro: '', endereco: '', portaria: '', genero: '' },
-    modalItem: null, modalPerfil: false, editPerfil: { nome: '', email: '', cidade: '', bairro: '', endereco: '', portaria: '', genero: '' },
+    mostrarCadastro: false, cadastro: { nome: '', email: '', cidade: '', bairro: '', dataNasc: '', endereco: '', portaria: '', genero: '' },
+    modalItem: null, modalPerfil: false, editPerfil: { nome: '', email: '', cidade: '', bairro: '', dataNasc: '', endereco: '', portaria: '', genero: '' },
     mostrarLGPD: false, lgpdAceito: false,
     busca: '',
     // PIN / recuperação
@@ -2731,7 +2804,7 @@ function dosemed() {
     adminBuscas: null,
     adminFeedbacks: null, adminFeedbacksCarregando: false,
     // anúncio push farmácia
-    anuncioForm: { texto: '', titulo: '', publico: 'bairro', genero_alvo: '', produto: '', preco_de: '', preco_por: '', data_expiracao: '', tem_entrega: false, valor_frete: '', formas_pagamento: { pix: true, cartao: false, dinheiro: false }, whatsapp_contato: '', categorias: [] },
+    anuncioForm: { texto: '', titulo: '', publico: 'bairro', genero_alvo: '', faixa_etaria: '', produto: '', preco_de: '', preco_por: '', data_expiracao: '', tem_entrega: false, valor_frete: '', formas_pagamento: { pix: true, cartao: false, dinheiro: false }, whatsapp_contato: '', categorias: [] },
     anunciosCriados: null, anuncioEnviando: false, anuncioMsg: '', anuncioResultado: null,
     precosAnuncio: { bairro: null, todos: null },
     // promoções
@@ -2983,6 +3056,7 @@ function dosemed() {
             email: this.cadastro.email || null,
             bairro: this.cadastro.bairro || null,
             cidade: this.cadastro.cidade || null,
+            data_nascimento: this.cadastro.dataNasc || null,
             genero: this.cadastro.genero || null,
             endereco_completo: this.cadastro.endereco, instrucoes_portaria: this.cadastro.portaria,
             aceite_lgpd: this.lgpdAceito })
@@ -3447,7 +3521,7 @@ function dosemed() {
     },
 
     abrirEditarPerfil() {
-      this.editPerfil = { nome: this.usuario.nome||'', email: this.usuario.email||'', bairro: this.usuario.bairro||'', genero: this.usuario.genero||'', endereco: this.usuario.endereco||'', portaria: this.usuario.instrucoes_portaria||'' };
+      this.editPerfil = { nome: this.usuario.nome||'', email: this.usuario.email||'', bairro: this.usuario.bairro||'', dataNasc: this.usuario.data_nascimento||'', genero: this.usuario.genero||'', endereco: this.usuario.endereco||'', portaria: this.usuario.instrucoes_portaria||'' };
       this.modalPerfil = true;
     },
 
@@ -3456,7 +3530,7 @@ function dosemed() {
       try {
         const r = await fetch(`/usuario/${encodeURIComponent(this.telefoneAtual)}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome: this.editPerfil.nome, email: this.editPerfil.email || null, bairro: this.editPerfil.bairro || null, genero: this.editPerfil.genero || '', endereco_completo: this.editPerfil.endereco, instrucoes_portaria: this.editPerfil.portaria })
+          body: JSON.stringify({ nome: this.editPerfil.nome, email: this.editPerfil.email || null, bairro: this.editPerfil.bairro || null, data_nascimento: this.editPerfil.dataNasc || null, genero: this.editPerfil.genero || '', endereco_completo: this.editPerfil.endereco, instrucoes_portaria: this.editPerfil.portaria })
         });
         if (r.ok) { this.modalPerfil = false; await this.buscarDashboard(); }
       } catch {}
@@ -3760,6 +3834,7 @@ function dosemed() {
             titulo: this.anuncioForm.titulo || null,
             publico: this.anuncioForm.publico,
             genero_alvo: this.anuncioForm.genero_alvo || null,
+            faixa_etaria: this.anuncioForm.faixa_etaria || null,
             produto: this.anuncioForm.produto || null,
             preco_de: this.anuncioForm.preco_de || null,
             preco_por: this.anuncioForm.preco_por || null,

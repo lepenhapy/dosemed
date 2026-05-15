@@ -184,6 +184,27 @@ def admin_crescimento(telefone: str, db: Session = Depends(get_db)):
     cadastros_mes = sum(1 for ev in eventos if ev.tipo in ("cadastro_usuario", "cadastro_farmacia") and ev.criado_em and ev.criado_em >= corte_mes)
     exclusoes_7d = sum(1 for ev in eventos if ev.tipo in ("exclusao_usuario", "exclusao_farmacia") and ev.criado_em and ev.criado_em >= corte_7d)
 
+    usuarios_todos = db.query(Usuario).all()
+    genero_m = sum(1 for u in usuarios_todos if u.genero == "M")
+    genero_f = sum(1 for u in usuarios_todos if u.genero == "F")
+    genero_nd = len(usuarios_todos) - genero_m - genero_f
+
+    hoje = agora.date()
+    faixas = {"<18": 0, "18-35": 0, "36-55": 0, "56+": 0, "não informado": 0}
+    for u in usuarios_todos:
+        if not u.data_nascimento:
+            faixas["não informado"] += 1
+            continue
+        idade = (hoje - u.data_nascimento).days // 365
+        if idade < 18:
+            faixas["<18"] += 1
+        elif idade <= 35:
+            faixas["18-35"] += 1
+        elif idade <= 55:
+            faixas["36-55"] += 1
+        else:
+            faixas["56+"] += 1
+
     return {
         "total_cadastros": total_cadastros,
         "total_exclusoes": total_exclusoes,
@@ -194,6 +215,9 @@ def admin_crescimento(telefone: str, db: Session = Depends(get_db)):
             {"data": d, "cadastros": cadastros_dia.get(d, 0), "exclusoes": exclusoes_dia.get(d, 0)}
             for d in todos_dias
         ],
+        "genero": {"M": genero_m, "F": genero_f, "nao_informado": genero_nd},
+        "faixas_etarias": [{"faixa": k, "count": v} for k, v in faixas.items()],
+        "total_usuarios": len(usuarios_todos),
     }
 
 

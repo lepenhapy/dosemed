@@ -10,6 +10,7 @@ class UsuarioPayload(BaseModel):
     email: Optional[str] = None
     bairro: Optional[str] = None
     cidade: Optional[str] = None
+    data_nascimento: Optional[str] = None  # YYYY-MM-DD
     endereco_completo: Optional[str] = None
     instrucoes_portaria: Optional[str] = None
     aceite_lgpd: Optional[bool] = False
@@ -35,6 +36,7 @@ class EditarUsuarioPayload(BaseModel):
     email: Optional[str] = None
     bairro: Optional[str] = None
     cidade: Optional[str] = None
+    data_nascimento: Optional[str] = None  # YYYY-MM-DD
     endereco_completo: Optional[str] = None
     instrucoes_portaria: Optional[str] = None
     genero: Optional[str] = None  # M | F
@@ -107,6 +109,7 @@ class AnuncioCriarPayload(BaseModel):
     formas_pagamento: Optional[str] = None  # JSON: ["pix","cartao","dinheiro"]
     whatsapp_contato: Optional[str] = None
     categorias: Optional[str] = None        # JSON: ["diabetes","hipertensao"]
+    faixa_etaria: Optional[str] = None      # todos | 18-35 | 36-55 | 56+
 
 
 class InteressePayload(BaseModel):

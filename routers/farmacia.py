@@ -93,6 +93,16 @@ def _disparar_anuncio_push(anuncio: AnuncioPush, db: Session, modo_teste: bool =
         if anuncio.genero_alvo in ("M", "F"):
             if u.genero != anuncio.genero_alvo:
                 continue
+        if anuncio.faixa_etaria in ("18-35", "36-55", "56+") and u.data_nascimento:
+            from datetime import date as _date
+            idade = (_date.today() - u.data_nascimento).days // 365
+            fa = anuncio.faixa_etaria
+            if fa == "18-35" and not (18 <= idade <= 35):
+                continue
+            elif fa == "36-55" and not (36 <= idade <= 55):
+                continue
+            elif fa == "56+" and idade < 56:
+                continue
         telefones_alvo.add(u.telefone)
 
     from helpers import enviar_push
@@ -461,12 +471,14 @@ def farmacia_criar_anuncio(payload: AnuncioCriarPayload, db: Session = Depends(g
         except Exception:
             pass
 
+    faixa_etaria = payload.faixa_etaria if payload.faixa_etaria in ("18-35", "36-55", "56+") else None
     anuncio = AnuncioPush(
         farmacia_id=farm.id,
         texto=sanitizar(payload.texto),
         titulo=sanitizar(payload.titulo or "") or None,
         publico=payload.publico,
         genero_alvo=genero_alvo,
+        faixa_etaria=faixa_etaria,
         preco=preco,
         status="aguardando_pagamento",
         produto=sanitizar(payload.produto or "")[:200] or None,

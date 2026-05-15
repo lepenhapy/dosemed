@@ -18,6 +18,7 @@ class Usuario(Base):
     pin = Column(String, nullable=True)
     bairro = Column(String, nullable=True)
     cidade = Column(String, nullable=True)
+    data_nascimento = Column(Date, nullable=True)
     genero = Column(String, nullable=True)   # M | F
     aceite_lgpd = Column(DateTime, nullable=True)
     session_token = Column(String, nullable=True)
@@ -204,6 +205,7 @@ class AnuncioPush(Base):
     formas_pagamento = Column(String, nullable=True)  # JSON: ["pix","cartao","dinheiro"]
     whatsapp_contato = Column(String, nullable=True)
     categorias = Column(String, nullable=True)      # JSON: ["diabetes","hipertensao"]
+    faixa_etaria = Column(String, nullable=True)   # todos | 18-35 | 36-55 | 56+
     farmacia = relationship("Farmacia", back_populates="anuncios")
     interesses = relationship("InteresseAnuncio", back_populates="anuncio")
 

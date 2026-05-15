@@ -16,6 +16,7 @@ from helpers import (
     gerar_codigo_recuperacao, enviar_email, html_recuperacao,
     html_vencimento, atualizar_status_estoque, serializar_item,
 )
+from datetime import date as _date
 from models import (
     Usuario, Farmacia, CodigoRecuperacao, Estoque, LogEvento,
     LogBusca, OrcamentoSolicitacao, OrcamentoResposta, PushSub,
@@ -49,6 +50,9 @@ def get_usuario(telefone: str, db: Session = Depends(get_db)):
         "nome": usuario.nome,
         "email": usuario.email,
         "bairro": usuario.bairro,
+        "cidade": usuario.cidade,
+        "data_nascimento": str(usuario.data_nascimento) if usuario.data_nascimento else None,
+        "genero": usuario.genero,
         "endereco": usuario.endereco_completo,
         "instrucoes_portaria": usuario.instrucoes_portaria,
         "tem_pin": bool(usuario.pin),
@@ -71,12 +75,19 @@ async def criar_usuario(request: Request, payload: UsuarioPayload, db: Session =
             raise HTTPException(status_code=400, detail="E-mail inválido.")
         email = email_val
     genero = payload.genero if payload.genero in ("M", "F") else None
+    data_nasc = None
+    if payload.data_nascimento:
+        try:
+            data_nasc = _date.fromisoformat(payload.data_nascimento)
+        except ValueError:
+            pass
     usuario = Usuario(
         telefone=telefone,
         nome=sanitizar(payload.nome),
         email=email,
         bairro=sanitizar(payload.bairro or ""),
         cidade=sanitizar(payload.cidade or ""),
+        data_nascimento=data_nasc,
         endereco_completo=sanitizar(payload.endereco_completo or ""),
         instrucoes_portaria=sanitizar(payload.instrucoes_portaria or ""),
         aceite_lgpd=datetime.now(timezone.utc).replace(tzinfo=None) if payload.aceite_lgpd else None,
@@ -109,6 +120,11 @@ def editar_usuario(telefone: str, payload: EditarUsuarioPayload, db: Session = D
         usuario.bairro = sanitizar(payload.bairro)
     if payload.cidade is not None:
         usuario.cidade = sanitizar(payload.cidade)
+    if payload.data_nascimento is not None:
+        try:
+            usuario.data_nascimento = _date.fromisoformat(payload.data_nascimento) if payload.data_nascimento else None
+        except ValueError:
+            pass
     if payload.endereco_completo is not None:
         usuario.endereco_completo = sanitizar(payload.endereco_completo)
     if payload.instrucoes_portaria is not None:

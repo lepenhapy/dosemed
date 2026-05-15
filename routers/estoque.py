@@ -142,6 +142,7 @@ def dashboard(telefone: str, usuario_auth: Usuario = Depends(get_usuario_autenti
             "email": usuario.email,
             "bairro": usuario.bairro,
             "genero": usuario.genero,
+            "data_nascimento": str(usuario.data_nascimento) if usuario.data_nascimento else None,
             "endereco": usuario.endereco_completo,
             "instrucoes_portaria": usuario.instrucoes_portaria,
             "is_admin": usuario.telefone == ADMIN_PHONE,
