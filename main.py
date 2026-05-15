@@ -67,6 +67,9 @@ logger = logging.getLogger("dosemed")
 ADMIN_PHONE = "65993125115"
 TEST_PHONES = [ADMIN_PHONE, "6599339250"]  # excluídos de métricas reais
 
+PIN_MAX_TENTATIVAS = 5
+PIN_BLOQUEIO_MINUTOS = 15
+
 CATEGORIAS_TERAPEUTICAS = [
     {"id": "diabetes",       "label": "Diabetes",                  "kw": ["metformina","insulina","glibenclamida","sitagliptina","glicazida","dapagliflozina","empagliflozina","acarbose","tiras glicêmicas","glicosímetro"]},
     {"id": "hipertensao",    "label": "Hipertensão",               "kw": ["losartana","enalapril","amlodipina","hidroclorotiazida","captopril","atenolol","olmesartana","valsartana","ramipril","bisoprolol","carvedilol","nifedipino"]},
@@ -123,7 +126,7 @@ Base.metadata.create_all(bind=engine)
 
 # Migrações seguras (add-only)
 _migracoes = {
-    "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "aceite_lgpd TIMESTAMP", "genero TEXT", "session_token TEXT"],
+    "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "aceite_lgpd TIMESTAMP", "genero TEXT", "session_token TEXT", "pin_tentativas INTEGER DEFAULT 0", "pin_bloqueado_ate TIMESTAMP"],
     "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo TIMESTAMP", "uso_continuo INTEGER DEFAULT 0"],
     "anuncios_push": [
         "produto TEXT", "preco_de REAL", "preco_por REAL",
@@ -140,6 +143,8 @@ _migracoes = {
         "criado_em TIMESTAMP",
         "pin TEXT",
         "session_token TEXT",
+        "pin_tentativas INTEGER DEFAULT 0",
+        "pin_bloqueado_ate TIMESTAMP",
         "rating_total REAL DEFAULT 0",
         "rating_count INTEGER DEFAULT 0",
         "origem TEXT DEFAULT 'admin'",
@@ -1141,11 +1146,38 @@ async def verificar_pin(request: Request, payload: PinPayload, db: Session = Dep
     digitos = re.sub(r"\D", "", payload.telefone)
     pin = re.sub(r"\D", "", payload.pin)
 
-    # Farmácia? Detecta pelo telefone_contato antes do fluxo de usuário
+    agora = datetime.utcnow()
+
+    # --- Farmácia ---
     farmacia = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
     if farmacia:
-        if farmacia.pin and hash_pin(pin, digitos) != farmacia.pin:
-            raise HTTPException(status_code=401, detail="PIN incorreto.")
+        if farmacia.pin:
+            bloqueado_ate = getattr(farmacia, "pin_bloqueado_ate", None)
+            if bloqueado_ate and bloqueado_ate > agora:
+                restam = int((bloqueado_ate - agora).total_seconds() / 60) + 1
+                raise HTTPException(status_code=429, detail=f"Conta bloqueada. Tente novamente em {restam} minuto(s).")
+            if hash_pin(pin, digitos) != farmacia.pin:
+                tentativas = (getattr(farmacia, "pin_tentativas", 0) or 0) + 1
+                try:
+                    farmacia.pin_tentativas = tentativas
+                    if tentativas >= PIN_MAX_TENTATIVAS:
+                        farmacia.pin_bloqueado_ate = agora + timedelta(minutes=PIN_BLOQUEIO_MINUTOS)
+                        farmacia.pin_tentativas = 0
+                        db.commit()
+                        raise HTTPException(status_code=429, detail=f"Muitas tentativas. Conta bloqueada por {PIN_BLOQUEIO_MINUTOS} minutos.")
+                    db.commit()
+                except HTTPException:
+                    raise
+                except Exception:
+                    db.rollback()
+                restam = PIN_MAX_TENTATIVAS - tentativas
+                raise HTTPException(status_code=401, detail=f"PIN incorreto. {restam} tentativa(s) restante(s).")
+            # Sucesso — zera contador
+            try:
+                farmacia.pin_tentativas = 0
+                farmacia.pin_bloqueado_ate = None
+            except Exception:
+                pass
         token = secrets.token_urlsafe(32)
         farmacia.session_token = token
         db.commit()
@@ -1155,6 +1187,7 @@ async def verificar_pin(request: Request, payload: PinPayload, db: Session = Dep
             "session_token": token,
         }
 
+    # --- Usuário ---
     telefone = validar_telefone(payload.telefone)
     usuario = db.query(Usuario).filter(Usuario.telefone == telefone).first()
     if not usuario:
@@ -1164,8 +1197,32 @@ async def verificar_pin(request: Request, payload: PinPayload, db: Session = Dep
         usuario.session_token = token
         db.commit()
         return {"ok": True, "tipo": "usuario", "mensagem": "Sem PIN definido.", "session_token": token}
+
+    bloqueado_ate = getattr(usuario, "pin_bloqueado_ate", None)
+    if bloqueado_ate and bloqueado_ate > agora:
+        restam = int((bloqueado_ate - agora).total_seconds() / 60) + 1
+        raise HTTPException(status_code=429, detail=f"Conta bloqueada. Tente novamente em {restam} minuto(s).")
+
     if hash_pin(pin, telefone) != usuario.pin:
-        raise HTTPException(status_code=401, detail="PIN incorreto.")
+        tentativas = (getattr(usuario, "pin_tentativas", 0) or 0) + 1
+        try:
+            usuario.pin_tentativas = tentativas
+            if tentativas >= PIN_MAX_TENTATIVAS:
+                usuario.pin_bloqueado_ate = agora + timedelta(minutes=PIN_BLOQUEIO_MINUTOS)
+                usuario.pin_tentativas = 0
+                db.commit()
+                raise HTTPException(status_code=429, detail=f"Muitas tentativas. Conta bloqueada por {PIN_BLOQUEIO_MINUTOS} minutos.")
+            db.commit()
+        except HTTPException:
+            raise
+        except Exception:
+            db.rollback()
+        restam = PIN_MAX_TENTATIVAS - tentativas
+        raise HTTPException(status_code=401, detail=f"PIN incorreto. {restam} tentativa(s) restante(s).")
+
+    # Sucesso — zera contador e emite token
+    usuario.pin_tentativas = 0
+    usuario.pin_bloqueado_ate = None
     token = secrets.token_urlsafe(32)
     usuario.session_token = token
     db.commit()

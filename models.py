@@ -17,6 +17,8 @@ class Usuario(Base):
     genero = Column(String, nullable=True)   # M | F
     aceite_lgpd = Column(DateTime, nullable=True)
     session_token = Column(String, nullable=True)
+    pin_tentativas = Column(Integer, default=0)
+    pin_bloqueado_ate = Column(DateTime, nullable=True)
     estoque = relationship("Estoque", back_populates="usuario")
     pedidos = relationship("Pedido", back_populates="usuario")
 
@@ -88,6 +90,8 @@ class Farmacia(Base):
     asaas_subscription_id = Column(String, nullable=True)
     pin = Column(String, nullable=True)
     session_token = Column(String, nullable=True)
+    pin_tentativas = Column(Integer, default=0)
+    pin_bloqueado_ate = Column(DateTime, nullable=True)
     rating_total = Column(Float, default=0.0)
     rating_count = Column(Integer, default=0)
     origem = Column(String, default="admin")

@@ -2890,7 +2890,7 @@ function dosemed() {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ telefone: this.telefoneAtual, pin })
         });
-        if (!r.ok) { this.erroLogin = 'PIN incorreto.'; this.pinInput = ''; this.carregando = false; return; }
+        if (!r.ok) { const e = await r.json(); this.erroLogin = e.detail || 'PIN incorreto.'; this.pinInput = ''; this.carregando = false; return; }
         const data = await r.json();
         if (data.session_token) this.sessionToken = data.session_token;
         this.mostrarPin = false;
