@@ -183,7 +183,7 @@ def definir_pin(payload: PinPayload, db: Session = Depends(get_db)):
 
 
 @router.post("/auth/verificar-pin")
-@limiter.limit("5/minute")
+@limiter.limit("30/minute")
 async def verificar_pin(request: Request, payload: PinPayload, db: Session = Depends(get_db)):
     digitos = re.sub(r"\D", "", payload.telefone)
     pin = re.sub(r"\D", "", payload.pin)
