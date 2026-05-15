@@ -502,7 +502,7 @@ def validar_email(email: str) -> bool:
 
 
 def gerar_codigo_recuperacao() -> str:
-    return str(random.randint(100000, 999999))
+    return str(secrets.randbelow(900000) + 100000)
 
 
 def _enviar_via_brevo(para: str, assunto: str, corpo_html: str, api_key: str):
