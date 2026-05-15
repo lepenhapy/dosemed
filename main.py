@@ -35,7 +35,7 @@ from typing import Optional
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request, Header
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.exception_handlers import http_exception_handler
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -48,7 +48,7 @@ from PIL import Image
 from dotenv import load_dotenv
 
 load_dotenv()
-from models import Base, Usuario, Estoque, Pedido, CodigoRecuperacao, LogBusca, Farmacia, Lead, Configuracao, PushSub, AlarmeRemedio, OrcamentoSolicitacao, OrcamentoResposta, LogEvento, AnuncioPush, Feedback
+from models import Base, Usuario, Estoque, Pedido, CodigoRecuperacao, LogBusca, Farmacia, Lead, Configuracao, PushSub, AlarmeRemedio, OrcamentoSolicitacao, OrcamentoResposta, LogEvento, AnuncioPush, InteresseAnuncio, Feedback
 
 # --- Logging ---
 _log_handlers = [logging.StreamHandler()]
@@ -66,6 +66,33 @@ logger = logging.getLogger("dosemed")
 # --- Config ---
 ADMIN_PHONE = "65993125115"
 TEST_PHONES = [ADMIN_PHONE, "6599339250"]  # excluídos de métricas reais
+
+CATEGORIAS_TERAPEUTICAS = [
+    {"id": "diabetes",       "label": "Diabetes",                  "kw": ["metformina","insulina","glibenclamida","sitagliptina","glicazida","dapagliflozina","empagliflozina","acarbose","tiras glicêmicas","glicosímetro"]},
+    {"id": "hipertensao",    "label": "Hipertensão",               "kw": ["losartana","enalapril","amlodipina","hidroclorotiazida","captopril","atenolol","olmesartana","valsartana","ramipril","bisoprolol","carvedilol","nifedipino"]},
+    {"id": "colesterol",     "label": "Colesterol / Triglicerídeos","kw": ["sinvastatina","atorvastatina","rosuvastatina","ezetimiba","bezafibrato","fenofibrato","pitavastatina"]},
+    {"id": "cardio",         "label": "Cardiológico",              "kw": ["ácido acetilsalicílico","aas","clopidogrel","digoxina","amiodarona","varfarina","rivaroxabana","apixabana","dabigatrana","espironolactona","furosemida"]},
+    {"id": "tireoide",       "label": "Tireoide",                  "kw": ["levotiroxina","propiltiouracil","metimazol","liotironina"]},
+    {"id": "respiratorio",   "label": "Respiratório / Asma",       "kw": ["salbutamol","budesonida","formoterol","montelucaste","salmeterol","fluticasona","tiotrópio","ipratrópio","beclometasona"]},
+    {"id": "dor_cronica",    "label": "Dor crônica / Neuropatia", "kw": ["tramadol","codeína","pregabalina","gabapentina","morfina","tapentadol","duloxetina","amitriptilina"]},
+    {"id": "antidepressivo", "label": "Antidepressivo / Ansiolítico","kw": ["sertralina","fluoxetina","escitalopram","clonazepam","alprazolam","bupropiona","venlafaxina","paroxetina","mirtazapina"]},
+    {"id": "gastro",         "label": "Gastrintestinal",           "kw": ["omeprazol","pantoprazol","esomeprazol","domperidona","metoclopramida","lansoprazol","rabeprazol"]},
+    {"id": "geriatrico",     "label": "Geriátrico / Neurológico",  "kw": ["donepezila","memantina","rivastigmina","galantamina","levodopa","pramipexol","rasagilina"]},
+    {"id": "dermatologia",   "label": "Dermatologia",              "kw": ["isotretinoína","acitretina","tacrolimus","pimecrolimus","clobetasol","betametasona"]},
+    {"id": "outros",         "label": "Outros / Geral",            "kw": []},
+]
+
+def _meds_match_categoria(nomes_meds: list[str], cat_id: str) -> bool:
+    if cat_id == "outros":
+        return True
+    cat = next((c for c in CATEGORIAS_TERAPEUTICAS if c["id"] == cat_id), None)
+    if not cat:
+        return False
+    for med in nomes_meds:
+        med_l = med.lower()
+        if any(kw in med_l or med_l in kw for kw in cat["kw"]):
+            return True
+    return False
 
 DDD_ESTADO = {
     11: "SP", 12: "SP", 13: "SP", 14: "SP", 15: "SP", 16: "SP", 17: "SP", 18: "SP", 19: "SP",
@@ -96,8 +123,14 @@ Base.metadata.create_all(bind=engine)
 
 # Migrações seguras (add-only)
 _migracoes = {
-    "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "aceite_lgpd TIMESTAMP", "genero TEXT"],
+    "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "aceite_lgpd TIMESTAMP", "genero TEXT", "session_token TEXT"],
     "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo TIMESTAMP", "uso_continuo INTEGER DEFAULT 0"],
+    "anuncios_push": [
+        "produto TEXT", "preco_de REAL", "preco_por REAL",
+        "data_expiracao DATE", "tem_entrega INTEGER DEFAULT 0",
+        "valor_frete REAL", "formas_pagamento TEXT",
+        "whatsapp_contato TEXT", "categorias TEXT",
+    ],
     "log_buscas": ["bairro TEXT"],
     "leads": ["asaas_charge_id TEXT", "criado_em TIMESTAMP"],
     "farmacias": [
@@ -106,6 +139,7 @@ _migracoes = {
         "asaas_subscription_id TEXT",
         "criado_em TIMESTAMP",
         "pin TEXT",
+        "session_token TEXT",
         "rating_total REAL DEFAULT 0",
         "rating_count INTEGER DEFAULT 0",
         "origem TEXT DEFAULT 'admin'",
@@ -133,7 +167,7 @@ if not DATABASE_URL.startswith("sqlite"):
     _tabelas_seq = ["estoque", "pedidos", "codigos_recuperacao", "log_buscas",
                     "farmacias", "leads", "push_subs", "alarmes",
                     "orcamentos_solicitacoes", "orcamentos_respostas",
-                    "log_eventos", "anuncios_push", "feedbacks"]
+                    "log_eventos", "anuncios_push", "feedbacks", "interesses_anuncios"]
     with engine.connect() as conn:
         for _t in _tabelas_seq:
             try:
@@ -170,6 +204,24 @@ with SessionLocal() as _sess:
 def get_config(db: Session, chave: str, default: str = "") -> str:
     c = db.query(Configuracao).filter(Configuracao.chave == chave).first()
     return c.valor if c else default
+
+
+def get_usuario_autenticado(x_token: Optional[str] = Header(None), db: Session = Depends(get_db)) -> Usuario:
+    if not x_token:
+        raise HTTPException(status_code=401, detail="Sessão obrigatória. Faça login novamente.")
+    u = db.query(Usuario).filter(Usuario.session_token == x_token).first()
+    if not u:
+        raise HTTPException(status_code=401, detail="Sessão inválida ou expirada. Faça login novamente.")
+    return u
+
+
+def get_farmacia_autenticada(x_token: Optional[str] = Header(None), db: Session = Depends(get_db)) -> Farmacia:
+    if not x_token:
+        raise HTTPException(status_code=401, detail="Sessão obrigatória. Faça login novamente.")
+    f = db.query(Farmacia).filter(Farmacia.session_token == x_token).first()
+    if not f:
+        raise HTTPException(status_code=401, detail="Sessão inválida ou expirada. Faça login novamente.")
+    return f
 
 
 # --- VAPID / Web Push ---
@@ -844,6 +896,19 @@ class AnuncioCriarPayload(BaseModel):
     titulo: Optional[str] = None
     publico: str = "bairro"    # bairro | todos
     genero_alvo: Optional[str] = None  # M | F | None
+    produto: Optional[str] = None
+    preco_de: Optional[float] = None
+    preco_por: Optional[float] = None
+    data_expiracao: Optional[str] = None   # YYYY-MM-DD
+    tem_entrega: Optional[bool] = False
+    valor_frete: Optional[float] = None
+    formas_pagamento: Optional[str] = None # JSON: ["pix","cartao","dinheiro"]
+    whatsapp_contato: Optional[str] = None
+    categorias: Optional[str] = None       # JSON: ["diabetes","hipertensao"]
+
+
+class InteressePayload(BaseModel):
+    telefone: str
 
 
 class ConfirmarChegadaPayload(BaseModel):
@@ -939,6 +1004,12 @@ def get_usuario(telefone: str, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.telefone == telefone).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    # Usuário sem PIN entra direto — emite token de sessão aqui
+    session_token = None
+    if not usuario.pin:
+        session_token = secrets.token_urlsafe(32)
+        usuario.session_token = session_token
+        db.commit()
     return {
         "telefone": usuario.telefone,
         "nome": usuario.nome,
@@ -948,7 +1019,8 @@ def get_usuario(telefone: str, db: Session = Depends(get_db)):
         "instrucoes_portaria": usuario.instrucoes_portaria,
         "tem_pin": bool(usuario.pin),
         "tem_email": bool(usuario.email),
-        "aceite_lgpd": bool(usuario.aceite_lgpd)
+        "aceite_lgpd": bool(usuario.aceite_lgpd),
+        "session_token": session_token,
     }
 
 
@@ -975,11 +1047,13 @@ async def criar_usuario(request: Request, payload: UsuarioPayload, db: Session =
         aceite_lgpd=datetime.utcnow() if payload.aceite_lgpd else None,
         genero=genero
     )
+    token = secrets.token_urlsafe(32)
+    usuario.session_token = token
     db.add(usuario)
     db.add(LogEvento(tipo="cadastro_usuario"))
     db.commit()
     logger.info(f"Novo usuário: {telefone}")
-    return {"mensagem": "Usuário cadastrado com sucesso!", "telefone": telefone}
+    return {"mensagem": "Usuário cadastrado com sucesso!", "telefone": telefone, "session_token": token}
 
 
 @app.put("/usuario/{telefone}")
@@ -1072,9 +1146,13 @@ async def verificar_pin(request: Request, payload: PinPayload, db: Session = Dep
     if farmacia:
         if farmacia.pin and hash_pin(pin, digitos) != farmacia.pin:
             raise HTTPException(status_code=401, detail="PIN incorreto.")
+        token = secrets.token_urlsafe(32)
+        farmacia.session_token = token
+        db.commit()
         return {
             "ok": True, "tipo": "farmacia",
             "farmacia_id": farmacia.id, "farmacia_nome": farmacia.nome,
+            "session_token": token,
         }
 
     telefone = validar_telefone(payload.telefone)
@@ -1082,10 +1160,16 @@ async def verificar_pin(request: Request, payload: PinPayload, db: Session = Dep
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
     if not usuario.pin:
-        return {"ok": True, "tipo": "usuario", "mensagem": "Sem PIN definido."}
+        token = secrets.token_urlsafe(32)
+        usuario.session_token = token
+        db.commit()
+        return {"ok": True, "tipo": "usuario", "mensagem": "Sem PIN definido.", "session_token": token}
     if hash_pin(pin, telefone) != usuario.pin:
         raise HTTPException(status_code=401, detail="PIN incorreto.")
-    return {"ok": True, "tipo": "usuario", "mensagem": "PIN verificado."}
+    token = secrets.token_urlsafe(32)
+    usuario.session_token = token
+    db.commit()
+    return {"ok": True, "tipo": "usuario", "mensagem": "PIN verificado.", "session_token": token}
 
 
 @app.post("/auth/recuperar-pin")
@@ -1293,11 +1377,11 @@ def webhook(payload: WebhookPayload, db: Session = Depends(get_db)):
 
 
 @app.get("/dashboard/{telefone}")
-def dashboard(telefone: str, db: Session = Depends(get_db)):
+def dashboard(telefone: str, usuario_auth: Usuario = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     telefone = validar_telefone(telefone)
-    usuario = db.query(Usuario).filter(Usuario.telefone == telefone).first()
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    if usuario_auth.telefone != telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+    usuario = usuario_auth
 
     atualizar_status_estoque(db, telefone)
     itens = db.query(Estoque).filter(
@@ -1333,10 +1417,12 @@ def dashboard(telefone: str, db: Session = Depends(get_db)):
 
 
 @app.put("/estoque/{item_id}")
-def editar_item(item_id: int, payload: EditarItemPayload, db: Session = Depends(get_db)):
+def editar_item(item_id: int, payload: EditarItemPayload, usuario_auth: Usuario = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     item = db.query(Estoque).filter(Estoque.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item não encontrado.")
+    if item.usuario_id != usuario_auth.telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     if payload.nome_medicamento is not None:
         item.nome_medicamento = sanitizar(payload.nome_medicamento)
         item.preco_estimado, item.categoria_valor = calcular_preco(item.nome_medicamento)
@@ -1365,10 +1451,12 @@ def editar_item(item_id: int, payload: EditarItemPayload, db: Session = Depends(
 
 
 @app.post("/estoque/{item_id}/iniciar")
-def iniciar_item(item_id: int, db: Session = Depends(get_db)):
+def iniciar_item(item_id: int, usuario_auth: Usuario = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     item = db.query(Estoque).filter(Estoque.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item não encontrado.")
+    if item.usuario_id != usuario_auth.telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     item.iniciado = 0 if item.iniciado else 1
     db.commit()
     return {"iniciado": bool(item.iniciado), "item": serializar_item(item)}
@@ -1386,10 +1474,12 @@ def aceitar_lgpd(telefone: str, db: Session = Depends(get_db)):
 
 
 @app.post("/estoque/{item_id}/consumir")
-def consumir_item(item_id: int, db: Session = Depends(get_db)):
+def consumir_item(item_id: int, usuario_auth: Usuario = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     item = db.query(Estoque).filter(Estoque.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item não encontrado.")
+    if item.usuario_id != usuario_auth.telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     item.status = "consumido"
     item.data_consumo = datetime.utcnow()
     db.commit()
@@ -1397,8 +1487,10 @@ def consumir_item(item_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/historico/{telefone}")
-def historico(telefone: str, db: Session = Depends(get_db)):
+def historico(telefone: str, usuario_auth: Usuario = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     telefone = validar_telefone(telefone)
+    if usuario_auth.telefone != telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     itens = (
         db.query(Estoque)
         .filter(Estoque.usuario_id == telefone, Estoque.status == "consumido")
@@ -1433,10 +1525,12 @@ def historico(telefone: str, db: Session = Depends(get_db)):
 
 
 @app.delete("/estoque/{item_id}")
-def excluir_item(item_id: int, db: Session = Depends(get_db)):
+def excluir_item(item_id: int, usuario_auth: Usuario = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     item = db.query(Estoque).filter(Estoque.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item não encontrado.")
+    if item.usuario_id != usuario_auth.telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     db.delete(item)
     db.commit()
     return {"mensagem": "Medicamento removido."}
@@ -1885,6 +1979,22 @@ def html_orcamento_ganhou(farmacia_nome: str, medicamento: str, bairro: str, pre
     </div>"""
 
 
+def html_interesse_promocao(farmacia_nome: str, usuario_nome: str, bairro: str, telefone: str, produto: str, preco: float = None) -> str:
+    preco_str = f" · R$ {preco:.2f}" if preco else ""
+    return f"""<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
+    <h2 style="color:#2563eb">💊 DoseMed — Interesse em Promoção</h2>
+    <p>Olá, <strong>{farmacia_nome}</strong>!</p>
+    <p>Um paciente demonstrou interesse na sua promoção de <strong>{produto}</strong>{preco_str}:</p>
+    <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:16px;border-radius:8px;margin:16px 0">
+      <p style="margin:0 0 6px"><strong>Nome:</strong> {usuario_nome}</p>
+      <p style="margin:0 0 6px"><strong>Bairro:</strong> {bairro}</p>
+      <p style="margin:0"><strong>WhatsApp:</strong> +55 {telefone}</p>
+    </div>
+    <p>Entre em contato diretamente com o paciente para concluir a venda. Boas vendas!</p>
+    <p style="color:#9ca3af;font-size:11px">DoseMed · Plataforma de controle de medicamentos em casa</p>
+    </div>"""
+
+
 def html_orcamento_perdeu(farmacia_nome: str, medicamento: str) -> str:
     return f"""<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
     <p style="color:#6b7280;font-weight:bold;font-size:18px">DoseMed — Resultado do Orçamento</p>
@@ -2066,6 +2176,31 @@ def cron_verificar_estoque_baixo():
         db.close()
 
 
+def cron_expirar_interesses():
+    db = SessionLocal()
+    try:
+        agora = datetime.utcnow()
+        vencidos = db.query(InteresseAnuncio).filter(
+            InteresseAnuncio.status == "ativo",
+            InteresseAnuncio.expira_em.isnot(None),
+            InteresseAnuncio.expira_em <= agora
+        ).all()
+        for i in vencidos:
+            i.status = "expirado"
+        cutoff = agora - timedelta(days=7)
+        db.query(InteresseAnuncio).filter(
+            InteresseAnuncio.status == "expirado",
+            InteresseAnuncio.expira_em <= cutoff
+        ).delete()
+        db.commit()
+        if vencidos:
+            logger.info(f"[CRON interesses] {len(vencidos)} expirados")
+    except Exception as e:
+        logger.error(f"[CRON interesses] Erro: {e}")
+    finally:
+        db.close()
+
+
 if SCHEDULER_OK:
     _scheduler = BackgroundScheduler(daemon=True)
     # Horários em UTC: 12:00 UTC = 09:00 BRT (UTC-3)
@@ -2075,6 +2210,8 @@ if SCHEDULER_OK:
                        id="alarmes", replace_existing=True, max_instances=1, coalesce=True)
     _scheduler.add_job(cron_verificar_estoque_baixo, CronTrigger(hour=12, minute=15),
                        id="estoque_baixo", replace_existing=True, max_instances=1, coalesce=True)
+    _scheduler.add_job(cron_expirar_interesses, CronTrigger(hour=3, minute=0),
+                       id="interesses", replace_existing=True, max_instances=1, coalesce=True)
 else:
     _scheduler = None
 
@@ -2443,10 +2580,12 @@ def criar_alarme(payload: AlarmePayload, db: Session = Depends(get_db)):
 
 
 @app.put("/alarmes/{alarme_id}")
-def editar_alarme(alarme_id: int, payload: AlarmePayload, db: Session = Depends(get_db)):
+def editar_alarme(alarme_id: int, payload: AlarmePayload, usuario_auth: Usuario = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     a = db.query(AlarmeRemedio).filter(AlarmeRemedio.id == alarme_id).first()
     if not a:
         raise HTTPException(status_code=404, detail="Alarme não encontrado.")
+    if a.usuario_id != usuario_auth.telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     if payload.nome_med:
         a.nome_med = sanitizar(payload.nome_med)
     if payload.horario:
@@ -2463,10 +2602,12 @@ def editar_alarme(alarme_id: int, payload: AlarmePayload, db: Session = Depends(
 
 
 @app.delete("/alarmes/{alarme_id}")
-def excluir_alarme(alarme_id: int, db: Session = Depends(get_db)):
+def excluir_alarme(alarme_id: int, usuario_auth: Usuario = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     a = db.query(AlarmeRemedio).filter(AlarmeRemedio.id == alarme_id).first()
     if not a:
         raise HTTPException(status_code=404, detail="Alarme não encontrado.")
+    if a.usuario_id != usuario_auth.telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     db.delete(a)
     db.commit()
     return {"ok": True}
@@ -2503,11 +2644,13 @@ async def farmacia_auto_cadastro(request: Request, payload: FarmaciaCadastroPayl
         f.origem = "auto"
     except Exception:
         pass
+    token = secrets.token_urlsafe(32)
+    f.session_token = token
     db.add(f)
     db.add(LogEvento(tipo="cadastro_farmacia"))
     db.commit()
     logger.info(f"Nova farmácia auto-cadastrada: {f.nome} ({digitos})")
-    return {"ok": True, "farmacia_id": f.id, "mensagem": "Farmácia cadastrada! Defina seu PIN para acessar o painel."}
+    return {"ok": True, "farmacia_id": f.id, "mensagem": "Farmácia cadastrada! Defina seu PIN para acessar o painel.", "session_token": token}
 
 
 @app.get("/farmacia/verificar-telefone")
@@ -2516,7 +2659,13 @@ def farmacia_verificar_telefone(telefone: str, db: Session = Depends(get_db)):
     f = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
     if not f:
         raise HTTPException(status_code=404, detail="Farmácia não encontrada com este telefone.")
-    return {"tipo": "farmacia", "tem_pin": bool(f.pin), "farmacia_nome": f.nome, "farmacia_id": f.id}
+    # Farmácia sem PIN entra direto — emite token já
+    session_token = None
+    if not f.pin:
+        session_token = secrets.token_urlsafe(32)
+        f.session_token = session_token
+        db.commit()
+    return {"tipo": "farmacia", "tem_pin": bool(f.pin), "farmacia_nome": f.nome, "farmacia_id": f.id, "session_token": session_token}
 
 
 @app.post("/auth/farmacia/definir-pin")
@@ -2534,11 +2683,11 @@ def farmacia_definir_pin(payload: FarmaciaSetPinPayload, db: Session = Depends(g
 
 
 @app.get("/farmacia/dashboard")
-def farmacia_dashboard(telefone: str, db: Session = Depends(get_db)):
+def farmacia_dashboard(telefone: str, farmacia_auth: Farmacia = Depends(get_farmacia_autenticada), db: Session = Depends(get_db)):
     digitos = re.sub(r"\D", "", telefone)
-    f = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
-    if not f:
-        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+    if farmacia_auth.telefone_contato != digitos:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+    f = farmacia_auth
 
     cutoff_30d = datetime.utcnow() - timedelta(days=30)
     leads_recentes = db.query(Lead).filter(
@@ -2575,11 +2724,11 @@ def farmacia_dashboard(telefone: str, db: Session = Depends(get_db)):
 
 
 @app.put("/farmacia/perfil")
-def farmacia_atualizar_perfil(telefone: str, payload: FarmaciaPerfilPayload, db: Session = Depends(get_db)):
+def farmacia_atualizar_perfil(telefone: str, payload: FarmaciaPerfilPayload, farmacia_auth: Farmacia = Depends(get_farmacia_autenticada), db: Session = Depends(get_db)):
     digitos = re.sub(r"\D", "", telefone)
-    f = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
-    if not f:
-        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+    if farmacia_auth.telefone_contato != digitos:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+    f = farmacia_auth
     if payload.bairros is not None:
         f.bairros = payload.bairros
     if payload.atende_manipulado is not None:
@@ -2972,14 +3121,38 @@ def farmacia_criar_anuncio(payload: AnuncioCriarPayload, db: Session = Depends(g
     preco = float(get_config(db, chave_preco, "30.00" if payload.publico == "bairro" else "70.00"))
     genero_alvo = payload.genero_alvo if payload.genero_alvo in ("M", "F") else None
 
+    data_exp = None
+    if payload.data_expiracao:
+        try:
+            data_exp = date.fromisoformat(payload.data_expiracao)
+        except ValueError:
+            pass
+
+    cats_json = None
+    if payload.categorias:
+        try:
+            cats = json.loads(payload.categorias) if isinstance(payload.categorias, str) else payload.categorias
+            cats_json = json.dumps([c for c in cats if isinstance(c, str)])
+        except Exception:
+            pass
+
     anuncio = AnuncioPush(
         farmacia_id=farm.id,
         texto=sanitizar(payload.texto),
-        titulo=sanitizar(payload.titulo or ""),
+        titulo=sanitizar(payload.titulo or "") or None,
         publico=payload.publico,
         genero_alvo=genero_alvo,
         preco=preco,
         status="aguardando_pagamento",
+        produto=sanitizar(payload.produto or "")[:200] or None,
+        preco_de=payload.preco_de,
+        preco_por=payload.preco_por,
+        data_expiracao=data_exp,
+        tem_entrega=1 if payload.tem_entrega else 0,
+        valor_frete=payload.valor_frete,
+        formas_pagamento=payload.formas_pagamento,
+        whatsapp_contato=re.sub(r"\D", "", payload.whatsapp_contato) if payload.whatsapp_contato else None,
+        categorias=cats_json,
     )
     db.add(anuncio)
     db.flush()
@@ -3027,12 +3200,19 @@ def farmacia_listar_anuncios(telefone: str, db: Session = Depends(get_db)):
     if not farm:
         raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
     anuncios = db.query(AnuncioPush).filter(AnuncioPush.farmacia_id == farm.id).order_by(AnuncioPush.criado_em.desc()).limit(20).all()
-    return [{"id": a.id, "texto": a.texto, "titulo": a.titulo, "publico": a.publico,
-             "genero_alvo": a.genero_alvo, "status": a.status, "preco": a.preco,
-             "pix_link": a.pix_link,
-             "total_enviados": a.total_enviados,
-             "criado_em": str(a.criado_em.date()) if a.criado_em else None,
-             "disparado_em": str(a.disparado_em) if a.disparado_em else None} for a in anuncios]
+    return [{
+        "id": a.id, "texto": a.texto, "titulo": a.titulo, "publico": a.publico,
+        "genero_alvo": a.genero_alvo, "status": a.status, "preco": a.preco,
+        "pix_link": a.pix_link, "total_enviados": a.total_enviados,
+        "produto": a.produto, "preco_de": a.preco_de, "preco_por": a.preco_por,
+        "data_expiracao": str(a.data_expiracao) if a.data_expiracao else None,
+        "tem_entrega": bool(a.tem_entrega), "valor_frete": a.valor_frete,
+        "formas_pagamento": a.formas_pagamento, "whatsapp_contato": a.whatsapp_contato,
+        "categorias": a.categorias,
+        "total_interesses": db.query(InteresseAnuncio).filter(InteresseAnuncio.anuncio_id == a.id).count(),
+        "criado_em": str(a.criado_em.date()) if a.criado_em else None,
+        "disparado_em": str(a.disparado_em) if a.disparado_em else None,
+    } for a in anuncios]
 
 
 @app.get("/admin/anuncios")
@@ -3049,11 +3229,18 @@ def admin_listar_anuncios(telefone: str, db: Session = Depends(get_db)):
             "id": a.id,
             "farmacia": a.farmacia.nome if a.farmacia else "—",
             "texto": a.texto[:60],
+            "titulo": a.titulo,
             "publico": a.publico,
             "genero_alvo": a.genero_alvo or "todos",
             "status": a.status,
             "preco": a.preco,
             "total_enviados": a.total_enviados,
+            "produto": a.produto,
+            "preco_de": a.preco_de,
+            "preco_por": a.preco_por,
+            "data_expiracao": str(a.data_expiracao) if a.data_expiracao else None,
+            "categorias": a.categorias,
+            "total_interesses": db.query(InteresseAnuncio).filter(InteresseAnuncio.anuncio_id == a.id).count(),
             "criado_em": str(a.criado_em.date()) if a.criado_em else None,
         } for a in anuncios]
     }
@@ -3102,6 +3289,176 @@ def admin_excluir_anuncio(anuncio_id: int, telefone: str, db: Session = Depends(
     db.delete(anuncio)
     db.commit()
     return {"ok": True}
+
+
+# --- Promoções / Categorias ---
+
+@app.get("/categorias")
+def listar_categorias():
+    return [{"id": c["id"], "label": c["label"]} for c in CATEGORIAS_TERAPEUTICAS]
+
+
+@app.get("/promocoes")
+def listar_promocoes(telefone: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    usuario = db.query(Usuario).filter(Usuario.telefone == tel).first()
+    itens_usuario = db.query(Estoque).filter(
+        Estoque.usuario_id == tel, Estoque.status != "consumido"
+    ).all()
+    nomes_meds = [i.nome_medicamento for i in itens_usuario]
+
+    hoje = date.today()
+    anuncios = db.query(AnuncioPush).filter(AnuncioPush.status == "disparado").all()
+
+    result = []
+    for a in anuncios:
+        if a.data_expiracao and a.data_expiracao < hoje:
+            continue
+
+        if a.publico == "bairro":
+            farmacia = db.query(Farmacia).filter(Farmacia.id == a.farmacia_id).first()
+            if farmacia and farmacia.bairros:
+                bairros_f = {b.strip().lower() for b in farmacia.bairros.split(",") if b.strip()}
+                if bairros_f and (not usuario or not usuario.bairro or
+                                  usuario.bairro.strip().lower() not in bairros_f):
+                    continue
+
+        if a.genero_alvo in ("M", "F"):
+            if not usuario or usuario.genero != a.genero_alvo:
+                continue
+
+        cats = []
+        if a.categorias:
+            try:
+                cats = json.loads(a.categorias)
+            except Exception:
+                cats = []
+
+        if cats:
+            if not any(_meds_match_categoria(nomes_meds, cat) for cat in cats):
+                continue
+
+        ja_tem = False
+        if a.produto and nomes_meds:
+            prod_l = a.produto.lower()
+            for n in nomes_meds:
+                n_l = n.lower()
+                if prod_l in n_l or n_l in prod_l:
+                    ja_tem = True
+                    break
+
+        interesse = db.query(InteresseAnuncio).filter(
+            InteresseAnuncio.anuncio_id == a.id,
+            InteresseAnuncio.usuario_id == tel,
+            InteresseAnuncio.status == "ativo"
+        ).first()
+
+        farmacia = db.query(Farmacia).filter(Farmacia.id == a.farmacia_id).first()
+        formas = []
+        if a.formas_pagamento:
+            try:
+                formas = json.loads(a.formas_pagamento)
+            except Exception:
+                formas = []
+
+        result.append({
+            "id": a.id,
+            "farmacia_nome": farmacia.nome if farmacia else "—",
+            "titulo": a.titulo,
+            "texto": a.texto,
+            "produto": a.produto,
+            "preco_de": a.preco_de,
+            "preco_por": a.preco_por,
+            "data_expiracao": str(a.data_expiracao) if a.data_expiracao else None,
+            "tem_entrega": bool(a.tem_entrega),
+            "valor_frete": a.valor_frete,
+            "formas_pagamento": formas,
+            "whatsapp_contato": a.whatsapp_contato,
+            "categorias": cats,
+            "ja_tem": ja_tem,
+            "ja_interessou": bool(interesse),
+            "disparado_em": str(a.disparado_em.date()) if a.disparado_em else None,
+        })
+
+    return result
+
+
+@app.post("/promocoes/{anuncio_id}/interesse")
+def manifestar_interesse(anuncio_id: int, payload: InteressePayload, db: Session = Depends(get_db)):
+    tel = validar_telefone(payload.telefone)
+    usuario = db.query(Usuario).filter(Usuario.telefone == tel).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    anuncio = db.query(AnuncioPush).filter(
+        AnuncioPush.id == anuncio_id, AnuncioPush.status == "disparado"
+    ).first()
+    if not anuncio:
+        raise HTTPException(status_code=404, detail="Promoção não encontrada.")
+    if anuncio.data_expiracao and anuncio.data_expiracao < date.today():
+        raise HTTPException(status_code=410, detail="Promoção expirada.")
+
+    existente = db.query(InteresseAnuncio).filter(
+        InteresseAnuncio.anuncio_id == anuncio_id,
+        InteresseAnuncio.usuario_id == tel
+    ).first()
+    if existente:
+        raise HTTPException(status_code=409, detail="Você já demonstrou interesse nesta promoção.")
+
+    expira_em = None
+    if anuncio.data_expiracao:
+        d = anuncio.data_expiracao
+        expira_em = datetime(d.year, d.month, d.day) + timedelta(days=7)
+
+    interesse = InteresseAnuncio(
+        anuncio_id=anuncio_id, usuario_id=tel,
+        expira_em=expira_em, status="ativo"
+    )
+    db.add(interesse)
+    db.commit()
+
+    farmacia = db.query(Farmacia).filter(Farmacia.id == anuncio.farmacia_id).first()
+    if farmacia and farmacia.email:
+        produto = anuncio.produto or anuncio.titulo or "promoção"
+        enviar_email(
+            farmacia.email,
+            f"DoseMed — Interesse: {produto}",
+            html_interesse_promocao(
+                farmacia.nome, usuario.nome, usuario.bairro or "—",
+                tel, produto, anuncio.preco_por or anuncio.preco_de
+            )
+        )
+
+    return {"ok": True, "mensagem": "Interesse registrado! A farmácia entrará em contato pelo WhatsApp."}
+
+
+@app.get("/promocoes/historico/{telefone}")
+def historico_promocoes(telefone: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    interesses = db.query(InteresseAnuncio).filter(
+        InteresseAnuncio.usuario_id == tel
+    ).order_by(InteresseAnuncio.criado_em.desc()).all()
+
+    result = []
+    hoje = date.today()
+    for i in interesses:
+        a = db.query(AnuncioPush).filter(AnuncioPush.id == i.anuncio_id).first()
+        farmacia = db.query(Farmacia).filter(Farmacia.id == a.farmacia_id).first() if a else None
+        expirou = (i.status == "expirado") or (a and a.data_expiracao and a.data_expiracao < hoje)
+        result.append({
+            "id": i.id,
+            "anuncio_id": i.anuncio_id,
+            "farmacia_nome": farmacia.nome if farmacia else "—",
+            "farmacia_whatsapp": a.whatsapp_contato if a else None,
+            "produto": a.produto if a else None,
+            "titulo": a.titulo if a else None,
+            "preco_por": a.preco_por if a else None,
+            "data_expiracao": str(a.data_expiracao) if a and a.data_expiracao else None,
+            "status": "expirado" if expirou else i.status,
+            "criado_em": str(i.criado_em.date()) if i.criado_em else None,
+            "expirou": bool(expirou),
+        })
+    return result
 
 
 # --- Webhook Asaas ---

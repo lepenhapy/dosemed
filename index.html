@@ -2696,6 +2696,7 @@ function dosemed() {
     isFarmacia: false, farmacia: null, farmaciaCarregando: false,
     abaFarmacia: 'leads', farmaciaInsights: null,
     farmaciaEditBairros: '', farmaciaEditManipulado: false, farmaciaPerfilMsg: '',
+    sessionToken: null,
     mostrarEscolha: false, mostrarCadastroFarmacia: false, modalPlanos: false,
     cadastroFarmacia: { nome: '', email: '', cnpj: '', bairros: '', atende_manipulado: false },
     mostrarExcluirConta: false, confirmarExcluir: '', pinExcluir: '',
@@ -2828,7 +2829,9 @@ function dosemed() {
     async carregarHistorico() {
       this.historicoCarregando = true;
       try {
-        const r = await fetch(`/historico/${encodeURIComponent(this.telefoneAtual)}`);
+        const r = await fetch(`/historico/${encodeURIComponent(this.telefoneAtual)}`, {
+          headers: { 'X-Token': this.sessionToken || '' }
+        });
         if (r.ok) this.historicoDados = await r.json();
       } catch {}
       this.historicoCarregando = false;
@@ -2851,6 +2854,7 @@ function dosemed() {
             if (fd.tem_pin) {
               this.mostrarPin = true;
             } else {
+              if (fd.session_token) this.sessionToken = fd.session_token;
               await this.buscarDashboardFarmacia();
               this.mostrarDefinirPin = true;
             }
@@ -2868,7 +2872,8 @@ function dosemed() {
           this.carregando = false;
           return;
         }
-        // Sem PIN — entra direto mas pede definir
+        // Sem PIN — token já emitido pelo servidor
+        if (data.session_token) this.sessionToken = data.session_token;
         await this.buscarDashboard();
         this.mostrarDefinirPin = true;
       } catch { this.erroLogin = 'Erro de conexão.'; }
@@ -2887,6 +2892,7 @@ function dosemed() {
         });
         if (!r.ok) { this.erroLogin = 'PIN incorreto.'; this.pinInput = ''; this.carregando = false; return; }
         const data = await r.json();
+        if (data.session_token) this.sessionToken = data.session_token;
         this.mostrarPin = false;
         if (data.tipo === 'farmacia') {
           await this.buscarDashboardFarmacia();
@@ -2932,6 +2938,8 @@ function dosemed() {
             aceite_lgpd: this.lgpdAceito })
         });
         if (!r.ok) { const d = await r.json(); this.erroLogin = d.detail || 'Erro.'; this.carregando = false; return; }
+        const regData = await r.json();
+        if (regData.session_token) this.sessionToken = regData.session_token;
         this.telefoneAtual = this.telefoneInput.trim();
         this.mostrarCadastro = false;
         await this.buscarDashboard();
@@ -2959,6 +2967,7 @@ function dosemed() {
         });
         const d = await r.json();
         if (!r.ok) { this.erroLogin = d.detail || 'Erro ao cadastrar.'; this.carregando = false; return; }
+        if (d.session_token) this.sessionToken = d.session_token;
         this.telefoneAtual = this.telefoneInput.trim();
         this.isFarmacia = true;
         this.mostrarCadastroFarmacia = false;
@@ -2971,7 +2980,9 @@ function dosemed() {
     async buscarDashboard() {
       this.carregando = true;
       try {
-        const r = await fetch(`/dashboard/${encodeURIComponent(this.telefoneAtual)}`);
+        const r = await fetch(`/dashboard/${encodeURIComponent(this.telefoneAtual)}`, {
+          headers: { 'X-Token': this.sessionToken || '' }
+        });
         if (!r.ok) { this.carregando = false; return; }
         const data = await r.json();
         this.usuario = data.usuario;
@@ -3054,7 +3065,9 @@ function dosemed() {
     async buscarDashboardFarmacia() {
       this.farmaciaCarregando = true;
       try {
-        const r = await fetch(`/farmacia/dashboard?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        const r = await fetch(`/farmacia/dashboard?telefone=${encodeURIComponent(this.telefoneAtual)}`, {
+          headers: { 'X-Token': this.sessionToken || '' }
+        });
         if (!r.ok) { this.farmaciaCarregando = false; return; }
         const data = await r.json();
         this.farmacia = data;
@@ -3073,7 +3086,7 @@ function dosemed() {
       this.carregando = true; this.farmaciaPerfilMsg = '';
       try {
         const r = await fetch(`/farmacia/perfil?telefone=${encodeURIComponent(this.telefoneAtual)}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Token': this.sessionToken || '' },
           body: JSON.stringify({ bairros: this.farmaciaEditBairros, atende_manipulado: this.farmaciaEditManipulado ? 1 : 0 })
         });
         if (r.ok) {
@@ -3235,7 +3248,7 @@ function dosemed() {
 
     async iniciarMedicamento(id) {
       try {
-        const r = await fetch(`/estoque/${id}/iniciar`, { method: 'POST' });
+        const r = await fetch(`/estoque/${id}/iniciar`, { method: 'POST', headers: { 'X-Token': this.sessionToken || '' } });
         if (r.ok) await this.buscarDashboard();
       } catch {}
     },
@@ -3336,7 +3349,7 @@ function dosemed() {
       this.carregando = true;
       try {
         const r = await fetch(`/estoque/${this.modalItem.id}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Token': this.sessionToken || '' },
           body: JSON.stringify({
             nome_medicamento: this.modalItem.nome,
             principio_ativo: this.modalItem.principio_ativo || null,
@@ -3356,14 +3369,14 @@ function dosemed() {
     async excluirItem(id) {
       if (!confirm('Remover este medicamento do estoque?')) return;
       this.carregando = true;
-      try { await fetch(`/estoque/${id}`, { method: 'DELETE' }); await this.buscarDashboard(); } catch {}
+      try { await fetch(`/estoque/${id}`, { method: 'DELETE', headers: { 'X-Token': this.sessionToken || '' } }); await this.buscarDashboard(); } catch {}
       this.carregando = false;
     },
 
     async consumirItem(id, nome) {
       if (!confirm(`"${nome}" acabou antes de vencer? Será marcado como consumido.`)) return;
       this.carregando = true;
-      try { await fetch(`/estoque/${id}/consumir`, { method: 'POST' }); await this.buscarDashboard(); } catch {}
+      try { await fetch(`/estoque/${id}/consumir`, { method: 'POST', headers: { 'X-Token': this.sessionToken || '' } }); await this.buscarDashboard(); } catch {}
       this.carregando = false;
     },
 
@@ -3900,7 +3913,7 @@ function dosemed() {
         // Edição de alarme existente
         if (this.novoAlarme.id) {
           const r = await fetch(`/alarmes/${this.novoAlarme.id}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Token': this.sessionToken || '' },
             body: JSON.stringify({ telefone: this.telefoneAtual, nome_med: this.novoAlarme.nome_med, horario: this.novoAlarme.horario, dias, ativo: 1 })
           });
           if (r.ok) {
@@ -3936,7 +3949,7 @@ function dosemed() {
     async toggleAlarme(a) {
       try {
         const r = await fetch(`/alarmes/${a.id}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Token': this.sessionToken || '' },
           body: JSON.stringify({ telefone: this.telefoneAtual, nome_med: a.nome_med, horario: a.horario, dias: a.dias, ativo: a.ativo ? 0 : 1 })
         });
         if (r.ok) { const u = await r.json(); Object.assign(a, u); }
@@ -3946,7 +3959,7 @@ function dosemed() {
     async excluirAlarme(id) {
       if (!confirm('Remover este alarme?')) return;
       try {
-        const r = await fetch(`/alarmes/${id}`, { method: 'DELETE' });
+        const r = await fetch(`/alarmes/${id}`, { method: 'DELETE', headers: { 'X-Token': this.sessionToken || '' } });
         if (r.ok) this.alarmes = this.alarmes.filter(a => a.id !== id);
       } catch {}
     },

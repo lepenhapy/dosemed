@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, Date, ForeignKey, Integer, DateTime, Text, JSON
+from sqlalchemy import Column, String, Float, Date, ForeignKey, Integer, DateTime, Text, JSON, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 
@@ -16,6 +16,7 @@ class Usuario(Base):
     bairro = Column(String, nullable=True)
     genero = Column(String, nullable=True)   # M | F
     aceite_lgpd = Column(DateTime, nullable=True)
+    session_token = Column(String, nullable=True)
     estoque = relationship("Estoque", back_populates="usuario")
     pedidos = relationship("Pedido", back_populates="usuario")
 
@@ -86,6 +87,7 @@ class Farmacia(Base):
     asaas_customer_id = Column(String, nullable=True)
     asaas_subscription_id = Column(String, nullable=True)
     pin = Column(String, nullable=True)
+    session_token = Column(String, nullable=True)
     rating_total = Column(Float, default=0.0)
     rating_count = Column(Integer, default=0)
     origem = Column(String, default="admin")
@@ -180,11 +182,34 @@ class AnuncioPush(Base):
     status = Column(String, default="aguardando_pagamento")  # aguardando_pagamento | pago | disparado | cancelado
     asaas_charge_id = Column(String, nullable=True)
     pix_link = Column(String, nullable=True)
-    preco = Column(Float, nullable=False)
+    preco = Column(Float, nullable=False)           # valor pago à DoseMed pelo anúncio
     total_enviados = Column(Integer, nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
     disparado_em = Column(DateTime, nullable=True)
+    # Campos da oferta para o usuário final
+    produto = Column(String, nullable=True)
+    preco_de = Column(Float, nullable=True)         # preço original riscado
+    preco_por = Column(Float, nullable=True)        # preço promocional
+    data_expiracao = Column(Date, nullable=True)
+    tem_entrega = Column(Integer, default=0)
+    valor_frete = Column(Float, nullable=True)
+    formas_pagamento = Column(String, nullable=True)  # JSON: ["pix","cartao","dinheiro"]
+    whatsapp_contato = Column(String, nullable=True)
+    categorias = Column(String, nullable=True)      # JSON: ["diabetes","hipertensao"]
     farmacia = relationship("Farmacia", back_populates="anuncios")
+    interesses = relationship("InteresseAnuncio", back_populates="anuncio")
+
+
+class InteresseAnuncio(Base):
+    __tablename__ = "interesses_anuncios"
+    __table_args__ = (UniqueConstraint("anuncio_id", "usuario_id"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    anuncio_id = Column(Integer, ForeignKey("anuncios_push.id"), nullable=False)
+    usuario_id = Column(String, ForeignKey("usuarios.telefone"), nullable=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    expira_em = Column(DateTime, nullable=True)
+    status = Column(String, default="ativo")  # ativo | expirado
+    anuncio = relationship("AnuncioPush", back_populates="interesses")
 
 
 class LogEvento(Base):
