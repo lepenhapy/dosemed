@@ -404,6 +404,11 @@
       <div class="bg-blue-50 rounded-xl px-4 py-3 mb-6 text-xs text-blue-700 leading-relaxed">
         <strong>O que é o DoseMed?</strong> Uma ferramenta para controlar os medicamentos que você tem em casa, acompanhar validades e consultar informações de referência sobre os remédios. Não é um serviço médico — sempre consulte seu médico ou farmacêutico.
       </div>
+      <!-- Banner QR farmácia -->
+      <div x-show="qrFarmaciaId" x-cloak class="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-5 text-xs text-green-800 flex items-center gap-2">
+        <span class="text-lg">🏪</span>
+        <span>Você escaneou o QR de uma farmácia parceira. Cadastre-se ou entre para continuar.</span>
+      </div>
       <p class="text-gray-400 text-sm mb-6">Acesse com seu número de telefone.</p>
       <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Telefone com DDD</label>
       <div class="flex gap-2 mb-3">
@@ -2354,6 +2359,32 @@
               <span x-text="carregando ? 'Salvando...' : 'Salvar perfil'"></span>
             </button>
             <p x-show="farmaciaPerfilMsg" class="text-xs text-green-600 text-center" x-text="farmaciaPerfilMsg"></p>
+            <!-- QR Code de captação -->
+            <div class="border-t border-gray-100 pt-4">
+              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">QR Code de captação</p>
+              <div class="bg-green-50 border border-green-100 rounded-2xl p-4 space-y-3">
+                <p class="text-xs text-green-700 leading-relaxed">Cole no balcão da sua farmácia. Clientes que escanear entram direto no DoseMed já vinculado à sua loja.</p>
+                <button @click="qrAberto = !qrAberto"
+                  class="w-full bg-green-600 text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-green-700 transition">
+                  <span x-text="qrAberto ? 'Fechar QR' : 'Ver meu QR Code'"></span>
+                </button>
+                <div x-show="qrAberto" class="space-y-3">
+                  <div class="flex justify-center bg-white rounded-xl p-5 shadow-sm">
+                    <img
+                      :src="`https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(window.location.origin + '/?farmacia=' + farmacia.farmacia.id)}`"
+                      width="220" height="220" alt="QR Code DoseMed" class="rounded" />
+                  </div>
+                  <p class="text-[11px] text-center text-gray-400 font-mono break-all leading-relaxed"
+                    x-text="window.location.origin + '/?farmacia=' + farmacia.farmacia.id"></p>
+                  <a :href="`https://api.qrserver.com/v1/create-qr-code/?size=500x500&margin=20&data=${encodeURIComponent(window.location.origin + '/?farmacia=' + farmacia.farmacia.id)}`"
+                    target="_blank" rel="noopener"
+                    class="block w-full text-center bg-white border border-green-300 text-green-700 text-sm font-semibold py-2.5 rounded-xl hover:bg-green-50 transition">
+                    Baixar imagem (PNG) →
+                  </a>
+                </div>
+              </div>
+            </div>
+
             <!-- Exclusão de conta farmácia — discreta -->
             <div class="border-t border-gray-100 pt-4 mt-2">
               <button @click="mostrarExcluirConta = !mostrarExcluirConta"
@@ -2815,6 +2846,7 @@ function dosemed() {
     // farmácia
     isFarmacia: false, farmacia: null, farmaciaCarregando: false,
     abaFarmacia: 'leads', farmaciaInsights: null,
+    qrAberto: false, qrFarmaciaId: null,
     farmaciaEditBairros: '', farmaciaEditManipulado: false, farmaciaPerfilMsg: '',
     sessionToken: null,
     mostrarEscolha: false, mostrarCadastroFarmacia: false, modalPlanos: false,
@@ -2911,6 +2943,16 @@ function dosemed() {
         this.modoOrcamento = true;
         this.tokenOrcamento = match[1];
         this.carregarOrcamento(match[1]);
+      }
+      // Detecta QR de farmácia: ?farmacia=12
+      const _qrParams = new URLSearchParams(window.location.search);
+      const _qrId = _qrParams.get('farmacia');
+      if (_qrId && /^\d+$/.test(_qrId)) {
+        this.qrFarmaciaId = parseInt(_qrId);
+        // Limpa o param da URL sem recarregar
+        const _url = new URL(window.location.href);
+        _url.searchParams.delete('farmacia');
+        window.history.replaceState({}, '', _url.toString());
       }
     },
 
