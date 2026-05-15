@@ -625,10 +625,17 @@
           <input x-model="cadastro.email" type="email" placeholder="seuemail@gmail.com"
             class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Bairro <span class="text-gray-300 normal-case font-normal">(opcional — só para tendências regionais anônimas)</span></label>
-          <input x-model="cadastro.bairro" type="text" placeholder="ex: Jardim América, Centro"
-            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Cidade <span class="text-red-400">*</span></label>
+            <input x-model="cadastro.cidade" type="text" placeholder="ex: Cuiabá"
+              class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Bairro <span class="text-red-400">*</span></label>
+            <input x-model="cadastro.bairro" type="text" placeholder="ex: Centro"
+              class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
         </div>
         <div>
           <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sexo <span class="text-gray-300 normal-case font-normal">(opcional — para ofertas relevantes)</span></label>
@@ -1454,18 +1461,41 @@
 
           <!-- Modo câmera (padrão) -->
           <div x-show="modoFoto && !reconhecendo" x-cloak>
-            <div class="text-center py-6">
-              <div class="text-7xl mb-3">📷</div>
-              <h3 class="font-bold text-gray-700 text-lg mb-1">Fotografe a embalagem</h3>
-              <p class="text-sm text-gray-400 mb-0.5">Aponte para a <strong>frente da caixa</strong> do remédio</p>
-              <p class="text-xs text-gray-300 mb-6">Deixe o nome e a dosagem bem visíveis na foto</p>
-              <label class="cursor-pointer inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-2xl text-base font-bold hover:bg-blue-700 active:scale-95 transition shadow-lg shadow-blue-100">
-                📷 Tirar foto da caixa
-                <input type="file" accept="image/*" capture="environment" class="hidden" @change="reconhecerImagem($event)" />
-              </label>
-              <div class="mt-5">
-                <button @click="modoFoto = false" class="text-xs text-gray-400 hover:text-gray-600 underline">Preencher manualmente</button>
+            <div class="text-center pt-4 pb-2">
+              <div class="text-5xl mb-3">💊</div>
+              <h3 class="font-bold text-gray-700 text-lg mb-1">Adicionar remédio</h3>
+              <p class="text-sm text-gray-400 mb-5">Siga os passos abaixo — leva menos de 1 minuto</p>
+            </div>
+            <!-- Passo a passo -->
+            <div class="space-y-3 mb-6 text-left">
+              <div class="flex items-start gap-3 bg-blue-50 rounded-xl px-4 py-3">
+                <span class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
+                <div>
+                  <p class="text-sm font-semibold text-blue-800">Tire uma foto da caixa</p>
+                  <p class="text-xs text-blue-500">Aponte para a frente da embalagem — o nome e a dosagem precisam estar visíveis</p>
+                </div>
               </div>
+              <div class="flex items-start gap-3 bg-gray-50 rounded-xl px-4 py-3">
+                <span class="w-6 h-6 bg-gray-300 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
+                <div>
+                  <p class="text-sm font-semibold text-gray-600">Confirme ou preencha os dados</p>
+                  <p class="text-xs text-gray-400">Data de vencimento, quantidade e se é uso contínuo</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 bg-gray-50 rounded-xl px-4 py-3">
+                <span class="w-6 h-6 bg-gray-300 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
+                <div>
+                  <p class="text-sm font-semibold text-gray-600">Salve</p>
+                  <p class="text-xs text-gray-400">O remédio entra no seu estoque e vamos te avisar quando vencer</p>
+                </div>
+              </div>
+            </div>
+            <label class="cursor-pointer flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-2xl text-base font-bold hover:bg-blue-700 active:scale-95 transition shadow-lg shadow-blue-100 w-full">
+              📷 Fotografar a caixa agora
+              <input type="file" accept="image/*" capture="environment" class="hidden" @change="reconhecerImagem($event)" />
+            </label>
+            <div class="mt-4 text-center">
+              <button @click="modoFoto = false" class="text-xs text-gray-400 hover:text-gray-600 underline">Prefiro digitar manualmente</button>
             </div>
           </div>
 
@@ -1595,6 +1625,19 @@
           <p class="text-xs text-amber-700 flex-1">Adicione seu <strong>bairro</strong> no perfil para receber ofertas de farmácias próximas quando seus remédios estiverem vencendo.</p>
           <button @click="abrirEditarPerfil()" class="text-xs font-semibold text-amber-600 hover:text-amber-800 underline shrink-0">Adicionar</button>
         </div>
+
+        <!-- BANNER COMECE POR AQUI (só quando estoque vazio) -->
+        <template x-if="(estoque.vencidos?.length ?? 0) + (estoque.atencao?.length ?? 0) + (estoque.ok?.length ?? 0) === 0">
+          <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-5 text-center">
+            <div class="text-4xl mb-3">💊</div>
+            <p class="font-bold text-blue-800 text-base mb-1">Comece por aqui</p>
+            <p class="text-sm text-blue-600 mb-4">Cadastre os remédios que você tem em casa para controlar validades e nunca ficar sem o que precisa.</p>
+            <button @click="abaAtiva = 'cadastrar'"
+              class="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-blue-700 active:scale-95 transition shadow-md shadow-blue-200">
+              <span class="text-lg">+</span> Adicionar meu primeiro remédio
+            </button>
+          </div>
+        </template>
 
         <!-- RESUMO FINANCEIRO -->
         <div class="grid grid-cols-2 gap-4">
@@ -2669,8 +2712,8 @@ function dosemed() {
     termoPesquisa: '', resultadosBula: [], estoquePorBula: [], buscandoBulas: false,
     carregando: false, erroLogin: '', mensagemWebhook: '', alertaPA: '',
     reconhecendo: false, previewUrl: '', erroReconhecimento: '', modoFoto: true,
-    mostrarCadastro: false, cadastro: { nome: '', email: '', bairro: '', endereco: '', portaria: '', genero: '' },
-    modalItem: null, modalPerfil: false, editPerfil: { nome: '', email: '', bairro: '', endereco: '', portaria: '', genero: '' },
+    mostrarCadastro: false, cadastro: { nome: '', email: '', cidade: '', bairro: '', endereco: '', portaria: '', genero: '' },
+    modalItem: null, modalPerfil: false, editPerfil: { nome: '', email: '', cidade: '', bairro: '', endereco: '', portaria: '', genero: '' },
     mostrarLGPD: false, lgpdAceito: false,
     busca: '',
     // PIN / recuperação
@@ -2930,6 +2973,8 @@ function dosemed() {
     async registrar() {
       this.erroLogin = '';
       if (!this.cadastro.nome.trim()) { this.erroLogin = 'Informe seu nome.'; return; }
+      if (!this.cadastro.cidade.trim()) { this.erroLogin = 'Informe sua cidade.'; return; }
+      if (!this.cadastro.bairro.trim()) { this.erroLogin = 'Informe seu bairro.'; return; }
       this.carregando = true;
       try {
         const r = await fetch('/usuario', {
@@ -2937,6 +2982,7 @@ function dosemed() {
           body: JSON.stringify({ telefone: this.telefoneInput.trim(), nome: this.cadastro.nome,
             email: this.cadastro.email || null,
             bairro: this.cadastro.bairro || null,
+            cidade: this.cadastro.cidade || null,
             genero: this.cadastro.genero || null,
             endereco_completo: this.cadastro.endereco, instrucoes_portaria: this.cadastro.portaria,
             aceite_lgpd: this.lgpdAceito })

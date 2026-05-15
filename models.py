@@ -17,6 +17,7 @@ class Usuario(Base):
     instrucoes_portaria = Column(String)
     pin = Column(String, nullable=True)
     bairro = Column(String, nullable=True)
+    cidade = Column(String, nullable=True)
     genero = Column(String, nullable=True)   # M | F
     aceite_lgpd = Column(DateTime, nullable=True)
     session_token = Column(String, nullable=True)

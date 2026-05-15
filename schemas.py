@@ -9,6 +9,7 @@ class UsuarioPayload(BaseModel):
     nome: str
     email: Optional[str] = None
     bairro: Optional[str] = None
+    cidade: Optional[str] = None
     endereco_completo: Optional[str] = None
     instrucoes_portaria: Optional[str] = None
     aceite_lgpd: Optional[bool] = False
@@ -33,6 +34,7 @@ class EditarUsuarioPayload(BaseModel):
     nome: Optional[str] = None
     email: Optional[str] = None
     bairro: Optional[str] = None
+    cidade: Optional[str] = None
     endereco_completo: Optional[str] = None
     instrucoes_portaria: Optional[str] = None
     genero: Optional[str] = None  # M | F

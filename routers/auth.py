@@ -76,6 +76,7 @@ async def criar_usuario(request: Request, payload: UsuarioPayload, db: Session =
         nome=sanitizar(payload.nome),
         email=email,
         bairro=sanitizar(payload.bairro or ""),
+        cidade=sanitizar(payload.cidade or ""),
         endereco_completo=sanitizar(payload.endereco_completo or ""),
         instrucoes_portaria=sanitizar(payload.instrucoes_portaria or ""),
         aceite_lgpd=datetime.now(timezone.utc).replace(tzinfo=None) if payload.aceite_lgpd else None,
@@ -106,6 +107,8 @@ def editar_usuario(telefone: str, payload: EditarUsuarioPayload, db: Session = D
         usuario.email = email_val or None
     if payload.bairro is not None:
         usuario.bairro = sanitizar(payload.bairro)
+    if payload.cidade is not None:
+        usuario.cidade = sanitizar(payload.cidade)
     if payload.endereco_completo is not None:
         usuario.endereco_completo = sanitizar(payload.endereco_completo)
     if payload.instrucoes_portaria is not None:
