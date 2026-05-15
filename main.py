@@ -3647,6 +3647,95 @@ async def webhook_asaas(request: Request, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
+# --- Exportar dados (LGPD art. 17) ---
+
+@app.get("/usuario/{telefone}/exportar-dados")
+def exportar_dados_lgpd(
+    telefone: str,
+    usuario_auth: Usuario = Depends(get_usuario_autenticado),
+    db: Session = Depends(get_db),
+):
+    """Portabilidade de dados — LGPD art. 17. Retorna JSON com todos os dados do usuário."""
+    telefone = validar_telefone(telefone)
+    if usuario_auth.telefone != telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+
+    usuario = usuario_auth
+    itens = db.query(Estoque).filter(Estoque.usuario_id == telefone).all()
+    alarmes = db.query(AlarmeRemedio).filter(AlarmeRemedio.usuario_id == telefone).all()
+    orcamentos = db.query(OrcamentoSolicitacao).filter(OrcamentoSolicitacao.usuario_id == telefone).all()
+    buscas = db.query(LogBusca).filter(LogBusca.usuario_id == telefone).order_by(LogBusca.timestamp.desc()).limit(500).all()
+
+    def fmt(v):
+        if v is None:
+            return None
+        if hasattr(v, "isoformat"):
+            return v.isoformat()
+        return v
+
+    payload = {
+        "exportado_em": datetime.utcnow().isoformat(),
+        "fonte": "DoseMed — dosemed.onrender.com",
+        "aviso_lgpd": "Exportação de dados pessoais conforme LGPD art. 17 (direito à portabilidade).",
+        "perfil": {
+            "nome": usuario.nome,
+            "telefone": usuario.telefone,
+            "email": usuario.email,
+            "bairro": usuario.bairro,
+            "genero": usuario.genero,
+            "aceite_lgpd": fmt(usuario.aceite_lgpd),
+        },
+        "estoque": [
+            {
+                "nome": i.nome_medicamento,
+                "principio_ativo": i.principio_ativo,
+                "miligramas": i.miligramas,
+                "fabricante": i.fabricante,
+                "validade": fmt(i.data_validade),
+                "quantidade": i.quantidade,
+                "manipulado": bool(i.manipulado),
+                "uso_continuo": bool(i.uso_continuo),
+                "status": i.status,
+                "preco_real": i.preco_real,
+                "data_consumo": fmt(i.data_consumo),
+            }
+            for i in itens
+        ],
+        "alarmes": [
+            {
+                "medicamento": a.nome_med,
+                "horario": a.horario,
+                "dias": a.dias,
+                "ativo": bool(a.ativo),
+            }
+            for a in alarmes
+        ],
+        "orcamentos": [
+            {
+                "medicamento": o.nome_med,
+                "status": o.status,
+                "criado_em": fmt(o.criado_em),
+            }
+            for o in orcamentos
+        ],
+        "historico_buscas": [
+            {
+                "tipo": b.tipo,
+                "termo": b.termo,
+                "data": fmt(b.timestamp),
+            }
+            for b in buscas
+        ],
+    }
+
+    import json as _json
+    nome_arquivo = f"dosemed-dados-{telefone[-4:]}-{datetime.utcnow().strftime('%Y%m%d')}.json"
+    return JSONResponse(
+        content=payload,
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
+    )
+
+
 # --- Exportar PDF ---
 
 @app.get("/exportar/{telefone}", response_class=HTMLResponse)

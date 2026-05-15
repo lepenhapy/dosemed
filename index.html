@@ -288,8 +288,12 @@
         <span x-text="carregando ? 'Salvando...' : 'Salvar'"></span>
       </button>
     </div>
-    <!-- Exclusão de conta — discreta -->
-    <div class="mt-6 border-t border-gray-100 pt-4">
+    <!-- LGPD / Conta -->
+    <div class="mt-6 border-t border-gray-100 pt-4 space-y-2">
+      <button @click="exportarDados()"
+        class="text-xs text-gray-400 hover:text-blue-500 transition underline w-full text-center">
+        Baixar meus dados (LGPD)
+      </button>
       <button @click="mostrarExcluirConta = !mostrarExcluirConta"
         class="text-xs text-gray-300 hover:text-red-400 transition underline w-full text-center">
         Excluir minha conta
@@ -3102,6 +3106,22 @@ function dosemed() {
         const r = await fetch(`/farmacia/insights?telefone=${encodeURIComponent(this.telefoneAtual)}`);
         if (r.ok) this.farmaciaInsights = await r.json();
       } catch {}
+    },
+
+    async exportarDados() {
+      try {
+        const r = await fetch(`/usuario/${encodeURIComponent(this.telefoneAtual)}/exportar-dados`, {
+          headers: { 'X-Token': this.sessionToken || '' }
+        });
+        if (!r.ok) { alert('Erro ao exportar dados.'); return; }
+        const blob = await r.blob();
+        const cd = r.headers.get('Content-Disposition') || '';
+        const fname = (cd.match(/filename="([^"]+)"/) || [])[1] || 'dosemed-dados.json';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fname; a.click();
+        URL.revokeObjectURL(url);
+      } catch { alert('Erro de conexão.'); }
     },
 
     async excluirConta() {
