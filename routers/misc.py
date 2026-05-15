@@ -2,7 +2,7 @@
 
 import os
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -206,7 +206,7 @@ def exportar_dados_lgpd(
         return v
 
     payload = {
-        "exportado_em": datetime.utcnow().isoformat(),
+        "exportado_em": datetime.now(timezone.utc).isoformat(),
         "fonte": "DoseMed — dosemed.onrender.com",
         "aviso_lgpd": "Exportação de dados pessoais conforme LGPD art. 17 (direito à portabilidade).",
         "perfil": {
@@ -260,7 +260,7 @@ def exportar_dados_lgpd(
         ],
     }
 
-    nome_arquivo = f"dosemed-dados-{telefone[-4:]}-{datetime.utcnow().strftime('%Y%m%d')}.json"
+    nome_arquivo = f"dosemed-dados-{telefone[-4:]}-{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
     return JSONResponse(
         content=payload,
         headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},

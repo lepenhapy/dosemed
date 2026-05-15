@@ -2,6 +2,7 @@
 
 import logging
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import JSONResponse
@@ -33,7 +34,19 @@ from routers import admin, alarmes, auth, bulas, estoque, farmacia, misc, orcame
 # App
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="DoseMed API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if cron._scheduler and not cron._scheduler.running:
+        cron._scheduler.start()
+        logger.info("Scheduler iniciado (vencimentos 08:00, alarmes a cada minuto)")
+    elif not cron._scheduler:
+        logger.warning("APScheduler não instalado — notificações automáticas desativadas")
+    yield
+    if cron._scheduler and cron._scheduler.running:
+        cron._scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="DoseMed API", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -72,24 +85,6 @@ app.include_router(push.router)
 app.include_router(promocoes.router)
 app.include_router(misc.router)
 
-
-# ---------------------------------------------------------------------------
-# Lifecycle
-# ---------------------------------------------------------------------------
-
-@app.on_event("startup")
-def _startup():
-    if cron._scheduler and not cron._scheduler.running:
-        cron._scheduler.start()
-        logger.info("Scheduler iniciado (vencimentos 08:00, alarmes a cada minuto)")
-    elif not cron._scheduler:
-        logger.warning("APScheduler não instalado — notificações automáticas desativadas")
-
-
-@app.on_event("shutdown")
-def _shutdown():
-    if cron._scheduler and cron._scheduler.running:
-        cron._scheduler.shutdown(wait=False)
 
 
 if __name__ == "__main__":

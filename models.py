@@ -1,6 +1,9 @@
 from sqlalchemy import Column, String, Float, Date, ForeignKey, Integer, DateTime, Text, JSON, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship
-from datetime import datetime
+from datetime import datetime, timezone
+
+def _now():
+    return datetime.now(timezone.utc)
 
 Base = declarative_base()
 
@@ -66,7 +69,7 @@ class CodigoRecuperacao(Base):
 class LogBusca(Base):
     __tablename__ = "log_buscas"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=_now)
     tipo = Column(String, nullable=False)
     termo = Column(String, nullable=False)
     ddd = Column(String, nullable=True)
@@ -95,7 +98,7 @@ class Farmacia(Base):
     rating_total = Column(Float, default=0.0)
     rating_count = Column(Integer, default=0)
     origem = Column(String, default="admin")
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=_now)
     leads = relationship("Lead", back_populates="farmacia")
     orcamento_respostas = relationship("OrcamentoResposta", back_populates="farmacia")
     anuncios = relationship("AnuncioPush", back_populates="farmacia")
@@ -109,7 +112,7 @@ class OrcamentoSolicitacao(Base):
     quantidade_restante = Column(Integer, nullable=True)
     status = Column(String, default="coletando")    # coletando | aguardando_usuario | fechado | cancelado | sem_resposta
     entregue = Column(Integer, nullable=True)        # None=pendente, 1=sim, 0=problema
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=_now)
     expira_em = Column(DateTime, nullable=True)
     respostas = relationship("OrcamentoResposta", back_populates="solicitacao")
 
@@ -125,7 +128,7 @@ class OrcamentoResposta(Base):
     formas_pagamento = Column(String, nullable=True)  # json: ["pix","cartao","dinheiro"]
     status = Column(String, default="pendente")       # pendente | respondido | ganhou | perdeu | expirou
     respondido_em = Column(DateTime, nullable=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=_now)
     solicitacao = relationship("OrcamentoSolicitacao", back_populates="respostas")
     farmacia = relationship("Farmacia", back_populates="orcamento_respostas")
 
@@ -143,7 +146,7 @@ class Lead(Base):
     status = Column(String, default="enviado")       # enviado | visualizado | convertido
     preco_cobrado = Column(Float, nullable=True)
     asaas_charge_id = Column(String, nullable=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=_now)
     farmacia = relationship("Farmacia", back_populates="leads")
 
 
@@ -161,7 +164,7 @@ class PushSub(Base):
     endpoint = Column(String, nullable=False, unique=True)
     p256dh = Column(String, nullable=False)
     auth = Column(String, nullable=False)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=_now)
 
 
 class AlarmeRemedio(Base):
@@ -172,7 +175,7 @@ class AlarmeRemedio(Base):
     horario = Column(String, nullable=False)   # "HH:MM" UTC-3
     dias = Column(String, default="1,2,3,4,5,6,7")  # 1=seg … 7=dom
     ativo = Column(Integer, default=1)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=_now)
 
 
 class AnuncioPush(Base):
@@ -188,7 +191,7 @@ class AnuncioPush(Base):
     pix_link = Column(String, nullable=True)
     preco = Column(Float, nullable=False)           # valor pago à DoseMed pelo anúncio
     total_enviados = Column(Integer, nullable=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=_now)
     disparado_em = Column(DateTime, nullable=True)
     # Campos da oferta para o usuário final
     produto = Column(String, nullable=True)
@@ -210,7 +213,7 @@ class InteresseAnuncio(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     anuncio_id = Column(Integer, ForeignKey("anuncios_push.id"), nullable=False)
     usuario_id = Column(String, ForeignKey("usuarios.telefone"), nullable=False)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=_now)
     expira_em = Column(DateTime, nullable=True)
     status = Column(String, default="ativo")  # ativo | expirado
     anuncio = relationship("AnuncioPush", back_populates="interesses")
@@ -220,7 +223,7 @@ class LogEvento(Base):
     __tablename__ = "log_eventos"
     id = Column(Integer, primary_key=True, autoincrement=True)
     tipo = Column(String, nullable=False)  # cadastro_usuario | exclusao_usuario | cadastro_farmacia | exclusao_farmacia
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=_now)
 
 
 class Feedback(Base):
@@ -232,4 +235,4 @@ class Feedback(Base):
     mensagem = Column(Text, nullable=False)
     cidade = Column(String, nullable=True)
     bairro = Column(String, nullable=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=_now)

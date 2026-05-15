@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import smtplib
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from email import encoders as _enc
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -80,7 +80,7 @@ def cron_disparar_alarmes():
         return
     db = SessionLocal()
     try:
-        agora_brt = datetime.utcnow() - timedelta(hours=3)
+        agora_brt = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
         horario_atual = agora_brt.strftime("%H:%M")
         dia_semana = str(agora_brt.isoweekday())  # 1=seg, 7=dom
 
@@ -143,7 +143,7 @@ def cron_verificar_estoque_baixo():
 def cron_expirar_interesses():
     db = SessionLocal()
     try:
-        agora = datetime.utcnow()
+        agora = datetime.now(timezone.utc).replace(tzinfo=None)
         vencidos = db.query(InteresseAnuncio).filter(
             InteresseAnuncio.status == "ativo",
             InteresseAnuncio.expira_em.isnot(None),
@@ -201,7 +201,7 @@ def cron_backup_db():
         json_bytes = json.dumps(dump, default=_serial, ensure_ascii=False).encode("utf-8")
         gz_bytes   = gzip.compress(json_bytes, compresslevel=9)
 
-        hoje    = datetime.utcnow().strftime("%Y-%m-%d")
+        hoje    = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d")
         n_users = len(dump.get("usuarios", []))
         n_meds  = len(dump.get("estoque",  []))
         fname   = f"dosemed-backup-{hoje}.json.gz"

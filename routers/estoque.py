@@ -3,7 +3,7 @@
 import base64
 import json
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
@@ -245,7 +245,7 @@ def consumir_item(item_id: int, usuario_auth: Usuario = Depends(get_usuario_aute
     if item.usuario_id != usuario_auth.telefone:
         raise HTTPException(status_code=403, detail="Acesso negado.")
     item.status = "consumido"
-    item.data_consumo = datetime.utcnow()
+    item.data_consumo = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
     return {"mensagem": f"'{item.nome_medicamento}' marcado como consumido."}
 

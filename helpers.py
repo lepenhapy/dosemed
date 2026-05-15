@@ -10,7 +10,7 @@ import secrets
 import smtplib
 import logging
 import requests
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional
@@ -732,7 +732,7 @@ def gerar_leads_para_item(db: Session, item, usuario, origem: str = "cron"):
         if item.manipulado and not f.atende_manipulado:
             continue
 
-        cutoff = datetime.utcnow() - timedelta(days=30)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
         dup = db.query(Lead).filter(
             Lead.farmacia_id == f.id,
             Lead.medicamento == item.nome_medicamento,

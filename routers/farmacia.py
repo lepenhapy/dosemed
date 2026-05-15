@@ -3,7 +3,7 @@
 import logging
 import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -54,7 +54,7 @@ def serializar_farmacia(f: Farmacia, db: Session) -> dict:
     total_leads = db.query(Lead).filter(Lead.farmacia_id == f.id).count()
     leads_mes = db.query(Lead).filter(
         Lead.farmacia_id == f.id,
-        Lead.criado_em >= datetime.utcnow().replace(day=1, hour=0, minute=0, second=0)
+        Lead.criado_em >= datetime.now(timezone.utc).replace(tzinfo=None).replace(day=1, hour=0, minute=0, second=0)
     ).count()
     return {
         "id": f.id, "nome": f.nome, "cnpj": f.cnpj, "email": f.email,
@@ -102,7 +102,7 @@ def _disparar_anuncio_push(anuncio: AnuncioPush, db: Session, modo_teste: bool =
 
     anuncio.status = "disparado"
     anuncio.total_enviados = total
-    anuncio.disparado_em = datetime.utcnow()
+    anuncio.disparado_em = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
 
     if farmacia and farmacia.email:
@@ -201,7 +201,7 @@ def faturar_leads(farmacia_id: int, telefone: str, db: Session = Depends(get_db)
         db.commit()
         logger.info(f"Asaas: cliente criado automaticamente para farmácia {f.id} ({f.nome}): {cid}")
 
-    inicio_mes = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0)
+    inicio_mes = datetime.now(timezone.utc).replace(tzinfo=None).replace(day=1, hour=0, minute=0, second=0)
     leads_nao_faturados = db.query(Lead).filter(
         Lead.farmacia_id == farmacia_id,
         Lead.criado_em >= inicio_mes,
@@ -212,7 +212,7 @@ def faturar_leads(farmacia_id: int, telefone: str, db: Session = Depends(get_db)
         return {"mensagem": "Nenhum lead a faturar.", "total": 0, "valor": 0}
 
     valor_total = sum(l.preco_cobrado or 0 for l in leads_nao_faturados)
-    mes_atual = datetime.utcnow().strftime("%m/%Y")
+    mes_atual = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%m/%Y")
     charge_id, _, asaas_erro = asaas_criar_cobranca(
         f.asaas_customer_id, valor_total,
         f"DoseMed — {len(leads_nao_faturados)} leads em {mes_atual} — {f.nome}"
@@ -317,13 +317,13 @@ def farmacia_dashboard(telefone: str, farmacia_auth: Farmacia = Depends(get_farm
         raise HTTPException(status_code=403, detail="Acesso negado.")
     f = farmacia_auth
 
-    cutoff_30d = datetime.utcnow() - timedelta(days=30)
+    cutoff_30d = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
     leads_recentes = db.query(Lead).filter(
         Lead.farmacia_id == f.id,
         Lead.criado_em >= cutoff_30d
     ).order_by(Lead.criado_em.desc()).all()
 
-    inicio_mes = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0)
+    inicio_mes = datetime.now(timezone.utc).replace(tzinfo=None).replace(day=1, hour=0, minute=0, second=0)
     leads_mes = db.query(Lead).filter(
         Lead.farmacia_id == f.id,
         Lead.criado_em >= inicio_mes

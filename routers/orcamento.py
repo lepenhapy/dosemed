@@ -1,7 +1,7 @@
 # routers/orcamento.py — /orcamento/*, /usuario/*/orcamentos, /confirmar-chegada, /estoque/*/solicitar-reposicao
 
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -43,7 +43,7 @@ def solicitar_reposicao(item_id: int, telefone: str, db: Session = Depends(get_d
         raise HTTPException(status_code=404, detail="Item não encontrado.")
 
     minutos = int(get_config(db, "minutos_disputa_lead", "30"))
-    expira = datetime.utcnow() + timedelta(minutes=minutos)
+    expira = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=minutos)
     sol = OrcamentoSolicitacao(
         usuario_id=tel, nome_med=item.nome_medicamento,
         quantidade_restante=item.quantidade,
@@ -109,7 +109,7 @@ def ver_orcamento(token: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Orçamento não encontrado.")
     sol = resp.solicitacao
     f = resp.farmacia
-    expirou = bool(sol.expira_em and datetime.utcnow() > sol.expira_em)
+    expirou = bool(sol.expira_em and datetime.now(timezone.utc).replace(tzinfo=None) > sol.expira_em)
     return {
         "token": token,
         "farmacia_nome": f.nome,
@@ -135,7 +135,7 @@ def responder_orcamento(token: str, payload: OrcamentoRespostaPayload, db: Sessi
     sol = resp.solicitacao
     if sol.status not in ("coletando", "aguardando_usuario"):
         raise HTTPException(status_code=400, detail="Solicitação encerrada.")
-    if sol.expira_em and datetime.utcnow() > sol.expira_em:
+    if sol.expira_em and datetime.now(timezone.utc).replace(tzinfo=None) > sol.expira_em:
         resp.status = "expirou"
         db.commit()
         raise HTTPException(status_code=410, detail="Prazo de resposta expirado.")
@@ -146,7 +146,7 @@ def responder_orcamento(token: str, payload: OrcamentoRespostaPayload, db: Sessi
     resp.prazo_entrega = sanitizar(payload.prazo_entrega)[:100]
     resp.formas_pagamento = payload.formas_pagamento[:100]
     resp.status = "respondido"
-    resp.respondido_em = datetime.utcnow()
+    resp.respondido_em = datetime.now(timezone.utc).replace(tzinfo=None)
     sol.status = "aguardando_usuario"
     db.commit()
 

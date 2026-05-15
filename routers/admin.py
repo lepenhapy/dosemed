@@ -2,7 +2,7 @@
 
 import logging
 import re
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -64,7 +64,7 @@ def admin_relatorios(telefone: str, db: Session = Depends(get_db)):
     top_estados = sorted(por_estado.items(), key=lambda x: -x[1])[:10]
 
     por_dia: dict[str, int] = {}
-    cutoff = datetime.utcnow().date() - timedelta(days=30)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None).date() - timedelta(days=30)
     for l in logs:
         if l.timestamp and l.timestamp.date() >= cutoff:
             d = str(l.timestamp.date())
@@ -76,7 +76,7 @@ def admin_relatorios(telefone: str, db: Session = Depends(get_db)):
     usuarios_reais = db.query(Usuario).filter(Usuario.telefone.notin_(TEST_PHONES)).count()
     total_itens = db.query(Estoque).filter(Estoque.status != "consumido").count()
 
-    agora = datetime.utcnow()
+    agora = datetime.now(timezone.utc).replace(tzinfo=None)
     corte_7d  = agora - timedelta(days=7)
     corte_30d = agora - timedelta(days=30)
     novos_7d  = db.query(Usuario).filter(Usuario.aceite_lgpd >= corte_7d).count()
@@ -159,7 +159,7 @@ def admin_crescimento(telefone: str, db: Session = Depends(get_db)):
     if tel != ADMIN_PHONE:
         raise HTTPException(status_code=403, detail="Acesso restrito.")
 
-    agora = datetime.utcnow()
+    agora = datetime.now(timezone.utc).replace(tzinfo=None)
     corte_30d = agora - timedelta(days=30)
     corte_7d  = agora - timedelta(days=7)
     corte_mes = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)

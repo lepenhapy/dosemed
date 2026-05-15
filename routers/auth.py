@@ -3,7 +3,7 @@
 import os
 import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -78,7 +78,7 @@ async def criar_usuario(request: Request, payload: UsuarioPayload, db: Session =
         bairro=sanitizar(payload.bairro or ""),
         endereco_completo=sanitizar(payload.endereco_completo or ""),
         instrucoes_portaria=sanitizar(payload.instrucoes_portaria or ""),
-        aceite_lgpd=datetime.utcnow() if payload.aceite_lgpd else None,
+        aceite_lgpd=datetime.now(timezone.utc).replace(tzinfo=None) if payload.aceite_lgpd else None,
         genero=genero
     )
     token = secrets.token_urlsafe(32)
@@ -159,7 +159,7 @@ def aceitar_lgpd(telefone: str, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.telefone == telefone).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
-    usuario.aceite_lgpd = datetime.utcnow()
+    usuario.aceite_lgpd = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
     return {"ok": True}
 
@@ -188,7 +188,7 @@ async def verificar_pin(request: Request, payload: PinPayload, db: Session = Dep
     digitos = re.sub(r"\D", "", payload.telefone)
     pin = re.sub(r"\D", "", payload.pin)
 
-    agora = datetime.utcnow()
+    agora = datetime.now(timezone.utc).replace(tzinfo=None)
 
     # --- Farmácia ---
     farmacia = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
@@ -286,7 +286,7 @@ async def recuperar_pin(request: Request, payload: RecuperarPinPayload, db: Sess
     db.commit()
 
     codigo = gerar_codigo_recuperacao()
-    expira = datetime.utcnow() + timedelta(minutes=15)
+    expira = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=15)
     db.add(CodigoRecuperacao(telefone=telefone, codigo=codigo, expira_em=expira))
     db.commit()
 
@@ -316,7 +316,7 @@ def verificar_codigo(payload: VerificarCodigoPayload, db: Session = Depends(get_
     if len(pin) < 4:
         raise HTTPException(status_code=400, detail="Novo PIN deve ter ao menos 4 dígitos.")
 
-    agora = datetime.utcnow()
+    agora = datetime.now(timezone.utc).replace(tzinfo=None)
     cod = db.query(CodigoRecuperacao).filter(
         CodigoRecuperacao.telefone == telefone,
         CodigoRecuperacao.codigo == payload.codigo.strip(),
