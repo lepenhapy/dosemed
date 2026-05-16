@@ -136,7 +136,7 @@
         📲 Instalar app
       </button>
       <button x-show="!pwaDisponivel && pwaIsIOS"
-        @click="alert('No Safari: toque no ícone ↑ de compartilhar → \"Adicionar à Tela de Início\" → Adicionar.')"
+        @click="toast('Safari → ícone ↑ → \"Adicionar à Tela de Início\" → Adicionar.', 'info')"
         class="text-xs text-blue-500 font-bold px-3 py-1.5 rounded-xl border-2 border-blue-300 hover:bg-blue-50 transition">
         📲 Instalar app
       </button>
@@ -3009,6 +3009,10 @@ function dosemed() {
     feedbackModal: false,
     feedbackForm: { nota: 0, categoria: 'sugestao', mensagem: '', cidade: '', bairro: '' },
     feedbackEnviando: false, feedbackMsg: '',
+    // toast + confirm
+    toastData: null, _toastTimer: null,
+    confirmAcao: null,
+    adminRecebimentos: null, adminRecebimentosNome: '',
     // orçamentos
     orcamentos: null, orcamentosCarregando: false,
     entregaModal: null, entregaMotivo: '', entregaEnviando: false,
@@ -3314,6 +3318,22 @@ function dosemed() {
       this.carregando = false;
     },
 
+    toast(msg, tipo = 'ok') {
+      clearTimeout(this._toastTimer);
+      this.toastData = { msg, tipo };
+      this._toastTimer = setTimeout(() => { this.toastData = null; }, tipo === 'info' ? 5000 : 3000);
+    },
+
+    pedir(texto, fn, opts = {}) {
+      this.confirmAcao = { texto, fn, tipo: opts.tipo || 'normal', botao: opts.botao || 'Confirmar' };
+    },
+
+    confirmarAcao() {
+      const fn = this.confirmAcao?.fn;
+      this.confirmAcao = null;
+      fn && fn();
+    },
+
     async carregarOrcamentos() {
       try {
         const r = await fetch(`/usuario/${encodeURIComponent(this.telefoneAtual)}/orcamentos`);
@@ -3322,13 +3342,12 @@ function dosemed() {
     },
 
     async solicitarReposicao(itemId, nomeItem) {
-      if (!confirm(`Solicitar orçamentos para "${nomeItem}"?`)) return;
       try {
         const r = await fetch(`/estoque/${itemId}/solicitar-reposicao?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
         const d = await r.json();
-        alert(d.mensagem || (r.ok ? 'Solicitação enviada!' : 'Erro ao solicitar.'));
+        this.toast(d.mensagem || (r.ok ? 'Solicitação enviada!' : 'Erro ao solicitar.'), r.ok ? 'ok' : 'erro');
         if (r.ok) { this.carregarOrcamentos(); this.abaAtiva = 'orcamentos'; }
-      } catch { alert('Erro de conexão.'); }
+      } catch { this.toast('Erro de conexão.', 'erro'); }
     },
 
     async escolherFarmacia(solicitacaoId, respostaId, farmaciaNome, modalidade) {
@@ -3340,8 +3359,8 @@ function dosemed() {
         );
         const d = await r.json();
         if (r.ok) { await this.carregarOrcamentos(); }
-        else alert(d.detail || 'Erro.');
-      } catch { alert('Erro de conexão.'); }
+        else this.toast(d.detail || 'Erro.', 'erro');
+      } catch { this.toast('Erro de conexão.', 'erro'); }
     },
 
     async avaliarFarmacia(solId, rating) {
@@ -3350,9 +3369,9 @@ function dosemed() {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ telefone: this.telefoneAtual, rating })
         });
-        if (r.ok) await this.carregarOrcamentos();
-        else { const e = await r.json(); alert(e.detail || 'Erro.'); }
-      } catch { alert('Erro de conexão.'); }
+        if (r.ok) { await this.carregarOrcamentos(); this.toast('Avaliação registrada!', 'ok'); }
+        else { const e = await r.json(); this.toast(e.detail || 'Erro.', 'erro'); }
+      } catch { this.toast('Erro de conexão.', 'erro'); }
     },
 
     async confirmarEntrega(solId, entregue) {
@@ -3363,8 +3382,8 @@ function dosemed() {
           body: JSON.stringify({ telefone: this.telefoneAtual, entregue, motivo: this.entregaMotivo || null })
         });
         if (r.ok) { this.entregaModal = null; this.entregaMotivo = ''; await this.carregarOrcamentos(); }
-        else { const e = await r.json(); alert(e.detail || 'Erro.'); }
-      } catch { alert('Erro de conexão.'); }
+        else { const e = await r.json(); this.toast(e.detail || 'Erro.', 'erro'); }
+      } catch { this.toast('Erro de conexão.', 'erro'); }
       this.entregaEnviando = false;
     },
 
@@ -3449,7 +3468,7 @@ function dosemed() {
         const r = await fetch(`/usuario/${encodeURIComponent(this.telefoneAtual)}/exportar-dados`, {
           headers: { 'X-Token': this.sessionToken || '' }
         });
-        if (!r.ok) { alert('Erro ao exportar dados.'); return; }
+        if (!r.ok) { this.toast('Erro ao exportar dados.', 'erro'); return; }
         const blob = await r.blob();
         const cd = r.headers.get('Content-Disposition') || '';
         const fname = (cd.match(/filename="([^"]+)"/) || [])[1] || 'dosemed-dados.json';
@@ -3457,7 +3476,7 @@ function dosemed() {
         const a = document.createElement('a');
         a.href = url; a.download = fname; a.click();
         URL.revokeObjectURL(url);
-      } catch { alert('Erro de conexão.'); }
+      } catch { this.toast('Erro de conexão.', 'erro'); }
     },
 
     async excluirConta() {
@@ -3469,10 +3488,10 @@ function dosemed() {
           body: JSON.stringify({ pin: this.pinExcluir, confirmacao: 'EXCLUIR' })
         });
         const d = await r.json();
-        if (!r.ok) { alert(d.detail || 'Erro ao excluir.'); this.carregando = false; return; }
-        alert('Conta excluída. Até mais!');
+        if (!r.ok) { this.toast(d.detail || 'Erro ao excluir.', 'erro'); this.carregando = false; return; }
+        this.toast('Conta excluída. Até mais!', 'ok');
         this.sair();
-      } catch { alert('Erro de conexão.'); }
+      } catch { this.toast('Erro de conexão.', 'erro'); }
       this.carregando = false;
     },
 
@@ -3485,10 +3504,10 @@ function dosemed() {
           body: JSON.stringify({ pin: this.pinExcluir, confirmacao: 'EXCLUIR' })
         });
         const d = await r.json();
-        if (!r.ok) { alert(d.detail || 'Erro ao excluir.'); this.carregando = false; return; }
-        alert('Conta da farmácia excluída. Até mais!');
+        if (!r.ok) { this.toast(d.detail || 'Erro ao excluir.', 'erro'); this.carregando = false; return; }
+        this.toast('Conta da farmácia excluída. Até mais!', 'ok');
         this.sair();
-      } catch { alert('Erro de conexão.'); }
+      } catch { this.toast('Erro de conexão.', 'erro'); }
       this.carregando = false;
     },
 
@@ -3626,45 +3645,45 @@ function dosemed() {
           : `/admin/farmacias/${this.modalFarmacia.id}?telefone=${encodeURIComponent(this.telefoneAtual)}`;
         const method = isNew ? 'POST' : 'PUT';
         const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.modalFarmacia) });
-        if (r.ok) { this.modalFarmacia = null; await this.carregarFarmacias(); }
-        else { const d = await r.json(); alert(d.detail || 'Erro ao salvar.'); }
-      } catch { alert('Erro de conexão.'); }
+        if (r.ok) { this.modalFarmacia = null; await this.carregarFarmacias(); this.toast('Farmácia salva!', 'ok'); }
+        else { const d = await r.json(); this.toast(d.detail || 'Erro ao salvar.', 'erro'); }
+      } catch { this.toast('Erro de conexão.', 'erro'); }
       this.carregando = false;
     },
 
     async faturarLeads(id, nome) {
-      if (!confirm(`Gerar cobrança Asaas pelos leads do mês para ${nome}?`)) return;
-      this.carregando = true;
-      try {
-        const r = await fetch(`/admin/farmacias/${id}/faturar-leads?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
-        const d = await r.json();
-        alert(r.ok ? `${d.mensagem} — ${d.total_leads} leads — R$ ${(d.valor||0).toFixed(2)}` : (d.detail || 'Erro.'));
-        if (r.ok) await this.carregarLeads();
-      } catch { alert('Erro de conexão.'); }
-      this.carregando = false;
+      this.pedir(`Gerar cobrança Asaas pelos leads do mês para ${nome}?`, async () => {
+        this.carregando = true;
+        try {
+          const r = await fetch(`/admin/farmacias/${id}/faturar-leads?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
+          const d = await r.json();
+          this.toast(r.ok ? `${d.mensagem} — ${d.total_leads} leads — R$ ${(d.valor||0).toFixed(2).replace('.',',')}` : (d.detail || 'Erro.'), r.ok ? 'ok' : 'erro');
+          if (r.ok) await this.carregarLeads();
+        } catch { this.toast('Erro de conexão.', 'erro'); }
+        this.carregando = false;
+      }, { botao: 'Gerar cobrança' });
     },
 
     async verRecebimentos(id, nome) {
       try {
         const r = await fetch(`/admin/recebimentos/${id}?telefone=${encodeURIComponent(this.telefoneAtual)}`);
         const d = await r.json();
-        if (r.ok && d.cobrancas?.length) {
-          const lista = d.cobrancas.map(c => `${c.dueDate} | R$ ${c.value} | ${c.status} | ${c.description || ''}`).join('\n');
-          alert(`Cobranças — ${nome}:\n\n${lista}`);
-        } else { alert(`Nenhuma cobrança encontrada para ${nome}.`); }
-      } catch { alert('Erro ao buscar cobranças.'); }
+        this.adminRecebimentosNome = nome;
+        this.adminRecebimentos = r.ok ? (d.cobrancas || []) : [];
+      } catch { this.toast('Erro ao buscar cobranças.', 'erro'); }
     },
 
     async gerarLeadsManuais() {
-      if (!confirm('Gerar leads manualmente agora para todos os medicamentos próximos do vencimento?')) return;
-      this.carregando = true;
-      try {
-        const r = await fetch(`/admin/leads/gerar-manual?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
-        const d = await r.json();
-        alert(`${d.leads_gerados} leads gerados.`);
-        await this.carregarLeads();
-      } catch { alert('Erro.'); }
-      this.carregando = false;
+      this.pedir('Gerar leads manualmente para todos os medicamentos próximos do vencimento?', async () => {
+        this.carregando = true;
+        try {
+          const r = await fetch(`/admin/leads/gerar-manual?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
+          const d = await r.json();
+          this.toast(`${d.leads_gerados} leads gerados.`, 'ok');
+          await this.carregarLeads();
+        } catch { this.toast('Erro.', 'erro'); }
+        this.carregando = false;
+      }, { botao: 'Gerar leads' });
     },
 
     async carregarLeads() {
@@ -3685,8 +3704,9 @@ function dosemed() {
       try {
         const r = await fetch(`/admin/configuracoes/${chave}?telefone=${encodeURIComponent(this.telefoneAtual)}`,
           { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valor }) });
-        if (!r.ok) alert('Erro ao salvar.');
-      } catch { alert('Erro de conexão.'); }
+        if (!r.ok) this.toast('Erro ao salvar.', 'erro');
+        else this.toast('Configuração salva.', 'ok');
+      } catch { this.toast('Erro de conexão.', 'erro'); }
     },
 
     async carregarInsights() {
@@ -3723,17 +3743,19 @@ function dosemed() {
     },
 
     async excluirItem(id) {
-      if (!confirm('Remover este medicamento do estoque?')) return;
-      this.carregando = true;
-      try { await fetch(`/estoque/${id}`, { method: 'DELETE', headers: { 'X-Token': this.sessionToken || '' } }); await this.buscarDashboard(); } catch {}
-      this.carregando = false;
+      this.pedir('Remover este medicamento do estoque?', async () => {
+        this.carregando = true;
+        try { await fetch(`/estoque/${id}`, { method: 'DELETE', headers: { 'X-Token': this.sessionToken || '' } }); await this.buscarDashboard(); } catch {}
+        this.carregando = false;
+      }, { tipo: 'destrutivo', botao: 'Remover' });
     },
 
     async consumirItem(id, nome) {
-      if (!confirm(`"${nome}" acabou antes de vencer? Será marcado como consumido.`)) return;
-      this.carregando = true;
-      try { await fetch(`/estoque/${id}/consumir`, { method: 'POST', headers: { 'X-Token': this.sessionToken || '' } }); await this.buscarDashboard(); } catch {}
-      this.carregando = false;
+      this.pedir(`"${nome}" acabou antes de vencer? Será marcado como consumido e movido para o histórico.`, async () => {
+        this.carregando = true;
+        try { await fetch(`/estoque/${id}/consumir`, { method: 'POST', headers: { 'X-Token': this.sessionToken || '' } }); await this.buscarDashboard(); } catch {}
+        this.carregando = false;
+      }, { botao: 'Marcar como consumido' });
     },
 
     abrirEditarPerfil() {
@@ -3874,7 +3896,6 @@ function dosemed() {
 
     async executarReset() {
       if (this.resetConfirmar !== 'CONFIRMAR_RESET') return;
-      if (!confirm('Tem certeza? Esta ação é irreversível.')) return;
       this.resetMsg = '';
       try {
         const r = await fetch(`/admin/reset-dados?telefone=${encodeURIComponent(this.telefoneAtual)}&confirmar=CONFIRMAR_RESET`, { method: 'POST' });
@@ -3907,39 +3928,40 @@ function dosemed() {
     },
 
     async adminExcluirAnuncio(id) {
-      if (!confirm('Excluir este anúncio permanentemente?')) return;
-      try {
-        const r = await fetch(`/admin/anuncio/${id}?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'DELETE' });
-        if (r.ok) { this.adminAnuncios = null; await this.carregarAdminAnuncios(); }
-        else { const d = await r.json(); alert(d.detail || 'Erro.'); }
-      } catch { alert('Erro de conexão.'); }
+      this.pedir('Excluir este anúncio permanentemente?', async () => {
+        try {
+          const r = await fetch(`/admin/anuncio/${id}?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'DELETE' });
+          if (r.ok) { this.adminAnuncios = null; await this.carregarAdminAnuncios(); }
+          else { const d = await r.json(); this.toast(d.detail || 'Erro.', 'erro'); }
+        } catch { this.toast('Erro de conexão.', 'erro'); }
+      }, { tipo: 'destrutivo', botao: 'Excluir' });
     },
 
     async adminConfirmarPagamento(id) {
-      if (!confirm('Confirmar pagamento manualmente? Use só se o pagamento foi feito fora do Asaas.')) return;
-      try {
-        const r = await fetch(`/admin/anuncio/${id}/confirmar-pagamento?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
-        const d = await r.json();
-        if (r.ok) { this.adminAnuncios = null; await this.carregarAdminAnuncios(); }
-        else alert(d.detail || 'Erro.');
-      } catch { alert('Erro de conexão.'); }
+      this.pedir('Confirmar pagamento manualmente? Use só se o pagamento foi feito fora do Asaas.', async () => {
+        try {
+          const r = await fetch(`/admin/anuncio/${id}/confirmar-pagamento?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
+          const d = await r.json();
+          if (r.ok) { this.adminAnuncios = null; await this.carregarAdminAnuncios(); this.toast('Pagamento confirmado!', 'ok'); }
+          else this.toast(d.detail || 'Erro.', 'erro');
+        } catch { this.toast('Erro de conexão.', 'erro'); }
+      }, { botao: 'Confirmar pagamento' });
     },
 
     async adminDispararAnuncio(id, modoTeste = false) {
-      const msg = modoTeste
+      const texto = modoTeste
         ? 'Enviar notificação de TESTE (só o admin recebe)?'
         : 'Revisei o conteúdo e confirmo o disparo para TODOS os usuários?';
-      if (!confirm(msg)) return;
-      try {
-        const url = `/admin/anuncio/${id}/disparar?telefone=${encodeURIComponent(this.telefoneAtual)}&modo_teste=${modoTeste}`;
-        const r = await fetch(url, { method: 'POST' });
-        const d = await r.json();
-        if (r.ok) {
+      this.pedir(texto, async () => {
+        try {
+          const url = `/admin/anuncio/${id}/disparar?telefone=${encodeURIComponent(this.telefoneAtual)}&modo_teste=${modoTeste}`;
+          const r = await fetch(url, { method: 'POST' });
+          const d = await r.json();
           const destino = modoTeste ? 'admin (teste)' : 'usuários';
-          alert(`Enviado para ${d.total_enviados} ${destino}.`);
-          this.adminAnuncios = null; await this.carregarAdminAnuncios();
-        } else alert(d.detail || 'Erro.');
-      } catch { alert('Erro de conexão.'); }
+          this.toast(r.ok ? `Enviado para ${d.total_enviados} ${destino}.` : (d.detail || 'Erro.'), r.ok ? 'ok' : 'erro');
+          if (r.ok) { this.adminAnuncios = null; await this.carregarAdminAnuncios(); }
+        } catch { this.toast('Erro de conexão.', 'erro'); }
+      }, { botao: modoTeste ? 'Enviar teste' : 'Disparar para todos' });
     },
 
     abrirFeedback() {
@@ -4231,8 +4253,9 @@ function dosemed() {
     async testarPush() {
       try {
         const r = await fetch(`/push/testar?telefone=${encodeURIComponent(this.telefoneAtual)}`, { method: 'POST' });
-        if (!r.ok) { const d = await r.json(); alert(d.detail || 'Erro ao testar.'); }
-      } catch { alert('Erro de conexão.'); }
+        if (r.ok) this.toast('Push de teste enviado!', 'ok');
+        else { const d = await r.json(); this.toast(d.detail || 'Erro ao testar.', 'erro'); }
+      } catch { this.toast('Erro de conexão.', 'erro'); }
     },
 
     // --- Alarmes ---
@@ -4314,11 +4337,12 @@ function dosemed() {
     },
 
     async excluirAlarme(id) {
-      if (!confirm('Remover este alarme?')) return;
-      try {
-        const r = await fetch(`/alarmes/${id}`, { method: 'DELETE', headers: { 'X-Token': this.sessionToken || '' } });
-        if (r.ok) this.alarmes = this.alarmes.filter(a => a.id !== id);
-      } catch {}
+      this.pedir('Remover este alarme?', async () => {
+        try {
+          const r = await fetch(`/alarmes/${id}`, { method: 'DELETE', headers: { 'X-Token': this.sessionToken || '' } });
+          if (r.ok) this.alarmes = this.alarmes.filter(a => a.id !== id);
+        } catch {}
+      }, { tipo: 'destrutivo', botao: 'Remover' });
     },
 
     formatarDias(dias) {
@@ -4335,11 +4359,11 @@ function dosemed() {
     async ativarNotificacoes() {
       // iOS fora do PWA instalado: push não funciona — orientar usuário
       if (this.pwaIsIOS) {
-        alert('No iPhone, instale o app primeiro:\nSafari → Compartilhar (↑) → Adicionar à Tela de Início\n\nDepois abra o DoseMed instalado e ative aqui.');
+        this.toast('No iPhone: Safari → Compartilhar (↑) → "Adicionar à Tela de Início" → abra o app instalado', 'info');
         return;
       }
       if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-        alert('Seu navegador não suporta notificações push.'); return;
+        this.toast('Seu navegador não suporta notificações push.', 'erro'); return;
       }
       this.pushCarregando = true;
       try {
@@ -4588,6 +4612,79 @@ function dosemed() {
     </p>
   </div>
 </footer>
+
+<!-- Toast notification -->
+<div x-show="toastData" x-cloak
+  x-transition:enter="transition ease-out duration-200"
+  x-transition:enter-start="opacity-0 translate-y-3"
+  x-transition:enter-end="opacity-100 translate-y-0"
+  x-transition:leave="transition ease-in duration-150"
+  x-transition:leave-start="opacity-100"
+  x-transition:leave-end="opacity-0 translate-y-2"
+  class="fixed bottom-24 inset-x-4 z-[70] rounded-2xl px-4 py-3 text-sm font-semibold text-white text-center shadow-xl pointer-events-none leading-snug"
+  :class="{'bg-green-600': toastData?.tipo==='ok', 'bg-red-500': toastData?.tipo==='erro', 'bg-gray-800': toastData?.tipo==='info'}"
+  x-text="toastData?.msg">
+</div>
+
+<!-- Confirm overlay -->
+<div x-show="confirmAcao" x-cloak
+  x-transition:enter="transition ease-out duration-200"
+  x-transition:enter-start="opacity-0"
+  x-transition:enter-end="opacity-100"
+  class="fixed inset-0 z-[60] bg-black/40 flex items-end"
+  @click.self="confirmAcao = null">
+  <div x-show="confirmAcao"
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="translate-y-full"
+    x-transition:enter-end="translate-y-0"
+    class="bg-white rounded-t-3xl w-full px-5 pt-5 pb-8 space-y-4 shadow-2xl">
+    <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto"></div>
+    <p class="text-sm text-gray-700 text-center leading-relaxed" x-text="confirmAcao?.texto"></p>
+    <div class="flex gap-3 pt-1">
+      <button @click="confirmAcao = null"
+        class="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-600 font-semibold text-sm hover:bg-gray-200 transition">
+        Cancelar
+      </button>
+      <button @click="confirmarAcao()"
+        class="flex-1 py-3 rounded-2xl font-semibold text-sm transition"
+        :class="confirmAcao?.tipo === 'destrutivo' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-blue-600 text-white hover:bg-blue-700'"
+        x-text="confirmAcao?.botao || 'Confirmar'">
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal cobranças admin -->
+<div x-show="adminRecebimentos !== null" x-cloak
+  class="fixed inset-0 z-[60] bg-black/40 flex items-end sm:items-center justify-center px-0 sm:px-4"
+  @click.self="adminRecebimentos = null">
+  <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[72vh] flex flex-col shadow-2xl">
+    <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+      <p class="font-bold text-gray-800 text-sm">Cobranças — <span x-text="adminRecebimentosNome"></span></p>
+      <button @click="adminRecebimentos = null" class="text-gray-300 hover:text-gray-500 text-xl leading-none">✕</button>
+    </div>
+    <div class="overflow-y-auto p-4 space-y-2">
+      <template x-if="!adminRecebimentos?.length">
+        <p class="text-sm text-gray-400 text-center py-6">Nenhuma cobrança encontrada.</p>
+      </template>
+      <template x-for="c in (adminRecebimentos || [])" :key="c.id || c.dueDate">
+        <div class="bg-gray-50 rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-xs font-semibold text-gray-700 truncate" x-text="c.description || 'Cobrança'"></p>
+            <p class="text-xs text-gray-400" x-text="c.dueDate"></p>
+          </div>
+          <div class="text-right shrink-0">
+            <p class="text-xs font-bold text-gray-800" x-text="'R$ ' + Number(c.value||0).toFixed(2).replace('.',',')"></p>
+            <span class="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+              :class="{'bg-green-100 text-green-700': c.status==='RECEIVED', 'bg-yellow-100 text-yellow-600': c.status==='PENDING', 'bg-red-100 text-red-600': c.status==='OVERDUE'}"
+              x-text="c.status==='RECEIVED'?'Pago':c.status==='PENDING'?'Pendente':c.status==='OVERDUE'?'Vencido':(c.status||'—')">
+            </span>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
 
 <!-- Alpine inicializa depois que dosemed() está definido — necessário para iOS Safari -->
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
