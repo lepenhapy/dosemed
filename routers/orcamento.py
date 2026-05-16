@@ -29,7 +29,7 @@ from models import (
     PushSub,
     Usuario,
 )
-from schemas import ConfirmarChegadaPayload, EntregaPayload, OrcamentoRespostaPayload
+from schemas import AvaliarFarmaciaPayload, ConfirmarChegadaPayload, EntregaPayload, OrcamentoRespostaPayload
 
 router = APIRouter()
 
@@ -179,6 +179,8 @@ def listar_orcamentos(telefone: str, db: Session = Depends(get_db)):
             "medicamento": sol.nome_med,
             "status": sol.status,
             "entregue": sol.entregue,
+            "modalidade": sol.modalidade,
+            "avaliacao": sol.avaliacao,
             "criado_em": str(sol.criado_em.date()) if sol.criado_em else None,
             "expira_em": str(sol.expira_em) if sol.expira_em else None,
             "total_pendente": db.query(OrcamentoResposta).filter(
@@ -188,6 +190,8 @@ def listar_orcamentos(telefone: str, db: Session = Depends(get_db)):
             "respostas": [{
                 "id": r.id,
                 "farmacia_nome": r.farmacia.nome,
+                "farmacia_nota": round(r.farmacia.rating_total / r.farmacia.rating_count, 1)
+                                 if r.farmacia.rating_count else None,
                 "preco": r.preco,
                 "prazo_entrega": r.prazo_entrega,
                 "formas_pagamento": r.formas_pagamento,
@@ -198,7 +202,8 @@ def listar_orcamentos(telefone: str, db: Session = Depends(get_db)):
 
 
 @router.post("/orcamento/{solicitacao_id}/escolher/{resposta_id}")
-def escolher_farmacia(solicitacao_id: int, resposta_id: int, telefone: str, db: Session = Depends(get_db)):
+def escolher_farmacia(solicitacao_id: int, resposta_id: int, telefone: str,
+                      modalidade: str = "entrega", db: Session = Depends(get_db)):
     tel = validar_telefone(telefone)
     sol = db.query(OrcamentoSolicitacao).filter(
         OrcamentoSolicitacao.id == solicitacao_id,
@@ -224,6 +229,7 @@ def escolher_farmacia(solicitacao_id: int, resposta_id: int, telefone: str, db: 
         OrcamentoResposta.status == "respondido"
     ).update({"status": "perdeu"})
     sol.status = "fechado"
+    sol.modalidade = modalidade if modalidade in ("entrega", "retirada") else "entrega"
     db.commit()
 
     f = vencedora.farmacia
@@ -283,6 +289,37 @@ def confirmar_entrega_orcamento(sol_id: int, payload: EntregaPayload, db: Sessio
         logging.getLogger("dosemed").warning(f"Entrega NÃO confirmada: sol_id={sol_id}, farmacia={farmacia_nome}, motivo={motivo}")
 
     return {"ok": True}
+
+
+@router.post("/orcamento/{sol_id}/avaliar-farmacia")
+def avaliar_farmacia(sol_id: int, payload: AvaliarFarmaciaPayload, db: Session = Depends(get_db)):
+    tel = validar_telefone(payload.telefone)
+    sol = db.query(OrcamentoSolicitacao).filter(
+        OrcamentoSolicitacao.id == sol_id,
+        OrcamentoSolicitacao.usuario_id == tel
+    ).first()
+    if not sol:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada.")
+    if sol.status != "fechado" or sol.entregue != 1:
+        raise HTTPException(status_code=400, detail="Só é possível avaliar após confirmar a entrega.")
+    if sol.avaliacao:
+        raise HTTPException(status_code=400, detail="Esta entrega já foi avaliada.")
+    if not 1 <= payload.rating <= 5:
+        raise HTTPException(status_code=400, detail="Nota deve ser entre 1 e 5.")
+
+    vencedora = db.query(OrcamentoResposta).filter(
+        OrcamentoResposta.solicitacao_id == sol_id,
+        OrcamentoResposta.status == "ganhou"
+    ).first()
+    if not vencedora:
+        raise HTTPException(status_code=400, detail="Farmácia vencedora não encontrada.")
+
+    sol.avaliacao = payload.rating
+    f = vencedora.farmacia
+    f.rating_total = (f.rating_total or 0.0) + payload.rating
+    f.rating_count = (f.rating_count or 0) + 1
+    db.commit()
+    return {"ok": True, "mensagem": "Avaliação registrada! Obrigado pelo feedback."}
 
 
 @router.post("/confirmar-chegada")

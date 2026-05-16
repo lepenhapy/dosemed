@@ -136,6 +136,11 @@ class EntregaPayload(BaseModel):
     motivo: Optional[str] = None
 
 
+class AvaliarFarmaciaPayload(BaseModel):
+    telefone: str
+    rating: int  # 1–5
+
+
 class PushSubPayload(BaseModel):
     telefone: str
     endpoint: str
