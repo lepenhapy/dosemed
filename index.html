@@ -18,7 +18,23 @@
     [x-cloak]{display:none!important}
     .no-scrollbar::-webkit-scrollbar{display:none}
     .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
-    body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+    /* iOS: viewport sem barra de endereço */
+    html{min-height:-webkit-fill-available}
+    body{
+      min-height:100vh;
+      min-height:-webkit-fill-available;
+      padding-top:env(safe-area-inset-top);
+      padding-bottom:env(safe-area-inset-bottom);
+      /* Impede iOS de aumentar fontes automaticamente em landscape */
+      -webkit-text-size-adjust:100%;
+      text-size-adjust:100%;
+    }
+    /* Scroll fluido (inércia) em containers scroll no iOS */
+    .overflow-y-auto,.overflow-x-auto{-webkit-overflow-scrolling:touch}
+    /* Impede scroll do fundo quando modal está aberto */
+    .fixed.inset-0{overscroll-behavior:contain}
+    /* FAB acima do indicador de home do iPhone */
+    .fab-bottom{bottom:calc(1.5rem + env(safe-area-inset-bottom))}
   </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -54,7 +70,7 @@
     }
   </script>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans text-gray-800">
+<body class="bg-gray-50 font-sans text-gray-800">
 
 <!-- Banner: nova versão disponível -->
 <div id="swUpdateBanner" style="display:none"
@@ -244,7 +260,7 @@
 </div>
 
 <!-- MODAL EDITAR PERFIL -->
-<div x-show="modalPerfil" x-cloak class="fixed inset-0 bg-black/30 z-30 flex items-center justify-center px-4">
+<div x-show="modalPerfil" x-cloak class="fixed inset-0 bg-black/30 z-30 flex items-start justify-center px-4 overflow-y-auto py-8">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" @click.outside="modalPerfil = false">
     <h3 class="font-bold text-gray-800 mb-4">Editar perfil</h3>
     <div class="space-y-3">
@@ -2800,7 +2816,7 @@
 <!-- FAB — adicionar medicamento -->
 <template x-if="usuario && abaAtiva === 'estoque'">
   <button @click="abaAtiva = 'cadastrar'"
-    class="fixed bottom-6 right-6 z-30 w-14 h-14 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-full shadow-lg shadow-blue-200 flex items-center justify-center text-2xl transition-all"
+    class="fixed fab-bottom right-6 z-30 w-14 h-14 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-full shadow-lg shadow-blue-200 flex items-center justify-center text-2xl transition-all"
     title="Cadastrar medicamento">
     +
   </button>
@@ -4160,6 +4176,11 @@ function dosemed() {
     // --- Push Notifications ---
 
     async ativarNotificacoes() {
+      // iOS fora do PWA instalado: push não funciona — orientar usuário
+      if (this.pwaIsIOS) {
+        alert('No iPhone, instale o app primeiro:\nSafari → Compartilhar (↑) → Adicionar à Tela de Início\n\nDepois abra o DoseMed instalado e ative aqui.');
+        return;
+      }
       if (!('Notification' in window) || !('serviceWorker' in navigator)) {
         alert('Seu navegador não suporta notificações push.'); return;
       }
@@ -4304,7 +4325,7 @@ function dosemed() {
 
 <!-- MODAL: PROBLEMA DE ENTREGA -->
 <div x-show="entregaModal !== null" x-cloak
-  class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center px-0 sm:px-4"
+  class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-start justify-center px-0 sm:px-4 sm:pt-16 overflow-y-auto"
   @click.self="entregaModal = null">
   <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-sm p-6">
     <h2 class="font-bold text-gray-800 mb-1">O que aconteceu?</h2>
@@ -4324,7 +4345,7 @@ function dosemed() {
 
 <!-- MODAL FEEDBACK -->
 <div x-show="feedbackModal" x-cloak
-  class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center px-0 sm:px-4"
+  class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-start justify-center px-0 sm:px-4 sm:pt-10 overflow-y-auto"
   @click.self="feedbackModal = false">
   <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md p-6">
     <div class="flex items-center justify-between mb-5">
