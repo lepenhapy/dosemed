@@ -2,7 +2,7 @@
 <html lang="pt-BR" x-data="dosemed()" x-init="init()">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>DoseMed — Seu Estoque Digital</title>
   <meta name="theme-color" content="#2563eb" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,12 +12,13 @@
   <link rel="shortcut icon" href="/icon-192.png" type="image/png" />
   <link rel="manifest" href="/manifest.json" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- Alpine carregado no final do body para garantir que dosemed() esteja definido -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     [x-cloak]{display:none!important}
     .no-scrollbar::-webkit-scrollbar{display:none}
     .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+    body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
   </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -394,7 +395,7 @@
   </div>
 
   <!-- TELA DE ACESSO -->
-  <div x-show="!modoOrcamento && !usuario && !mostrarCadastro && !mostrarDefinirPin && !mostrarEscolha && !mostrarCadastroFarmacia" x-cloak>
+  <div x-show="!modoOrcamento && !usuario && !mostrarCadastro && !mostrarDefinirPin && !mostrarEscolha && !mostrarCadastroFarmacia">
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
       <div class="text-center mb-6">
         <div class="text-6xl mb-2">💊</div>
@@ -4409,6 +4410,9 @@ function dosemed() {
     </p>
   </div>
 </footer>
+
+<!-- Alpine inicializa depois que dosemed() está definido — necessário para iOS Safari -->
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 
 </body>
 </html>
