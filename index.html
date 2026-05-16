@@ -1754,6 +1754,27 @@
           </a>
         </div>
 
+        <!-- BUSCA DO ESTOQUE -->
+        <template x-if="(estoque.vencidos?.length + estoque.atencao?.length + estoque.ok?.length) > 0">
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-transparent transition shadow-sm">
+              <span class="text-gray-300 shrink-0">🔍</span>
+              <input x-model="busca" type="search" placeholder="Buscar no estoque..."
+                class="flex-1 text-sm text-gray-700 placeholder-gray-300 focus:outline-none bg-transparent" />
+              <button x-show="busca" @click="busca = ''" class="text-gray-300 hover:text-gray-500 text-base leading-none shrink-0 transition">✕</button>
+            </div>
+            <p x-show="busca.trim() && sintomatico" class="text-xs text-blue-500 px-1 flex items-center gap-1">
+              💊 Mostrando medicamentos que tratam este sintoma
+            </p>
+            <p x-show="busca.trim() && !sintomatico && totalFiltrado > 0" class="text-xs text-gray-400 px-1">
+              <span x-text="totalFiltrado"></span> resultado<span x-show="totalFiltrado !== 1">s</span> encontrado<span x-show="totalFiltrado !== 1">s</span>
+            </p>
+            <p x-show="busca.trim() && totalFiltrado === 0" class="text-xs text-gray-400 px-1">
+              Nenhum resultado para "<span x-text="busca" class="font-medium text-gray-600"></span>"
+            </p>
+          </div>
+        </template>
+
         <!-- GRID DE STATUS -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <template x-for="grupo in ['vencidos','atencao','ok']" :key="grupo">
