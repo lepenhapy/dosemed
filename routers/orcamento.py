@@ -181,6 +181,7 @@ def listar_orcamentos(telefone: str, db: Session = Depends(get_db)):
             "entregue": sol.entregue,
             "modalidade": sol.modalidade,
             "avaliacao": sol.avaliacao,
+            "origem": sol.origem,
             "criado_em": str(sol.criado_em.date()) if sol.criado_em else None,
             "expira_em": str(sol.expira_em) if sol.expira_em else None,
             "total_pendente": db.query(OrcamentoResposta).filter(
@@ -192,6 +193,7 @@ def listar_orcamentos(telefone: str, db: Session = Depends(get_db)):
                 "farmacia_nome": r.farmacia.nome,
                 "farmacia_nota": round(r.farmacia.rating_total / r.farmacia.rating_count, 1)
                                  if r.farmacia.rating_count else None,
+                "is_favorita": r.farmacia_id == sol.favorita_farmacia_id,
                 "preco": r.preco,
                 "prazo_entrega": r.prazo_entrega,
                 "formas_pagamento": r.formas_pagamento,

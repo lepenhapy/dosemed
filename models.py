@@ -114,8 +114,10 @@ class OrcamentoSolicitacao(Base):
     quantidade_restante = Column(Integer, nullable=True)
     status = Column(String, default="coletando")    # coletando | aguardando_usuario | fechado | cancelado | sem_resposta
     entregue = Column(Integer, nullable=True)        # None=pendente, 1=sim, 0=problema
-    modalidade = Column(String(20), nullable=True)  # entrega | retirada
-    avaliacao = Column(Integer, nullable=True)       # 1–5
+    modalidade = Column(String(20), nullable=True)       # entrega | retirada
+    avaliacao = Column(Integer, nullable=True)           # 1–5
+    origem = Column(String(20), nullable=True)           # manual | auto
+    favorita_farmacia_id = Column(Integer, nullable=True)  # farmácia favorita quando origem=auto
     criado_em = Column(DateTime, default=_now)
     expira_em = Column(DateTime, nullable=True)
     respostas = relationship("OrcamentoResposta", back_populates="solicitacao")

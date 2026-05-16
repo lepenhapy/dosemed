@@ -770,3 +770,109 @@ def gerar_leads_para_item(db: Session, item, usuario, origem: str = "cron"):
 
     db.commit()
     return enviados
+
+
+def criar_orcamento_auto(db, item, usuario) -> tuple:
+    """Cria OrcamentoSolicitacao automaticamente para item de uso contínuo com estoque baixo.
+    Prioriza a farmácia favorita (última que venceu para este medicamento).
+    Retorna (solicitacao_id, enviados) ou (None, 0) se já existe solicitação ativa."""
+    from database import get_config
+    from models import Farmacia, Lead, OrcamentoResposta, OrcamentoSolicitacao
+
+    # Não cria se já existe solicitação ativa para este medicamento
+    ativa = db.query(OrcamentoSolicitacao).filter(
+        OrcamentoSolicitacao.usuario_id == usuario.telefone,
+        OrcamentoSolicitacao.nome_med == item.nome_medicamento,
+        OrcamentoSolicitacao.status.in_(["coletando", "aguardando_usuario"])
+    ).first()
+    if ativa:
+        return None, 0
+
+    # Farmácia favorita = última que ganhou para este usuário + medicamento
+    favorita_id = None
+    ultima = (
+        db.query(OrcamentoResposta)
+        .join(OrcamentoResposta.solicitacao)
+        .filter(
+            OrcamentoSolicitacao.usuario_id == usuario.telefone,
+            OrcamentoSolicitacao.nome_med == item.nome_medicamento,
+            OrcamentoResposta.status == "ganhou",
+        )
+        .order_by(OrcamentoResposta.id.desc())
+        .first()
+    )
+    if ultima:
+        favorita_id = ultima.farmacia_id
+
+    minutos = int(get_config(db, "minutos_disputa_lead", "30"))
+    expira = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=minutos)
+    sol = OrcamentoSolicitacao(
+        usuario_id=usuario.telefone,
+        nome_med=item.nome_medicamento,
+        quantidade_restante=item.quantidade,
+        status="coletando",
+        expira_em=expira,
+        origem="auto",
+        favorita_farmacia_id=favorita_id,
+    )
+    db.add(sol)
+    db.flush()
+
+    max_farm = int(get_config(db, "max_farmacias_orcamento", "4"))
+    preco_chave = "preco_lead_manipulado" if item.manipulado else "preco_lead_comum"
+    preco_lead = float(get_config(db, preco_chave, "5.00"))
+
+    def _adicionar(f):
+        token = secrets.token_urlsafe(16)
+        db.add(OrcamentoResposta(
+            solicitacao_id=sol.id, farmacia_id=f.id, token=token, status="pendente",
+        ))
+        db.add(Lead(
+            farmacia_id=f.id,
+            usuario_bairro=usuario.bairro if usuario else None,
+            medicamento=item.nome_medicamento,
+            principio_ativo=item.principio_ativo,
+            miligramas=item.miligramas,
+            manipulado=item.manipulado or 0,
+            origem="auto_reposicao",
+            status="enviado",
+            preco_cobrado=preco_lead,
+        ))
+        if f.email:
+            html = html_orcamento_farmacia(
+                f.nome, usuario.bairro if usuario else "—",
+                item.nome_medicamento, item.principio_ativo or "",
+                item.miligramas or "", bool(item.manipulado), token,
+            )
+            enviar_email(f.email, f"DoseMed — Reposição automática: {item.nome_medicamento}", html)
+
+    enviados = 0
+    ids_adicionados: set = set()
+
+    # Favorita primeiro
+    if favorita_id:
+        fav = db.query(Farmacia).filter(Farmacia.id == favorita_id, Farmacia.ativo == 1).first()
+        if fav and not (item.manipulado and not fav.atende_manipulado):
+            _adicionar(fav)
+            ids_adicionados.add(fav.id)
+            enviados += 1
+
+    # Demais farmácias elegíveis até max_farm
+    farmacias = db.query(Farmacia).filter(Farmacia.ativo == 1).all()
+    for f in farmacias:
+        if enviados >= max_farm:
+            break
+        if f.id in ids_adicionados:
+            continue
+        if usuario and usuario.bairro:
+            bairros_f = [b.lower().strip() for b in (f.bairros or "").split(",") if b.strip()]
+            if bairros_f and usuario.bairro.lower().strip() not in bairros_f:
+                continue
+        if item.manipulado and not f.atende_manipulado:
+            continue
+        _adicionar(f)
+        ids_adicionados.add(f.id)
+        enviados += 1
+
+    db.commit()
+    return sol.id, enviados

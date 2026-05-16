@@ -14,6 +14,7 @@ from email.mime.text import MIMEText
 from database import SessionLocal, get_config
 from helpers import (
     calcular_doses_por_dia,
+    criar_orcamento_auto,
     enviar_push,
     gerar_leads_para_item,
 )
@@ -106,7 +107,8 @@ def cron_disparar_alarmes():
 
 
 def cron_verificar_estoque_baixo():
-    """Notifica via push usuários cujo estoque (em uso) está prestes a acabar."""
+    """Notifica via push usuários cujo estoque (em uso) está prestes a acabar.
+    Para medicamentos de uso contínuo, cria orçamento automático."""
     db = SessionLocal()
     try:
         dias_alerta = int(get_config(db, "dias_alerta_reposicao", "5"))
@@ -115,6 +117,7 @@ def cron_verificar_estoque_baixo():
             Estoque.status != "consumido"
         ).all()
         notificados = 0
+        auto_criados = 0
         for item in itens:
             doses = calcular_doses_por_dia(db, item.usuario_id, item.nome_medicamento)
             if not doses or doses <= 0:
@@ -122,18 +125,32 @@ def cron_verificar_estoque_baixo():
             dias_restantes = (item.quantidade or 1) / doses
             if dias_restantes > dias_alerta:
                 continue
+            usuario = db.query(Usuario).filter(Usuario.telefone == item.usuario_id).first()
+            nome = usuario.nome.split()[0] if usuario else "você"
+
+            if item.uso_continuo:
+                sol_id, enviados = criar_orcamento_auto(db, item, usuario)
+                if sol_id:
+                    auto_criados += 1
+                    subs = db.query(PushSub).filter(PushSub.usuario_id == item.usuario_id).all()
+                    for sub in subs:
+                        msg = (f"{nome}, criamos um orçamento automático para {item.nome_medicamento}. "
+                               f"Aguarde as propostas no app!")
+                        if enviar_push(sub, "🔄 Reposição automática!", msg):
+                            notificados += 1
+                continue  # uso_continuo sem sol ativa já enviou push acima (ou já havia sol)
+
             subs = db.query(PushSub).filter(PushSub.usuario_id == item.usuario_id).all()
             if not subs:
                 continue
-            usuario = db.query(Usuario).filter(Usuario.telefone == item.usuario_id).first()
-            nome = usuario.nome.split()[0] if usuario else "você"
             for sub in subs:
                 if enviar_push(sub, "💊 Estoque baixo!",
                                f"{nome}, {item.nome_medicamento} está acabando "
                                f"(≈{max(1, int(dias_restantes))} dia(s)). Deseja reabastecer?"):
                     notificados += 1
-        if notificados:
-            logger.info(f"[ESTOQUE BAIXO] {notificados} notificações push enviadas")
+
+        if notificados or auto_criados:
+            logger.info(f"[ESTOQUE BAIXO] {notificados} push enviados, {auto_criados} orçamentos automáticos")
     except Exception as e:
         logger.error(f"[ESTOQUE BAIXO] Erro: {e}")
     finally:
