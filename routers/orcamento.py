@@ -235,6 +235,10 @@ def escolher_farmacia(solicitacao_id: int, resposta_id: int, telefone: str, db: 
                      html_orcamento_ganhou(f.nome, sol.nome_med, bairro,
                                            vencedora.preco, vencedora.prazo_entrega or "—",
                                            vencedora.formas_pagamento or "—"))
+    if f.telefone_contato:
+        for sub in db.query(PushSub).filter(PushSub.usuario_id == f.telefone_contato).all():
+            enviar_push(sub, "🏆 Você foi escolhido!",
+                        f"{sol.nome_med} — cliente em {bairro} escolheu sua proposta. Prepare o pedido!")
 
     perdedoras = db.query(OrcamentoResposta).filter(
         OrcamentoResposta.solicitacao_id == solicitacao_id,

@@ -31,6 +31,7 @@ from models import (
     LogBusca,
     LogEvento,
     OrcamentoResposta,
+    OrcamentoSolicitacao,
 )
 from schemas import (
     AnuncioCriarPayload,
@@ -549,3 +550,32 @@ def farmacia_listar_anuncios(telefone: str, db: Session = Depends(get_db)):
         "criado_em": str(a.criado_em.date()) if a.criado_em else None,
         "disparado_em": str(a.disparado_em) if a.disparado_em else None,
     } for a in anuncios]
+
+
+@router.get("/farmacia/orcamentos-respondidos")
+def farmacia_orcamentos_respondidos(telefone: str, db: Session = Depends(get_db)):
+    digitos = re.sub(r"\D", "", telefone)
+    farm = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
+    if not farm:
+        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+    respostas = (
+        db.query(OrcamentoResposta)
+        .filter(
+            OrcamentoResposta.farmacia_id == farm.id,
+            OrcamentoResposta.status.in_(["respondido", "ganhou", "perdeu"])
+        )
+        .order_by(OrcamentoResposta.respondido_em.desc())
+        .limit(30)
+        .all()
+    )
+    return [{
+        "id": r.id,
+        "medicamento": r.solicitacao.nome_med,
+        "quantidade": r.solicitacao.quantidade_restante,
+        "preco": r.preco,
+        "prazo_entrega": r.prazo_entrega,
+        "formas_pagamento": r.formas_pagamento,
+        "status": r.status,
+        "status_solicitacao": r.solicitacao.status,
+        "respondido_em": str(r.respondido_em.date()) if r.respondido_em else None,
+    } for r in respostas]

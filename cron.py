@@ -140,6 +140,32 @@ def cron_verificar_estoque_baixo():
         db.close()
 
 
+def cron_encerrar_orcamentos_expirados():
+    """Marca como sem_resposta as solicitações que expiraram sem nenhuma proposta."""
+    from helpers import PUSH_OK
+    db = SessionLocal()
+    try:
+        agora = datetime.now(timezone.utc).replace(tzinfo=None)
+        expiradas = db.query(OrcamentoSolicitacao).filter(
+            OrcamentoSolicitacao.status == "coletando",
+            OrcamentoSolicitacao.expira_em <= agora
+        ).all()
+        for sol in expiradas:
+            sol.status = "sem_resposta"
+            if PUSH_OK:
+                subs = db.query(PushSub).filter(PushSub.usuario_id == sol.usuario_id).all()
+                for sub in subs:
+                    enviar_push(sub, "💊 DoseMed",
+                                f"Nenhuma farmácia respondeu para {sol.nome_med}. Tente de novo pelo app.")
+        if expiradas:
+            db.commit()
+            logger.info(f"[ORCAMENTOS] {len(expiradas)} solicitações encerradas como sem_resposta")
+    except Exception as e:
+        logger.error(f"[ORCAMENTOS EXPIRADOS] Erro: {e}")
+    finally:
+        db.close()
+
+
 def cron_expirar_interesses():
     db = SessionLocal()
     try:
@@ -266,6 +292,8 @@ if SCHEDULER_OK:
                        id="alarmes", replace_existing=True, max_instances=1, coalesce=True)
     _scheduler.add_job(cron_verificar_estoque_baixo, CronTrigger(hour=12, minute=15),
                        id="estoque_baixo", replace_existing=True, max_instances=1, coalesce=True)
+    _scheduler.add_job(cron_encerrar_orcamentos_expirados, CronTrigger(minute="*/5"),
+                       id="orcamentos_expirados", replace_existing=True, max_instances=1, coalesce=True)
     _scheduler.add_job(cron_expirar_interesses, CronTrigger(hour=3, minute=0),
                        id="interesses", replace_existing=True, max_instances=1, coalesce=True)
     _scheduler.add_job(cron_backup_db, CronTrigger(hour=6, minute=30),
