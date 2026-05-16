@@ -1,5 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR" x-data="dosemed()" x-init="init()">
+<html lang="pt-BR" x-data="dosemed()" x-init="init()"
+  :class="{
+    'dm-outro-modo': usuario||modoOrcamento||mostrarCadastro||mostrarDefinirPin||mostrarEscolha||mostrarCadastroFarmacia,
+    'dm-orcamento': modoOrcamento
+  }">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -25,16 +29,19 @@
       min-height:-webkit-fill-available;
       padding-top:env(safe-area-inset-top);
       padding-bottom:env(safe-area-inset-bottom);
-      /* Impede iOS de aumentar fontes automaticamente em landscape */
       -webkit-text-size-adjust:100%;
       text-size-adjust:100%;
     }
-    /* Scroll fluido (inércia) em containers scroll no iOS */
     .overflow-y-auto,.overflow-x-auto{-webkit-overflow-scrolling:touch}
-    /* Impede scroll do fundo quando modal está aberto */
     .fixed.inset-0{overscroll-behavior:contain}
-    /* FAB acima do indicador de home do iPhone */
     .fab-bottom{bottom:calc(1.5rem + env(safe-area-inset-bottom))}
+    /* Header e tela de login visíveis por padrão — sem dependência de Alpine */
+    #dm-header{display:block}
+    #dm-login{display:block}
+    /* Login some quando Alpine ativa outra tela (logado, cadastro, etc.) */
+    .dm-outro-modo #dm-login{display:none!important}
+    /* Header some apenas no modo orçamento público */
+    .dm-orcamento #dm-header{display:none!important}
   </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -116,7 +123,7 @@
 </datalist>
 
 <!-- HEADER -->
-<header x-show="!modoOrcamento" class="bg-white border-b border-gray-100 sticky top-0 z-20">
+<header id="dm-header" class="bg-white border-b border-gray-100 sticky top-0 z-20">
   <div class="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <span class="text-xl">💊</span>
@@ -411,7 +418,7 @@
   </div>
 
   <!-- TELA DE ACESSO -->
-  <div x-show="!modoOrcamento && !usuario && !mostrarCadastro && !mostrarDefinirPin && !mostrarEscolha && !mostrarCadastroFarmacia">
+  <div id="dm-login">
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
       <div class="text-center mb-6">
         <div class="text-6xl mb-2">💊</div>
