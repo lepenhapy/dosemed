@@ -1,11 +1,12 @@
-const CACHE = 'dosemed-v24';
+const CACHE = 'dosemed-v25';
 const SHELL = ['/'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(SHELL).catch(() => {}))
   );
-  // Não chama skipWaiting() automaticamente — o banner controla quando atualizar
+  // skipWaiting imediato — garante que iOS receba o novo index.html sem depender do banner
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
