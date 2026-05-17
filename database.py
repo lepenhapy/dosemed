@@ -36,13 +36,14 @@ Base.metadata.create_all(bind=engine)
 
 # --- Migrations (safe add-only) ---
 _migracoes = {
-    "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "cidade TEXT", "data_nascimento DATE", "aceite_lgpd TIMESTAMP", "genero TEXT", "session_token TEXT", "pin_tentativas INTEGER DEFAULT 0", "pin_bloqueado_ate TIMESTAMP"],
+    "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "cidade TEXT", "data_nascimento DATE", "aceite_lgpd TIMESTAMP", "genero TEXT", "session_token TEXT", "pin_tentativas INTEGER DEFAULT 0", "pin_bloqueado_ate TIMESTAMP", "endereco_completo TEXT", "instrucoes_portaria TEXT"],
     "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo TIMESTAMP", "uso_continuo INTEGER DEFAULT 0"],
     "anuncios_push": [
         "produto TEXT", "preco_de REAL", "preco_por REAL",
         "data_expiracao DATE", "tem_entrega INTEGER DEFAULT 0",
         "valor_frete REAL", "formas_pagamento TEXT",
         "whatsapp_contato TEXT", "categorias TEXT", "faixa_etaria TEXT",
+        "titulo TEXT",
     ],
     "log_buscas": ["bairro TEXT", "genero TEXT", "ano_nasc INTEGER"],
     "leads": ["asaas_charge_id TEXT", "criado_em TIMESTAMP"],
@@ -59,9 +60,9 @@ _migracoes = {
         "rating_count INTEGER DEFAULT 0",
         "origem TEXT DEFAULT 'admin'",
     ],
-    "alarmes": [],
+    "alarmes": ["dias_tratamento INTEGER"],
     "push_subs": [],
-    "orcamentos_solicitacoes": ["entregue INTEGER"],
+    "orcamentos_solicitacoes": ["entregue INTEGER", "modalidade TEXT", "avaliacao INTEGER", "origem TEXT", "favorita_farmacia_id INTEGER", "expira_em TIMESTAMP"],
 }
 with engine.connect() as conn:
     for tabela, colunas in _migracoes.items():
