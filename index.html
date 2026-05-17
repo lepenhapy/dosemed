@@ -2616,11 +2616,17 @@
                   </div>
                   <p class="text-[11px] text-center text-gray-400 font-mono break-all leading-relaxed"
                     x-text="window.location.origin + '/?farmacia=' + farmacia.farmacia.id"></p>
-                  <a :href="`https://api.qrserver.com/v1/create-qr-code/?size=500x500&margin=20&data=${encodeURIComponent(window.location.origin + '/?farmacia=' + farmacia.farmacia.id)}`"
-                    target="_blank" rel="noopener"
-                    class="block w-full text-center bg-white border border-green-300 text-green-700 text-sm font-semibold py-2.5 rounded-xl hover:bg-green-50 transition">
-                    Baixar imagem (PNG) →
-                  </a>
+                  <div class="grid grid-cols-2 gap-2">
+                    <a :href="`https://api.qrserver.com/v1/create-qr-code/?size=500x500&margin=20&data=${encodeURIComponent(window.location.origin + '/?farmacia=' + farmacia.farmacia.id)}`"
+                      target="_blank" rel="noopener"
+                      class="block text-center bg-white border border-green-300 text-green-700 text-sm font-semibold py-2.5 rounded-xl hover:bg-green-50 transition">
+                      Baixar PNG →
+                    </a>
+                    <button @click="imprimirQR(farmacia.farmacia)"
+                      class="bg-green-600 text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-green-700 transition">
+                      🖨 Imprimir
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3685,6 +3691,47 @@ function dosemed() {
         }
       } catch {}
       this.carregando = false;
+    },
+
+    imprimirQR(farm) {
+      const url = `${window.location.origin}/?farmacia=${farm.id}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=20&data=${encodeURIComponent(url)}`;
+      const nome = farm.nome || 'Farmácia Parceira';
+      const w = window.open('', '_blank');
+      w.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>QR Code — ${nome}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; background: #fff; color: #111; }
+  .page { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 40px 24px; text-align: center; gap: 32px; }
+  .topo { font-size: 22px; font-weight: 800; color: #15803d; line-height: 1.35; max-width: 420px; }
+  .nome { font-size: 16px; font-weight: 600; color: #374151; margin-top: 6px; }
+  .qr { border: 3px solid #e5e7eb; border-radius: 16px; padding: 16px; background: #fff; }
+  .qr img { display: block; }
+  .rodape { font-size: 16px; color: #374151; line-height: 1.5; max-width: 380px; }
+  .marca { font-size: 12px; color: #9ca3af; margin-top: 8px; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div>
+    <div class="topo">💊 Esta farmácia é parceira da DoseMed</div>
+    <div class="nome">${nome}</div>
+  </div>
+  <div class="qr"><img src="${qrUrl}" width="400" height="400" alt="QR Code"></div>
+  <div>
+    <div class="rodape">Escaneie o QR code para fazer check-in ou conhecer o app de controle de remédios.</div>
+    <div class="marca">dosemed.app</div>
+  </div>
+</div>
+<script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`);
+      w.document.close();
     },
 
     async carregarFarmaciaInsights() {
