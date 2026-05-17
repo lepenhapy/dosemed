@@ -77,7 +77,9 @@ class LogBusca(Base):
     ddd = Column(String, nullable=True)
     estado = Column(String, nullable=True)
     bairro = Column(String, nullable=True)
-    usuario_id = Column(String, nullable=True)
+    usuario_id = Column(String, nullable=True)   # SHA-256 hash, não dado pessoal direto
+    genero = Column(String, nullable=True)        # M | F | ? — copiado no momento do log
+    ano_nasc = Column(Integer, nullable=True)     # apenas o ano — suficiente para faixa etária
 
 
 class Farmacia(Base):
@@ -180,6 +182,7 @@ class AlarmeRemedio(Base):
     nome_med = Column(String, nullable=False)
     horario = Column(String, nullable=False)   # "HH:MM" UTC-3
     dias = Column(String, default="1,2,3,4,5,6,7")  # 1=seg … 7=dom
+    dias_tratamento = Column(Integer, nullable=True)  # duração prescrita em dias
     ativo = Column(Integer, default=1)
     criado_em = Column(DateTime, default=_now)
 

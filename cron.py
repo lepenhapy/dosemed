@@ -15,14 +15,17 @@ from database import SessionLocal, get_config
 from helpers import (
     calcular_doses_por_dia,
     criar_orcamento_auto,
+    enviar_email,
     enviar_push,
     gerar_leads_para_item,
+    html_relatorio_farmacia,
 )
 from models import (
     AlarmeRemedio,
     Estoque,
     Farmacia,
     InteresseAnuncio,
+    LogBusca,
     OrcamentoResposta,
     OrcamentoSolicitacao,
     PushSub,
@@ -84,6 +87,19 @@ def cron_disparar_alarmes():
         agora_brt = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
         horario_atual = agora_brt.strftime("%H:%M")
         dia_semana = str(agora_brt.isoweekday())  # 1=seg, 7=dom
+
+        # Desativar alarmes cujo tratamento expirou
+        hoje = agora_brt.date()
+        expirados = db.query(AlarmeRemedio).filter(
+            AlarmeRemedio.ativo == 1,
+            AlarmeRemedio.dias_tratamento.isnot(None),
+        ).all()
+        for a in expirados:
+            if a.criado_em and a.dias_tratamento:
+                encerra = (a.criado_em + timedelta(days=a.dias_tratamento)).date()
+                if encerra <= hoje:
+                    a.ativo = 0
+        db.commit()
 
         alarmes = db.query(AlarmeRemedio).filter(
             AlarmeRemedio.ativo == 1,
@@ -296,6 +312,105 @@ def cron_backup_db():
         db.close()
 
 
+def cron_limpar_log_busca():
+    """Remove registros de LogBusca com mais de 90 dias — política de retenção LGPD."""
+    db = SessionLocal()
+    try:
+        corte = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=90)
+        deletados = db.query(LogBusca).filter(LogBusca.timestamp < corte).delete()
+        db.commit()
+        if deletados:
+            logger.info(f"[LGPD] {deletados} registros de LogBusca expirados removidos (>90 dias)")
+    except Exception as e:
+        logger.error(f"[LGPD] Erro ao limpar log_buscas: {e}")
+    finally:
+        db.close()
+
+
+def cron_relatorio_semanal_farmacias():
+    """Envia relatório semanal segmentado (sexo, faixa etária, bairro) para farmácias Pro/Manipulado."""
+    db = SessionLocal()
+    try:
+        agora = datetime.now(timezone.utc).replace(tzinfo=None)
+        inicio_semana = agora - timedelta(days=7)
+
+        farmacias = db.query(Farmacia).filter(
+            Farmacia.ativo == 1,
+            Farmacia.plano.in_(["pro", "manipulado"]),
+            Farmacia.email.isnot(None),
+        ).all()
+
+        semana_str = inicio_semana.strftime("%d/%m") + " a " + (agora - timedelta(days=1)).strftime("%d/%m/%Y")
+        enviados = 0
+
+        for f in farmacias:
+            bairros_f = [b.lower().strip() for b in (f.bairros or "").split(",") if b.strip()]
+
+            # Buscas da semana no bairro da farmácia
+            q = db.query(LogBusca).filter(LogBusca.timestamp >= inicio_semana)
+            if bairros_f:
+                q = q.filter(LogBusca.bairro.in_(bairros_f))
+
+            logs = q.all()
+            if not logs:
+                continue
+
+            # Top medicamentos e sintomas
+            med_count: dict = {}
+            sint_count: dict = {}
+            for l in logs:
+                if l.tipo == "medicamento":
+                    med_count[l.termo] = med_count.get(l.termo, 0) + 1
+                elif l.tipo in ("sintoma", "bula"):
+                    sint_count[l.termo] = sint_count.get(l.termo, 0) + 1
+
+            buscas_med = sorted([{"termo": k, "total": v} for k, v in med_count.items()], key=lambda x: -x["total"])
+            buscas_sint = sorted([{"termo": k, "total": v} for k, v in sint_count.items()], key=lambda x: -x["total"])
+
+            # Perfil demográfico — usa campos gravados no próprio log (usuario_id é hash irreversível)
+            por_sexo: dict = {"F": 0, "M": 0, "?": 0}
+            por_faixa: dict = {"<18": 0, "18-35": 0, "36-55": 0, "56+": 0, "?": 0}
+            por_bairro: dict = {}
+            vistos: set = set()  # evita contar o mesmo hash duas vezes no mesmo relatório
+
+            ano_atual = agora.year
+            for l in logs:
+                uid = l.usuario_id
+                if uid and uid not in vistos:
+                    vistos.add(uid)
+                    g = l.genero if l.genero in ("F", "M") else "?"
+                    por_sexo[g] = por_sexo.get(g, 0) + 1
+                    if l.ano_nasc:
+                        idade = ano_atual - l.ano_nasc
+                        if idade < 18:
+                            por_faixa["<18"] += 1
+                        elif idade <= 35:
+                            por_faixa["18-35"] += 1
+                        elif idade <= 55:
+                            por_faixa["36-55"] += 1
+                        else:
+                            por_faixa["56+"] += 1
+                    else:
+                        por_faixa["?"] += 1
+
+                if l.bairro:
+                    por_bairro[l.bairro] = por_bairro.get(l.bairro, 0) + 1
+
+            html = html_relatorio_farmacia(f.nome, semana_str, buscas_med, buscas_sint,
+                                           por_sexo, por_faixa, por_bairro)
+            ok, err = enviar_email(f.email, f"DoseMed — Relatório semanal · {semana_str}", html)
+            if ok:
+                enviados += 1
+            else:
+                logger.warning(f"[RELATORIO] Falha ao enviar para {f.nome}: {err}")
+
+        logger.info(f"[RELATORIO] {enviados} relatórios semanais enviados")
+    except Exception as e:
+        logger.error(f"[RELATORIO] Erro: {e}")
+    finally:
+        db.close()
+
+
 # ---------------------------------------------------------------------------
 # Scheduler setup
 # ---------------------------------------------------------------------------
@@ -315,5 +430,9 @@ if SCHEDULER_OK:
                        id="interesses", replace_existing=True, max_instances=1, coalesce=True)
     _scheduler.add_job(cron_backup_db, CronTrigger(hour=6, minute=30),
                        id="backup_db", replace_existing=True, max_instances=1, coalesce=True)
+    _scheduler.add_job(cron_relatorio_semanal_farmacias, CronTrigger(day_of_week="mon", hour=12, minute=0),
+                       id="relatorio_semanal", replace_existing=True, max_instances=1, coalesce=True)
+    _scheduler.add_job(cron_limpar_log_busca, CronTrigger(hour=4, minute=0),
+                       id="limpar_log_busca", replace_existing=True, max_instances=1, coalesce=True)
 else:
     _scheduler = None

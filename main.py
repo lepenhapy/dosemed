@@ -28,7 +28,7 @@ from database import limiter  # noqa: E402
 
 import cron  # noqa: E402  — registers scheduler jobs at import time
 
-from routers import admin, alarmes, auth, bulas, estoque, farmacia, misc, orcamento, promocoes, push  # noqa: E402
+from routers import admin, alarmes, auth, bulas, estoque, farmacia, misc, orcamento, promocoes, publico, push  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # App
@@ -84,6 +84,7 @@ app.include_router(orcamento.router)
 app.include_router(push.router)
 app.include_router(promocoes.router)
 app.include_router(misc.router)
+app.include_router(publico.router)
 
 
 

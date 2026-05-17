@@ -44,7 +44,7 @@ _migracoes = {
         "valor_frete REAL", "formas_pagamento TEXT",
         "whatsapp_contato TEXT", "categorias TEXT", "faixa_etaria TEXT",
     ],
-    "log_buscas": ["bairro TEXT"],
+    "log_buscas": ["bairro TEXT", "genero TEXT", "ano_nasc INTEGER"],
     "leads": ["asaas_charge_id TEXT", "criado_em TIMESTAMP"],
     "farmacias": [
         "atende_manipulado INTEGER DEFAULT 0",

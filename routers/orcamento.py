@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from config import ADMIN_PHONE
-from database import get_config, get_db
+from database import get_config, get_db, get_usuario_autenticado
 from helpers import (
     calcular_preco,
     calcular_status,
@@ -162,8 +162,10 @@ def responder_orcamento(token: str, payload: OrcamentoRespostaPayload, db: Sessi
 
 
 @router.get("/usuario/{telefone}/orcamentos")
-def listar_orcamentos(telefone: str, db: Session = Depends(get_db)):
+def listar_orcamentos(telefone: str, usuario_auth = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     tel = validar_telefone(telefone)
+    if usuario_auth.telefone != tel:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     sols = db.query(OrcamentoSolicitacao).filter(
         OrcamentoSolicitacao.usuario_id == tel
     ).order_by(OrcamentoSolicitacao.criado_em.desc()).limit(20).all()

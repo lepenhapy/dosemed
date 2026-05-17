@@ -403,11 +403,11 @@ def excluir_farmacia(telefone: str, payload: ExcluirContaPayload, db: Session = 
 
 
 @router.get("/farmacia/insights")
-def farmacia_insights(telefone: str, db: Session = Depends(get_db)):
+def farmacia_insights(telefone: str, farmacia_auth: Farmacia = Depends(get_farmacia_autenticada), db: Session = Depends(get_db)):
     digitos = re.sub(r"\D", "", telefone)
-    f = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
-    if not f:
-        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+    f = farmacia_auth
+    if f.telefone_contato != digitos:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     if f.plano not in ("pro", "manipulado"):
         raise HTTPException(status_code=403, detail="Insights disponíveis apenas para planos Pro e Manipulado.")
 
@@ -532,11 +532,11 @@ def farmacia_precos_anuncio(db: Session = Depends(get_db)):
 
 
 @router.get("/farmacia/anuncios")
-def farmacia_listar_anuncios(telefone: str, db: Session = Depends(get_db)):
+def farmacia_listar_anuncios(telefone: str, farmacia_auth: Farmacia = Depends(get_farmacia_autenticada), db: Session = Depends(get_db)):
     digitos = re.sub(r"\D", "", telefone)
-    farm = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
-    if not farm:
-        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+    farm = farmacia_auth
+    if farm.telefone_contato != digitos:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     anuncios = db.query(AnuncioPush).filter(AnuncioPush.farmacia_id == farm.id).order_by(AnuncioPush.criado_em.desc()).limit(20).all()
     return [{
         "id": a.id, "texto": a.texto, "titulo": a.titulo, "publico": a.publico,
@@ -554,11 +554,11 @@ def farmacia_listar_anuncios(telefone: str, db: Session = Depends(get_db)):
 
 
 @router.get("/farmacia/orcamentos-respondidos")
-def farmacia_orcamentos_respondidos(telefone: str, db: Session = Depends(get_db)):
+def farmacia_orcamentos_respondidos(telefone: str, farmacia_auth: Farmacia = Depends(get_farmacia_autenticada), db: Session = Depends(get_db)):
     digitos = re.sub(r"\D", "", telefone)
-    farm = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
-    if not farm:
-        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+    farm = farmacia_auth
+    if farm.telefone_contato != digitos:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     respostas = (
         db.query(OrcamentoResposta)
         .filter(
@@ -583,11 +583,11 @@ def farmacia_orcamentos_respondidos(telefone: str, db: Session = Depends(get_db)
 
 
 @router.get("/farmacia/metricas")
-def farmacia_metricas(telefone: str, db: Session = Depends(get_db)):
+def farmacia_metricas(telefone: str, farmacia_auth: Farmacia = Depends(get_farmacia_autenticada), db: Session = Depends(get_db)):
     digitos = re.sub(r"\D", "", telefone)
-    farm = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
-    if not farm:
-        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+    farm = farmacia_auth
+    if farm.telefone_contato != digitos:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
 
     agora = datetime.now(timezone.utc).replace(tzinfo=None)
     inicio_mes = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)

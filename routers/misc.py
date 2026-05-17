@@ -105,12 +105,11 @@ async def enviar_feedback(request: Request, payload: FeedbackPayload, db: Sessio
 
 
 @router.get("/exportar/{telefone}", response_class=HTMLResponse)
-def exportar(telefone: str, db: Session = Depends(get_db)):
+def exportar(telefone: str, usuario_auth: Usuario = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     telefone = validar_telefone(telefone)
-    usuario = db.query(Usuario).filter(Usuario.telefone == telefone).first()
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
-
+    if usuario_auth.telefone != telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+    usuario = usuario_auth
     atualizar_status_estoque(db, telefone)
     itens = db.query(Estoque).filter(
         Estoque.usuario_id == telefone,
@@ -271,6 +270,12 @@ def exportar_dados_lgpd(
 async def webhook_asaas(request: Request, db: Session = Depends(get_db)):
     import logging
     logger = logging.getLogger("dosemed")
+    token_esperado = os.getenv("ASAAS_WEBHOOK_TOKEN", "").strip()
+    if token_esperado:
+        token_recebido = request.headers.get("asaas-access-token", "")
+        if token_recebido != token_esperado:
+            logger.warning(f"[ASAAS] Webhook bloqueado — token inválido")
+            return {"ok": True}   # retorna 200 para o Asaas não retentar, mas ignora o payload
     try:
         data = await request.json()
         evento = data.get("event", "")

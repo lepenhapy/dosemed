@@ -154,6 +154,7 @@ class AlarmePayload(BaseModel):
     horario: str          # "HH:MM"
     dias: Optional[str] = "1,2,3,4,5,6,7"
     ativo: Optional[int] = 1
+    dias_tratamento: Optional[int] = None
 
 
 class FarmaciaSetPinPayload(BaseModel):

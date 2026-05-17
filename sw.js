@@ -1,4 +1,4 @@
-const CACHE = 'dosemed-v26';
+const CACHE = 'dosemed-v30';
 const SHELL = ['/'];
 
 self.addEventListener('install', e => {
@@ -22,7 +22,13 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
   // API calls: network-first, sem cache
-  if (url.pathname.startsWith('/dashboard') ||
+  if (url.pathname === '/privacidade' ||
+      url.pathname === '/termos' ||
+      url.pathname.startsWith('/reconhecer-imagem') ||
+      url.pathname.startsWith('/exportar/') ||
+      url.pathname.startsWith('/bulas/') ||
+      url.pathname.startsWith('/bulas-index') ||
+      url.pathname.startsWith('/dashboard') ||
       url.pathname.startsWith('/estoque') ||
       url.pathname.startsWith('/usuario') ||
       url.pathname.startsWith('/auth') ||

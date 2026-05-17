@@ -1967,7 +1967,7 @@
                 class="text-xs bg-gray-100 text-gray-500 hover:bg-gray-200 px-3 py-1.5 rounded-lg font-semibold transition" title="Testar notificação">
                 🔔 Testar
               </button>
-              <button @click="novoAlarme = {nome_med:'',horario:'',freq:'',dias:{1:true,2:true,3:true,4:true,5:true,6:true,7:true}}"
+              <button @click="novoAlarme = {nome_med:'',horario:'',freq:'',dias:{1:true,2:true,3:true,4:true,5:true,6:true,7:true},dias_tratamento:null}"
                 class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-blue-700">+ Novo</button>
             </div>
           </div>
@@ -2040,6 +2040,13 @@
                   </template>
                 </div>
               </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Dias de tratamento <span class="text-gray-300 font-normal normal-case">(opcional)</span></label>
+                <input x-model.number="novoAlarme.dias_tratamento" type="number" min="1" max="365" placeholder="Ex: 7, 14, 30…"
+                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                <p class="text-xs text-gray-400 mt-1" x-show="novoAlarme.dias_tratamento > 0"
+                   x-text="'Alarme desativado automaticamente após ' + novoAlarme.dias_tratamento + ' dia(s)'"></p>
+              </div>
             </div>
             <div class="flex gap-2">
               <button @click="novoAlarme = null" class="flex-1 border border-gray-200 text-gray-400 py-2 rounded-xl text-sm hover:bg-gray-50">Cancelar</button>
@@ -2066,6 +2073,14 @@
                   <div class="flex-1 min-w-0">
                     <p class="text-sm font-semibold text-gray-700 truncate" x-text="a.nome_med"></p>
                     <p class="text-xs text-gray-400 mt-0.5" x-text="formatarDias(a.dias)"></p>
+                    <template x-if="a.dias_tratamento && a.criado_em">
+                      <p class="text-xs text-blue-400 mt-0.5" x-text="(() => {
+                        const enc = new Date(a.criado_em); enc.setDate(enc.getDate() + a.dias_tratamento);
+                        const hoje = new Date(); const diff = Math.ceil((enc - hoje) / 86400000);
+                        const encStr = enc.toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'});
+                        return diff > 0 ? 'Tratamento: ' + a.dias_tratamento + ' dias · Encerra ' + encStr + ' (' + diff + ' restantes)' : 'Tratamento encerrado em ' + encStr;
+                      })()"></p>
+                    </template>
                   </div>
                   <div class="flex items-center gap-2 shrink-0">
                     <button @click="toggleAlarme(a)"
@@ -3557,7 +3572,9 @@ function dosemed() {
 
     async carregarOrcamentos() {
       try {
-        const r = await fetch(`/usuario/${encodeURIComponent(this.telefoneAtual)}/orcamentos`);
+        const r = await fetch(`/usuario/${encodeURIComponent(this.telefoneAtual)}/orcamentos`, {
+          headers: { 'X-Token': this.sessionToken || '' }
+        });
         if (r.ok) this.orcamentos = await r.json();
       } catch {}
     },
@@ -3672,21 +3689,21 @@ function dosemed() {
 
     async carregarFarmaciaInsights() {
       try {
-        const r = await fetch(`/farmacia/insights?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        const r = await fetch(`/farmacia/insights?telefone=${encodeURIComponent(this.telefoneAtual)}`, { headers: { 'X-Token': this.sessionToken || '' } });
         if (r.ok) this.farmaciaInsights = await r.json();
       } catch {}
     },
 
     async carregarOrcamentosFarmacia() {
       try {
-        const r = await fetch(`/farmacia/orcamentos-respondidos?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        const r = await fetch(`/farmacia/orcamentos-respondidos?telefone=${encodeURIComponent(this.telefoneAtual)}`, { headers: { 'X-Token': this.sessionToken || '' } });
         if (r.ok) this.farmaciaOrcamentos = await r.json();
       } catch {}
     },
 
     async carregarMetricasFarmacia() {
       try {
-        const r = await fetch(`/farmacia/metricas?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        const r = await fetch(`/farmacia/metricas?telefone=${encodeURIComponent(this.telefoneAtual)}`, { headers: { 'X-Token': this.sessionToken || '' } });
         if (r.ok) this.farmaciaMetricas = await r.json();
       } catch {}
     },
@@ -4250,7 +4267,9 @@ function dosemed() {
 
     async carregarAnunciosFarmacia() {
       try {
-        const r = await fetch(`/farmacia/anuncios?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        const r = await fetch(`/farmacia/anuncios?telefone=${encodeURIComponent(this.telefoneAtual)}`, {
+          headers: { 'X-Token': this.sessionToken || '' }
+        });
         if (r.ok) this.anunciosCriados = await r.json();
       } catch {}
     },
@@ -4498,7 +4517,9 @@ function dosemed() {
 
     async carregarAlarmes() {
       try {
-        const r = await fetch(`/alarmes/${encodeURIComponent(this.telefoneAtual)}`);
+        const r = await fetch(`/alarmes/${encodeURIComponent(this.telefoneAtual)}`, {
+          headers: { 'X-Token': this.sessionToken || '' }
+        });
         if (r.ok) this.alarmes = await r.json();
       } catch {}
     },
@@ -4507,7 +4528,7 @@ function dosemed() {
       const dias = {};
       (a.dias || '1,2,3,4,5,6,7').split(',').forEach(d => { dias[parseInt(d)] = true; });
       [1,2,3,4,5,6,7].forEach(d => { if (!dias[d]) dias[d] = false; });
-      this.novoAlarme = { id: a.id, nome_med: a.nome_med, horario: a.horario, freq: '', dias };
+      this.novoAlarme = { id: a.id, nome_med: a.nome_med, horario: a.horario, freq: '', dias, dias_tratamento: a.dias_tratamento || null };
       window.scrollTo({ top: document.querySelector('[x-show="novoAlarme"]')?.offsetTop - 20 || 0, behavior: 'smooth' });
     },
 
@@ -4530,7 +4551,7 @@ function dosemed() {
         if (this.novoAlarme.id) {
           const r = await fetch(`/alarmes/${this.novoAlarme.id}`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Token': this.sessionToken || '' },
-            body: JSON.stringify({ telefone: this.telefoneAtual, nome_med: this.novoAlarme.nome_med, horario: this.novoAlarme.horario, dias, ativo: 1 })
+            body: JSON.stringify({ telefone: this.telefoneAtual, nome_med: this.novoAlarme.nome_med, horario: this.novoAlarme.horario, dias, ativo: 1, dias_tratamento: this.novoAlarme.dias_tratamento || null })
           });
           if (r.ok) {
             const atualizado = await r.json();
@@ -4548,7 +4569,7 @@ function dosemed() {
         for (const horario of horarios) {
           const r = await fetch('/alarmes', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telefone: this.telefoneAtual, nome_med: this.novoAlarme.nome_med, horario, dias })
+            body: JSON.stringify({ telefone: this.telefoneAtual, nome_med: this.novoAlarme.nome_med, horario, dias, dias_tratamento: this.novoAlarme.dias_tratamento || null })
           });
           if (r.ok) novos.push(await r.json());
         }
@@ -4714,29 +4735,48 @@ function dosemed() {
       <span class="text-2xl">🔒</span>
       <h2 class="font-bold text-gray-800 text-lg">Privacidade e uso dos dados</h2>
     </div>
-    <div class="text-sm text-gray-600 space-y-3 mb-6 leading-relaxed max-h-60 overflow-y-auto pr-1">
-      <p>O <strong>DoseMed</strong> coleta e armazena apenas as informações necessárias para o funcionamento do serviço, em conformidade com a <strong>LGPD (Lei 13.709/2018)</strong>.</p>
-      <p><strong>O que coletamos:</strong></p>
+    <div class="text-sm text-gray-600 space-y-3 mb-6 leading-relaxed max-h-64 overflow-y-auto pr-1">
+      <p>O <strong>DoseMed</strong> coleta apenas as informações necessárias para o funcionamento do serviço, em conformidade com a <strong>LGPD (Lei 13.709/2018)</strong>. Base legal: legítimo interesse e consentimento do titular (art. 7º, I e IX).</p>
+
+      <p><strong>O que coletamos e por quê:</strong></p>
       <ul class="list-disc pl-4 space-y-1 text-gray-500">
-        <li>Número de telefone (identificação única)</li>
-        <li>Nome, e-mail (opcional) e bairro (opcional)</li>
-        <li>Medicamentos que você cadastra no estoque</li>
-        <li>Termos buscados (para melhorar o serviço)</li>
+        <li>Telefone — identificação única da conta</li>
+        <li>Nome, e-mail e bairro (opcionais) — personalização do serviço</li>
+        <li>Medicamentos cadastrados — funcionalidade principal (estoque e alarmes)</li>
+        <li>Termos buscados — melhorias do serviço, armazenados de forma pseudonimizada</li>
+        <li>Sexo e ano de nascimento (opcionais) — relatórios regionais anônimos para farmácias parceiras</li>
       </ul>
+
+      <p><strong>Por quanto tempo guardamos:</strong></p>
+      <ul class="list-disc pl-4 space-y-1 text-gray-500">
+        <li>Dados da conta — enquanto sua conta estiver ativa</li>
+        <li>Logs de busca — máximo 90 dias, após isso são deletados automaticamente</li>
+        <li>Após exclusão da conta — todos os dados são removidos imediatamente e de forma permanente</li>
+      </ul>
+
       <p><strong>O que NÃO fazemos:</strong></p>
       <ul class="list-disc pl-4 space-y-1 text-gray-500">
-        <li>Não compartilhamos seus dados pessoais com terceiros sem consentimento</li>
-        <li>Não usamos endereço completo em analytics — apenas bairro para tendências regionais anônimas</li>
+        <li>Não armazenamos seu endereço IP</li>
+        <li>Não usamos Google Analytics nem ferramentas de rastreamento externas</li>
+        <li>Não compartilhamos seus dados pessoais com terceiros sem seu consentimento</li>
         <li>Não vendemos seus dados</li>
       </ul>
-      <p><strong>Seus direitos (LGPD):</strong> Você pode solicitar acesso, correção ou exclusão dos seus dados a qualquer momento pelo suporte.</p>
-      <p class="text-xs text-gray-400">As informações de bula são de caráter educativo e <strong>não substituem orientação médica</strong>. Em emergências, ligue 192 (SAMU) ou 193 (Bombeiros).</p>
+
+      <p><strong>Seus direitos (LGPD art. 18):</strong> acesso, correção, portabilidade e exclusão dos seus dados. Use o botão "Baixar meus dados" ou "Excluir minha conta" no seu perfil, ou entre em contato com nosso encarregado de dados.</p>
+
+      <div class="bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-500 space-y-0.5">
+        <p><strong>Encarregado de Dados (DPO):</strong> equipe DoseMed</p>
+        <p><strong>Contato:</strong> <a href="mailto:localclientboost@gmail.com" class="text-blue-500 underline">localclientboost@gmail.com</a></p>
+        <p class="pt-1"><a href="/privacidade" target="_blank" class="text-blue-500 underline">Ver política completa ↗</a> · <a href="/termos" target="_blank" class="text-blue-500 underline">Termos de uso ↗</a></p>
+      </div>
+
+      <p class="text-xs text-gray-400">As informações de bula são educativas e <strong>não substituem orientação médica</strong>. Em emergências: 192 (SAMU) ou 193 (Bombeiros).</p>
     </div>
     <button @click="aceitarLGPD()"
-      class="w-full bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 transition">
+      class="w-full bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 active:bg-blue-800 transition">
       Entendi e aceito — continuar
     </button>
-    <p class="text-xs text-center text-gray-300 mt-2">Ao continuar, você concorda com os termos acima.</p>
+    <p class="text-xs text-center text-gray-300 mt-2">Ao continuar, você concorda com esta política.</p>
   </div>
 </div>
 
@@ -4838,9 +4878,11 @@ function dosemed() {
     <div class="flex flex-wrap gap-x-4 gap-y-1 justify-center text-xs text-gray-400">
       <span class="flex items-center gap-1">💊 <span class="font-semibold text-gray-500">DoseMed</span> · controle de medicamentos</span>
       <span>·</span>
-      <button @click="mostrarLGPD = true" class="underline hover:text-gray-600 transition">Privacidade (LGPD)</button>
+      <button @click="mostrarLGPD = true" class="underline hover:text-gray-600 transition">Privacidade & LGPD</button>
       <span>·</span>
-      <a href="mailto:contato@dosemed.app" class="hover:text-gray-600 transition">contato@dosemed.app</a>
+      <a href="/termos" class="hover:text-gray-600 transition underline">Termos de uso</a>
+      <span>·</span>
+      <a href="mailto:localclientboost@gmail.com" class="hover:text-gray-600 transition">localclientboost@gmail.com</a>
     </div>
     <p class="text-center text-xs text-gray-400 leading-relaxed">
       As informações de bula têm caráter educativo e não substituem orientação médica.<br>

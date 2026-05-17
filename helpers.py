@@ -555,6 +555,76 @@ def html_lead_farmacia(farmacia_nome: str, bairro: str, medicamento: str, pa: st
     </div>"""
 
 
+def html_relatorio_farmacia(farmacia_nome: str, semana: str, buscas_med: list[dict],
+                            buscas_sint: list[dict], por_sexo: dict, por_faixa: dict,
+                            por_bairro: dict) -> str:
+    def _linhas_tabela(itens: list[dict], col_titulo: str) -> str:
+        if not itens:
+            return "<tr><td colspan='2' style='padding:10px;color:#9ca3af;font-style:italic'>Sem dados esta semana</td></tr>"
+        html = ""
+        for row in itens[:10]:
+            html += f"<tr><td style='padding:8px 4px;border-bottom:1px solid #f3f4f6'>{row['termo']}</td><td style='padding:8px 4px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600'>{row['total']}</td></tr>"
+        return html
+
+    def _bar(label: str, valor: int, total: int, cor: str) -> str:
+        pct = round(valor / total * 100) if total else 0
+        return f"""<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>{label}</span><span>{valor} ({pct}%)</span></div><div style="background:#f3f4f6;border-radius:4px;height:8px;margin-top:3px"><div style="background:{cor};border-radius:4px;height:8px;width:{pct}%"></div></div></div>"""
+
+    total_sexo = sum(por_sexo.values()) or 1
+    total_faixa = sum(por_faixa.values()) or 1
+    sexo_html = _bar("Feminino", por_sexo.get("F", 0), total_sexo, "#ec4899") + _bar("Masculino", por_sexo.get("M", 0), total_sexo, "#3b82f6") + _bar("Não informado", por_sexo.get("?", 0), total_sexo, "#9ca3af")
+    faixa_html = "".join(_bar(f, por_faixa.get(f, 0), total_faixa, c) for f, c in [("<18", "#a78bfa"), ("18-35", "#3b82f6"), ("36-55", "#10b981"), ("56+", "#f59e0b"), ("?", "#9ca3af")])
+    bairros_html = "".join(f"<div style='display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f9fafb;font-size:13px'><span>{b}</span><span style='font-weight:600'>{n}</span></div>" for b, n in sorted(por_bairro.items(), key=lambda x: -x[1])[:8])
+    if not bairros_html:
+        bairros_html = "<p style='color:#9ca3af;font-style:italic;font-size:13px'>Sem dados</p>"
+
+    return f"""<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:0;background:#f9fafb">
+  <div style="background:#2563eb;padding:28px 24px;text-align:center">
+    <h1 style="color:#fff;margin:0;font-size:22px">💊 DoseMed — Relatório Semanal</h1>
+    <p style="color:#bfdbfe;margin:6px 0 0;font-size:14px">{farmacia_nome} · Semana de {semana}</p>
+  </div>
+  <div style="padding:24px">
+    <p style="color:#374151">Olá, <strong>{farmacia_nome}</strong>! Aqui está o resumo das buscas na sua região esta semana.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0">
+      <div style="background:#fff;border-radius:10px;padding:16px;border:1px solid #e5e7eb">
+        <p style="font-weight:700;color:#1e40af;margin:0 0 12px;font-size:13px;text-transform:uppercase">Medicamentos mais buscados</p>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr><th style="text-align:left;font-size:11px;color:#9ca3af;padding:4px">Medicamento</th><th style="text-align:right;font-size:11px;color:#9ca3af;padding:4px">Buscas</th></tr></thead>
+          <tbody>{_linhas_tabela(buscas_med, "Medicamento")}</tbody>
+        </table>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:16px;border:1px solid #e5e7eb">
+        <p style="font-weight:700;color:#1e40af;margin:0 0 12px;font-size:13px;text-transform:uppercase">Sintomas mais buscados</p>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr><th style="text-align:left;font-size:11px;color:#9ca3af;padding:4px">Sintoma / Condição</th><th style="text-align:right;font-size:11px;color:#9ca3af;padding:4px">Buscas</th></tr></thead>
+          <tbody>{_linhas_tabela(buscas_sint, "Sintoma")}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="background:#fff;border-radius:10px;padding:16px;border:1px solid #e5e7eb;margin-bottom:16px">
+      <p style="font-weight:700;color:#1e40af;margin:0 0 12px;font-size:13px;text-transform:uppercase">Perfil dos usuários — sexo</p>
+      {sexo_html}
+    </div>
+
+    <div style="background:#fff;border-radius:10px;padding:16px;border:1px solid #e5e7eb;margin-bottom:16px">
+      <p style="font-weight:700;color:#1e40af;margin:0 0 12px;font-size:13px;text-transform:uppercase">Perfil dos usuários — faixa etária</p>
+      {faixa_html}
+    </div>
+
+    <div style="background:#fff;border-radius:10px;padding:16px;border:1px solid #e5e7eb;margin-bottom:16px">
+      <p style="font-weight:700;color:#1e40af;margin:0 0 12px;font-size:13px;text-transform:uppercase">Bairros com mais buscas</p>
+      {bairros_html}
+    </div>
+
+    <p style="color:#6b7280;font-size:12px;text-align:center;margin-top:24px">Este relatório é exclusivo para farmácias no plano Pro ou Manipulado do DoseMed.<br>Dados anonimizados — nenhum usuário é identificado individualmente.</p>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0">
+    <p style="color:#d1d5db;font-size:11px;text-align:center">DoseMed · controle de medicamentos em casa · Este e-mail é informativo.</p>
+  </div>
+</div>"""
+
+
 def html_anuncio_confirmacao(farmacia_nome: str, texto: str, total: int, publico: str) -> str:
     publico_str = "todos os bairros cadastrados" if publico == "todos" else "usuários do seu bairro/região"
     return f"""
@@ -697,12 +767,18 @@ def sort_por_vencimento(itens: list[dict]) -> list[dict]:
 def registrar_busca(db: Session, tipo: str, termo: str, usuario_id: str = None):
     try:
         ddd, estado = ddd_para_estado(usuario_id or "")
-        bairro = None
+        bairro = genero = ano_nasc = None
+        # Pseudonimiza o identificador: SHA-256 truncado — não é reversível
+        uid_hash = hashlib.sha256(usuario_id.encode()).hexdigest()[:40] if usuario_id else None
         if usuario_id:
             u = db.query(Usuario).filter(Usuario.telefone == usuario_id).first()
             if u:
                 bairro = u.bairro
-        log = LogBusca(tipo=tipo, termo=termo[:100], ddd=ddd, estado=estado, bairro=bairro, usuario_id=usuario_id)
+                genero = u.genero if u.genero in ("M", "F") else "?"
+                ano_nasc = u.data_nascimento.year if u.data_nascimento else None
+        log = LogBusca(tipo=tipo, termo=termo[:100], ddd=ddd, estado=estado,
+                       bairro=bairro, usuario_id=uid_hash,
+                       genero=genero, ano_nasc=ano_nasc)
         db.add(log)
         db.commit()
     except Exception:
