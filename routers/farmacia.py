@@ -6,6 +6,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from config import ADMIN_PHONE
@@ -579,3 +580,59 @@ def farmacia_orcamentos_respondidos(telefone: str, db: Session = Depends(get_db)
         "status_solicitacao": r.solicitacao.status,
         "respondido_em": str(r.respondido_em.date()) if r.respondido_em else None,
     } for r in respostas]
+
+
+@router.get("/farmacia/metricas")
+def farmacia_metricas(telefone: str, db: Session = Depends(get_db)):
+    digitos = re.sub(r"\D", "", telefone)
+    farm = db.query(Farmacia).filter(Farmacia.telefone_contato == digitos).first()
+    if not farm:
+        raise HTTPException(status_code=404, detail="Farmácia não encontrada.")
+
+    agora = datetime.now(timezone.utc).replace(tzinfo=None)
+    inicio_mes = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if inicio_mes.month == 1:
+        inicio_mes_ant = inicio_mes.replace(year=inicio_mes.year - 1, month=12)
+    else:
+        inicio_mes_ant = inicio_mes.replace(month=inicio_mes.month - 1)
+
+    # Leads
+    leads_total  = db.query(func.count(Lead.id)).filter(Lead.farmacia_id == farm.id).scalar() or 0
+    leads_mes    = db.query(func.count(Lead.id)).filter(Lead.farmacia_id == farm.id, Lead.criado_em >= inicio_mes).scalar() or 0
+    leads_mes_ant = db.query(func.count(Lead.id)).filter(Lead.farmacia_id == farm.id, Lead.criado_em >= inicio_mes_ant, Lead.criado_em < inicio_mes).scalar() or 0
+    receita_leads = db.query(func.sum(Lead.preco_cobrado)).filter(Lead.farmacia_id == farm.id, Lead.preco_cobrado.isnot(None)).scalar() or 0.0
+
+    # Orçamentos
+    recebidos   = db.query(func.count(OrcamentoResposta.id)).filter(OrcamentoResposta.farmacia_id == farm.id).scalar() or 0
+    respondidos = db.query(func.count(OrcamentoResposta.id)).filter(OrcamentoResposta.farmacia_id == farm.id, OrcamentoResposta.status.in_(["respondido", "ganhou", "perdeu"])).scalar() or 0
+    ganhos      = db.query(func.count(OrcamentoResposta.id)).filter(OrcamentoResposta.farmacia_id == farm.id, OrcamentoResposta.status == "ganhou").scalar() or 0
+    entregues   = db.query(func.count(OrcamentoResposta.id)).filter(OrcamentoResposta.farmacia_id == farm.id, OrcamentoResposta.status == "ganhou", OrcamentoResposta.solicitacao.has(entregue=1)).scalar() or 0
+
+    # Urgentes: pendentes com menos de 15 min para expirar
+    limite_urgente = agora + timedelta(minutes=15)
+    urgentes = db.query(func.count(OrcamentoResposta.id)).filter(
+        OrcamentoResposta.farmacia_id == farm.id,
+        OrcamentoResposta.status == "pendente",
+        OrcamentoResposta.solicitacao.has(OrcamentoSolicitacao.expira_em <= limite_urgente),
+        OrcamentoResposta.solicitacao.has(OrcamentoSolicitacao.expira_em >= agora),
+    ).scalar() or 0
+
+    taxa_resposta   = round(respondidos / recebidos * 100, 1) if recebidos else 0
+    taxa_conversao  = round(ganhos / respondidos * 100, 1) if respondidos else 0
+    nota_media      = round(farm.rating_total / farm.rating_count, 1) if farm.rating_count else None
+
+    return {
+        "leads_total": leads_total,
+        "leads_mes": leads_mes,
+        "leads_mes_anterior": leads_mes_ant,
+        "receita_leads": round(receita_leads, 2),
+        "orcamentos_recebidos": recebidos,
+        "orcamentos_respondidos": respondidos,
+        "orcamentos_ganhos": ganhos,
+        "orcamentos_entregues": entregues,
+        "urgentes": urgentes,
+        "taxa_resposta_pct": taxa_resposta,
+        "taxa_conversao_pct": taxa_conversao,
+        "nota_media": nota_media,
+        "total_avaliacoes": farm.rating_count or 0,
+    }

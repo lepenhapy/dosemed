@@ -2479,6 +2479,14 @@
             :class="abaFarmacia === 'leads' ? 'bg-green-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
             Leads
           </button>
+          <button @click="abaFarmacia = 'metricas'; if (!farmaciaMetricas) carregarMetricasFarmacia()"
+            class="flex-1 py-1.5 text-xs font-semibold rounded-xl transition relative"
+            :class="abaFarmacia === 'metricas' ? 'bg-green-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
+            📊
+            <span x-show="farmaciaMetricas?.urgentes > 0"
+              class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center"
+              x-text="farmaciaMetricas.urgentes"></span>
+          </button>
           <button @click="abaFarmacia = 'perfil'" class="flex-1 py-1.5 text-xs font-semibold rounded-xl transition"
             :class="abaFarmacia === 'perfil' ? 'bg-green-600 text-white' : 'text-gray-400 hover:bg-gray-50'">
             Perfil
@@ -2680,6 +2688,112 @@
               </div>
             </template>
           </div>
+        </div>
+
+        <!-- MÉTRICAS -->
+        <div x-show="abaFarmacia === 'metricas'" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold text-gray-800">Minha performance</h3>
+            <button @click="farmaciaMetricas = null; carregarMetricasFarmacia()" class="text-xs bg-green-50 text-green-600 hover:bg-green-100 px-3 py-1.5 rounded-lg font-semibold">↺</button>
+          </div>
+
+          <div x-show="!farmaciaMetricas" class="text-center py-8 text-gray-300 text-sm">Carregando...</div>
+
+          <template x-if="farmaciaMetricas">
+            <div class="space-y-4">
+
+              <!-- Alerta urgente -->
+              <div x-show="farmaciaMetricas.urgentes > 0"
+                @click="abaFarmacia = 'leads'"
+                class="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-red-100 transition">
+                <span class="text-xl shrink-0">🚨</span>
+                <div>
+                  <p class="text-sm font-bold text-red-700" x-text="farmaciaMetricas.urgentes + ' orçamento(s) prestes a expirar!'"></p>
+                  <p class="text-xs text-red-500">Toque para responder agora → ir para Leads</p>
+                </div>
+              </div>
+
+              <!-- Leads -->
+              <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+                <p class="font-bold text-gray-700 text-sm">Leads recebidos</p>
+                <div class="grid grid-cols-3 gap-2">
+                  <div class="bg-green-50 rounded-xl px-3 py-3 text-center">
+                    <p class="text-2xl font-black text-green-700" x-text="farmaciaMetricas.leads_total"></p>
+                    <p class="text-xs text-green-400 mt-0.5">Total</p>
+                  </div>
+                  <div class="bg-blue-50 rounded-xl px-3 py-3 text-center">
+                    <p class="text-2xl font-black text-blue-700" x-text="farmaciaMetricas.leads_mes"></p>
+                    <p class="text-xs text-blue-400 mt-0.5">Este mês</p>
+                  </div>
+                  <div class="bg-gray-50 rounded-xl px-3 py-3 text-center">
+                    <p class="text-2xl font-black text-gray-500" x-text="farmaciaMetricas.leads_mes_anterior"></p>
+                    <p class="text-xs text-gray-400 mt-0.5">Mês anterior</p>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between bg-indigo-50 rounded-xl px-3 py-2.5">
+                  <span class="text-xs text-indigo-600 font-semibold">Investimento total em leads</span>
+                  <span class="text-sm font-black text-indigo-700" x-text="'R$ ' + Number(farmaciaMetricas.receita_leads).toFixed(2).replace('.',',')"></span>
+                </div>
+              </div>
+
+              <!-- Orçamentos -->
+              <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+                <p class="font-bold text-gray-700 text-sm">Orçamentos</p>
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="bg-gray-50 rounded-xl px-3 py-3 text-center">
+                    <p class="text-2xl font-black text-gray-700" x-text="farmaciaMetricas.orcamentos_recebidos"></p>
+                    <p class="text-xs text-gray-400 mt-0.5">Recebidos</p>
+                  </div>
+                  <div class="bg-blue-50 rounded-xl px-3 py-3 text-center">
+                    <p class="text-2xl font-black text-blue-700" x-text="farmaciaMetricas.orcamentos_respondidos"></p>
+                    <p class="text-xs text-blue-400 mt-0.5">Respondidos</p>
+                  </div>
+                  <div class="bg-green-50 rounded-xl px-3 py-3 text-center">
+                    <p class="text-2xl font-black text-green-700" x-text="farmaciaMetricas.orcamentos_ganhos"></p>
+                    <p class="text-xs text-green-400 mt-0.5">Ganhos ✓</p>
+                  </div>
+                  <div class="bg-emerald-50 rounded-xl px-3 py-3 text-center">
+                    <p class="text-2xl font-black text-emerald-700" x-text="farmaciaMetricas.orcamentos_entregues"></p>
+                    <p class="text-xs text-emerald-400 mt-0.5">Entregues</p>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="bg-yellow-50 rounded-xl px-3 py-2.5 text-center">
+                    <p class="text-lg font-black text-yellow-700" x-text="farmaciaMetricas.taxa_resposta_pct + '%'"></p>
+                    <p class="text-xs text-yellow-500">Taxa de resposta</p>
+                  </div>
+                  <div class="bg-orange-50 rounded-xl px-3 py-2.5 text-center">
+                    <p class="text-lg font-black text-orange-700" x-text="farmaciaMetricas.taxa_conversao_pct + '%'"></p>
+                    <p class="text-xs text-orange-400">Taxa de conversão</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Avaliação -->
+              <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                <p class="font-bold text-gray-700 text-sm mb-3">Avaliação dos clientes</p>
+                <div x-show="farmaciaMetricas.total_avaliacoes > 0" class="flex items-center justify-between">
+                  <div>
+                    <p class="text-3xl font-black text-amber-500" x-text="farmaciaMetricas.nota_media"></p>
+                    <p class="text-xs text-gray-400 mt-0.5" x-text="farmaciaMetricas.total_avaliacoes + ' avaliação(ões)'"></p>
+                  </div>
+                  <div class="text-right">
+                    <div class="flex gap-0.5">
+                      <template x-for="s in [1,2,3,4,5]" :key="s">
+                        <span class="text-xl" :class="s <= Math.round(farmaciaMetricas.nota_media) ? 'text-amber-400' : 'text-gray-200'">★</span>
+                      </template>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">nota média</p>
+                  </div>
+                </div>
+                <div x-show="!farmaciaMetricas.total_avaliacoes" class="text-center py-3">
+                  <p class="text-2xl mb-1">⭐</p>
+                  <p class="text-xs text-gray-400">Nenhuma avaliação ainda.<br>Complete orçamentos para receber notas.</p>
+                </div>
+              </div>
+
+            </div>
+          </template>
         </div>
 
         <div x-show="abaFarmacia === 'planos'" class="space-y-4">
@@ -3105,6 +3219,7 @@ function dosemed() {
     abaFarmacia: 'leads', farmaciaInsights: null,
     qrAberto: false, qrFarmaciaId: null,
     farmaciaOrcamentos: null,
+    farmaciaMetricas: null,
     modalidadePickerSolId: null, modalidadePickerRespId: null,
     farmaciaEditBairros: '', farmaciaEditManipulado: false, farmaciaPerfilMsg: '',
     sessionToken: null,
@@ -3566,6 +3681,13 @@ function dosemed() {
       try {
         const r = await fetch(`/farmacia/orcamentos-respondidos?telefone=${encodeURIComponent(this.telefoneAtual)}`);
         if (r.ok) this.farmaciaOrcamentos = await r.json();
+      } catch {}
+    },
+
+    async carregarMetricasFarmacia() {
+      try {
+        const r = await fetch(`/farmacia/metricas?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) this.farmaciaMetricas = await r.json();
       } catch {}
     },
 
