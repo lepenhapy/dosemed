@@ -61,7 +61,7 @@ _ATUALIZADO = "16 de maio de 2026"
 def pagina_privacidade():
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
-<head>{_STYLE.format(titulo="Política de Privacidade")}</head>
+<head>{_STYLE.replace('{titulo}', 'Política de Privacidade')}</head>
 <body>
 <div class="wrap">
   <header>
@@ -195,7 +195,7 @@ def pagina_privacidade():
 def pagina_termos():
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
-<head>{_STYLE.format(titulo="Termos de Uso")}</head>
+<head>{_STYLE.replace('{titulo}', 'Termos de Uso')}</head>
 <body>
 <div class="wrap">
   <header>
@@ -291,7 +291,7 @@ def pagina_termos():
     <h2>10. Contato</h2>
     <div class="dpo">
       <p><strong>Dúvidas sobre estes termos:</strong> <a href="mailto:localclientboost@gmail.com">localclientboost@gmail.com</a></p>
-      <p><strong>Suporte geral:</strong> <a href="mailto:contato@dosemed.app">contato@dosemed.app</a></p>
+      <p><strong>Suporte geral:</strong> <a href="mailto:localclientboost@gmail.com">localclientboost@gmail.com</a></p>
     </div>
   </section>
 
