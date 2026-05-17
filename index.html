@@ -732,6 +732,8 @@
           </div>
           <!-- Sub-abas admin -->
           <div class="flex flex-wrap gap-1 mb-5 border-b border-gray-100 pb-3">
+            <button @click="abaAdmin = 'financeiro'; if (!adminFinanceiro) carregarFinanceiro()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+              :class="abaAdmin === 'financeiro' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">💰 Financeiro</button>
             <button @click="abaAdmin = 'resumo'" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
               :class="abaAdmin === 'resumo' ? 'bg-indigo-600 text-white' : 'text-indigo-500 hover:bg-indigo-50'">Resumo</button>
             <button @click="abaAdmin = 'insights'; if (!adminInsights) carregarInsights()" class="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
@@ -753,6 +755,109 @@
           </div>
 
           <!-- ABA RESUMO -->
+          <!-- FINANCEIRO -->
+          <div x-show="abaAdmin === 'financeiro'" class="space-y-5">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-gray-800">Financeiro</h3>
+              <button @click="adminFinanceiro = null; carregarFinanceiro()" class="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg font-semibold">↺ Atualizar</button>
+            </div>
+            <div x-show="!adminFinanceiro" class="text-center py-8 text-gray-300 text-sm">Carregando...</div>
+
+            <template x-if="adminFinanceiro">
+              <div class="space-y-5">
+
+                <!-- Cards de receita -->
+                <div class="grid grid-cols-3 gap-3">
+                  <div class="bg-indigo-50 rounded-2xl p-4 text-center">
+                    <p class="text-lg font-black text-indigo-700" x-text="'R$ ' + Number(adminFinanceiro.receita_total).toFixed(2).replace('.',',')"></p>
+                    <p class="text-xs text-indigo-400 mt-0.5">Receita total</p>
+                  </div>
+                  <div class="bg-blue-50 rounded-2xl p-4 text-center">
+                    <p class="text-lg font-black text-blue-700" x-text="'R$ ' + Number(adminFinanceiro.receita_leads).toFixed(2).replace('.',',')"></p>
+                    <p class="text-xs text-blue-400 mt-0.5">Leads</p>
+                  </div>
+                  <div class="bg-purple-50 rounded-2xl p-4 text-center">
+                    <p class="text-lg font-black text-purple-700" x-text="'R$ ' + Number(adminFinanceiro.receita_anuncios).toFixed(2).replace('.',',')"></p>
+                    <p class="text-xs text-purple-400 mt-0.5">Anúncios</p>
+                  </div>
+                </div>
+
+                <!-- Métricas de orçamentos -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+                  <p class="font-bold text-gray-700 text-sm">Orçamentos</p>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-gray-50 rounded-xl px-3 py-2.5 text-center">
+                      <p class="text-xl font-black text-gray-800" x-text="adminFinanceiro.orcamentos.total"></p>
+                      <p class="text-xs text-gray-400">Total enviados</p>
+                    </div>
+                    <div class="bg-green-50 rounded-xl px-3 py-2.5 text-center">
+                      <p class="text-xl font-black text-green-700" x-text="adminFinanceiro.orcamentos.fechados"></p>
+                      <p class="text-xs text-green-400">Fechados</p>
+                    </div>
+                    <div class="bg-yellow-50 rounded-xl px-3 py-2.5 text-center">
+                      <p class="text-xl font-black text-yellow-700" x-text="adminFinanceiro.orcamentos.taxa_fechamento_pct + '%'"></p>
+                      <p class="text-xs text-yellow-500">Taxa de fechamento</p>
+                    </div>
+                    <div class="bg-red-50 rounded-xl px-3 py-2.5 text-center">
+                      <p class="text-xl font-black text-red-600" x-text="adminFinanceiro.orcamentos.sem_resposta"></p>
+                      <p class="text-xs text-red-400">Sem resposta</p>
+                    </div>
+                    <div class="bg-purple-50 rounded-xl px-3 py-2.5 text-center">
+                      <p class="text-xl font-black text-purple-700" x-text="adminFinanceiro.orcamentos.auto_criados"></p>
+                      <p class="text-xs text-purple-400">Automáticos</p>
+                    </div>
+                    <div class="bg-emerald-50 rounded-xl px-3 py-2.5 text-center">
+                      <p class="text-xl font-black text-emerald-700" x-text="adminFinanceiro.orcamentos.entregues_confirmados"></p>
+                      <p class="text-xs text-emerald-400">Entregas confirmadas</p>
+                    </div>
+                  </div>
+                  <div x-show="adminFinanceiro.orcamentos.nota_media" class="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2.5">
+                    <span class="text-xs text-amber-600 font-semibold">Nota média da plataforma</span>
+                    <span class="text-sm font-black text-amber-700" x-text="'⭐ ' + adminFinanceiro.orcamentos.nota_media + ' (' + adminFinanceiro.orcamentos.avaliacoes + ' avaliações)'"></span>
+                  </div>
+                </div>
+
+                <!-- Ranking de farmácias -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                  <p class="font-bold text-gray-700 text-sm mb-3">Ranking por receita gerada</p>
+                  <div class="space-y-2">
+                    <template x-for="(f, idx) in adminFinanceiro.ranking_farmacias" :key="f.id">
+                      <div class="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
+                        <span class="text-xs text-gray-300 font-bold w-5 text-right shrink-0" x-text="idx+1"></span>
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="text-sm font-semibold text-gray-800 truncate" x-text="f.nome"></span>
+                            <span x-show="!f.ativo" class="text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">inativa</span>
+                            <span class="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+                              :class="{'bg-purple-100 text-purple-700': f.plano==='manipulado','bg-blue-100 text-blue-700': f.plano==='pro','bg-green-100 text-green-700': f.plano==='basico','bg-gray-100 text-gray-500': f.plano==='lead'}"
+                              x-text="f.plano">
+                            </span>
+                          </div>
+                          <div class="flex items-center gap-2 mt-0.5 text-xs text-gray-400 flex-wrap">
+                            <span x-text="f.leads + ' leads'"></span>
+                            <span>·</span>
+                            <span x-text="f.orcamentos_ganhos + ' fechados'"></span>
+                            <span x-show="f.leads > 0">·</span>
+                            <span x-show="f.leads > 0" x-text="f.conversao_pct + '% conv.'"></span>
+                            <span x-show="f.nota">·</span>
+                            <span x-show="f.nota" x-text="'⭐ ' + f.nota + ' (' + f.nota_count + ')'"></span>
+                          </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                          <p class="text-sm font-bold text-indigo-700" x-text="'R$ ' + Number(f.receita).toFixed(2).replace('.',',')"></p>
+                        </div>
+                      </div>
+                    </template>
+                    <div x-show="!adminFinanceiro.ranking_farmacias?.length" class="text-xs text-gray-300 text-center py-4">
+                      Nenhuma farmácia com leads ainda.
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </template>
+          </div>
+
           <div x-show="abaAdmin === 'resumo'">
           <div x-show="!adminDados && !adminCarregando" class="text-center py-8">
             <button @click="carregarAdmin()"
@@ -2985,6 +3090,7 @@ function dosemed() {
     adminAnuncios: null, adminAnunciosCarregando: false, anuncioModoTeste: true,
     adminBuscas: null,
     adminFeedbacks: null, adminFeedbacksCarregando: false,
+    adminFinanceiro: null,
     // anúncio push farmácia
     anuncioForm: { texto: '', titulo: '', publico: 'bairro', genero_alvo: '', faixa_etaria: '', produto: '', preco_de: '', preco_por: '', data_expiracao: '', tem_entrega: false, valor_frete: '', formas_pagamento: { pix: true, cartao: false, dinheiro: false }, whatsapp_contato: '', categorias: [] },
     anunciosCriados: null, anuncioEnviando: false, anuncioMsg: '', anuncioResultado: null,
@@ -3909,6 +4015,14 @@ function dosemed() {
           this.resetMsg = d.detail || 'Erro ao resetar.';
         }
       } catch { this.resetMsg = 'Erro de conexão.'; }
+    },
+
+    async carregarFinanceiro() {
+      try {
+        const r = await fetch(`/admin/financeiro?telefone=${encodeURIComponent(this.telefoneAtual)}`);
+        if (r.ok) this.adminFinanceiro = await r.json();
+        else this.toast('Erro ao carregar financeiro.', 'erro');
+      } catch { this.toast('Erro de conexão.', 'erro'); }
     },
 
     async carregarAdminAnuncios() {

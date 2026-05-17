@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timedelta, date, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -520,3 +521,83 @@ def admin_excluir_anuncio(anuncio_id: int, telefone: str, db: Session = Depends(
     db.delete(anuncio)
     db.commit()
     return {"ok": True}
+
+
+@router.get("/admin/financeiro")
+def admin_financeiro(telefone: str, db: Session = Depends(get_db)):
+    tel = validar_telefone(telefone)
+    if tel != ADMIN_PHONE:
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+
+    # Receita de leads
+    receita_leads = db.query(func.sum(Lead.preco_cobrado)).filter(
+        Lead.preco_cobrado.isnot(None)
+    ).scalar() or 0.0
+    total_leads = db.query(func.count(Lead.id)).scalar() or 0
+
+    # Receita de anúncios confirmados/disparados
+    receita_anuncios = db.query(func.sum(AnuncioPush.preco)).filter(
+        AnuncioPush.status.in_(["pago", "disparado"])
+    ).scalar() or 0.0
+
+    receita_total = receita_leads + receita_anuncios
+
+    # Ranking por farmácia
+    farmacias = db.query(Farmacia).all()
+    ranking = []
+    for f in farmacias:
+        receita_f = db.query(func.sum(Lead.preco_cobrado)).filter(
+            Lead.farmacia_id == f.id,
+            Lead.preco_cobrado.isnot(None)
+        ).scalar() or 0.0
+        leads_f = db.query(func.count(Lead.id)).filter(Lead.farmacia_id == f.id).scalar() or 0
+        ganhos = db.query(func.count(OrcamentoResposta.id)).filter(
+            OrcamentoResposta.farmacia_id == f.id,
+            OrcamentoResposta.status == "ganhou"
+        ).scalar() or 0
+        respondidos = db.query(func.count(OrcamentoResposta.id)).filter(
+            OrcamentoResposta.farmacia_id == f.id,
+            OrcamentoResposta.status.in_(["ganhou", "perdeu", "respondido"])
+        ).scalar() or 0
+        nota = round(f.rating_total / f.rating_count, 1) if f.rating_count else None
+        ranking.append({
+            "id": f.id,
+            "nome": f.nome,
+            "plano": f.plano,
+            "ativo": bool(f.ativo),
+            "leads": leads_f,
+            "receita": round(receita_f, 2),
+            "orcamentos_ganhos": ganhos,
+            "orcamentos_respondidos": respondidos,
+            "conversao_pct": round(ganhos / leads_f * 100, 1) if leads_f else 0,
+            "nota": nota,
+            "nota_count": f.rating_count or 0,
+        })
+    ranking.sort(key=lambda x: -x["receita"])
+
+    # Métricas de orçamento
+    total_sols = db.query(func.count(OrcamentoSolicitacao.id)).scalar() or 0
+    fechados   = db.query(func.count(OrcamentoSolicitacao.id)).filter(OrcamentoSolicitacao.status == "fechado").scalar() or 0
+    sem_resp   = db.query(func.count(OrcamentoSolicitacao.id)).filter(OrcamentoSolicitacao.status == "sem_resposta").scalar() or 0
+    auto_sols  = db.query(func.count(OrcamentoSolicitacao.id)).filter(OrcamentoSolicitacao.origem == "auto").scalar() or 0
+    entregues  = db.query(func.count(OrcamentoSolicitacao.id)).filter(OrcamentoSolicitacao.entregue == 1).scalar() or 0
+    avaliacoes = db.query(func.count(OrcamentoSolicitacao.id)).filter(OrcamentoSolicitacao.avaliacao.isnot(None)).scalar() or 0
+    nota_avg   = db.query(func.avg(OrcamentoSolicitacao.avaliacao)).filter(OrcamentoSolicitacao.avaliacao.isnot(None)).scalar()
+
+    return {
+        "receita_total": round(receita_total, 2),
+        "receita_leads": round(receita_leads, 2),
+        "receita_anuncios": round(receita_anuncios, 2),
+        "total_leads": total_leads,
+        "ranking_farmacias": ranking,
+        "orcamentos": {
+            "total": total_sols,
+            "fechados": fechados,
+            "sem_resposta": sem_resp,
+            "auto_criados": auto_sols,
+            "taxa_fechamento_pct": round(fechados / total_sols * 100, 1) if total_sols else 0,
+            "entregues_confirmados": entregues,
+            "avaliacoes": avaliacoes,
+            "nota_media": round(nota_avg, 1) if nota_avg else None,
+        },
+    }
