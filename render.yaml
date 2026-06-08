@@ -2,6 +2,7 @@ services:
   - type: web
     name: dosemed
     runtime: python
+    plan: basic
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -10,8 +11,8 @@ services:
           name: dosemed-db
           property: connectionString
       - key: PYTHON_VERSION
-        value: "3.11.0"
+        value: "3.13"
 
 databases:
   - name: dosemed-db
-    plan: free
+    plan: basic

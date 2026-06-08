@@ -1,4 +1,4 @@
-const CACHE = 'dosemed-v30';
+const CACHE = 'dosemed-v32';
 const SHELL = ['/'];
 
 self.addEventListener('install', e => {
@@ -52,15 +52,20 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Shell: network-first, com fallback para cache
+  // Shell: cache-first (abre instantâneo), atualiza em segundo plano
   e.respondWith(
-    fetch(e.request).then(res => {
-      if (res.ok) {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
-      }
-      return res;
-    }).catch(() => caches.match(e.request))
+    caches.open(CACHE).then(cache =>
+      cache.match(e.request).then(cached => {
+        const networkFetch = fetch(e.request).then(res => {
+          // Só salva no cache se for o DoseMed de verdade (HTML próprio)
+          if (res.ok && res.headers.get('content-type')?.includes('text/html')) {
+            cache.put(e.request, res.clone());
+          }
+          return res;
+        }).catch(() => null);
+        return cached || networkFetch;
+      })
+    )
   );
 });
 
@@ -71,22 +76,28 @@ self.addEventListener('message', e => {
 
 // --- Push Notifications ---
 self.addEventListener('push', e => {
-  let data = { title: '💊 DoseMed', body: 'Hora do remédio!' };
+  let data = { title: '💊 DoseMed', body: 'Hora do remédio!', tag: 'dosemed-alarme' };
   try { data = { ...data, ...e.data.json() }; } catch {}
   e.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: '/icon-192.png',
       badge: '/icon-72.png',
-      vibrate: [200, 100, 200, 100, 200],
-      requireInteraction: false,
-      tag: 'dosemed-alarme'
+      vibrate: [400, 100, 400, 100, 400, 200, 400, 100, 400],
+      requireInteraction: true,
+      renotify: true,
+      tag: data.tag,
+      actions: [
+        { action: 'tomei', title: 'Tomei ✓' },
+        { action: 'abrir', title: 'Ver app' }
+      ]
     })
   );
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  if (e.action === 'tomei') return; // só fecha, sem abrir o app
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const c of list) {
