@@ -21,6 +21,16 @@ CATEGORIAS_TERAPEUTICAS = [
     {"id": "outros",         "label": "Outros / Geral",            "kw": []},
 ]
 
+SERVICOS_CLINICOS = {
+    "pressao":        {"label": "Aferição de pressão arterial", "categorias": ["hipertensao", "cardio"]},
+    "glicose":        {"label": "Teste de glicose",             "categorias": ["diabetes"]},
+    "colesterol":     {"label": "Teste de colesterol",          "categorias": ["colesterol"]},
+    "vacina":         {"label": "Vacinação",                    "categorias": []},
+    "injecao":        {"label": "Aplicação de injeção",         "categorias": []},
+    "acompanhamento": {"label": "Acompanhamento farmacêutico",  "categorias": []},
+    "teste_rapido":   {"label": "Teste rápido",                 "categorias": []},
+}
+
 DDD_ESTADO = {
     11: "SP", 12: "SP", 13: "SP", 14: "SP", 15: "SP", 16: "SP", 17: "SP", 18: "SP", 19: "SP",
     21: "RJ", 22: "RJ", 24: "RJ",

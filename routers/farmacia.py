@@ -65,6 +65,7 @@ def serializar_farmacia(f: Farmacia, db: Session) -> dict:
         "asaas_customer_id": f.asaas_customer_id, "asaas_subscription_id": f.asaas_subscription_id,
         "total_leads": total_leads, "leads_mes": leads_mes,
         "origem": f.origem or "admin",
+        "servicos": f.servicos,
         "criado_em": str(f.criado_em.date()) if f.criado_em else None,
     }
 
@@ -106,6 +107,34 @@ def _disparar_anuncio_push(anuncio: AnuncioPush, db: Session, modo_teste: bool =
             elif fa == "56+" and idade < 56:
                 continue
         telefones_alvo.add(u.telefone)
+
+    # Filtro por categoria terapêutica — só envia para quem tem o medicamento relevante
+    import json as _json
+    from config import CATEGORIAS_TERAPEUTICAS
+    from models import Estoque
+
+    cats_filter: list[str] = []
+    if anuncio.categorias:
+        try:
+            cats_filter = _json.loads(anuncio.categorias)
+        except Exception:
+            pass
+
+    if cats_filter:
+        def _med_match(nome: str) -> bool:
+            nome_l = nome.lower()
+            for cat_id in cats_filter:
+                cat = next((c for c in CATEGORIAS_TERAPEUTICAS if c["id"] == cat_id), None)
+                if cat and any(kw in nome_l or nome_l in kw for kw in cat["kw"]):
+                    return True
+            return False
+
+        itens = db.query(Estoque).filter(
+            Estoque.usuario_id.in_(telefones_alvo),
+            Estoque.status != "consumido"
+        ).all()
+        usuarios_com_cat = {i.usuario_id for i in itens if _med_match(i.nome_medicamento)}
+        telefones_alvo = telefones_alvo & usuarios_com_cat
 
     from helpers import enviar_push
     subs = db.query(PushSub).filter(PushSub.usuario_id.in_(telefones_alvo)).all()
@@ -317,9 +346,13 @@ def farmacia_definir_pin(payload: FarmaciaSetPinPayload, db: Session = Depends(g
     pin = re.sub(r"\D", "", payload.pin)
     if not (4 <= len(pin) <= 6):
         raise HTTPException(status_code=400, detail="PIN deve ter 4 a 6 dígitos.")
+    if f.pin:
+        raise HTTPException(status_code=400, detail="PIN já definido. Use a recuperação de PIN para alterá-lo.")
     f.pin = hash_pin(pin, digitos)
+    token = secrets.token_urlsafe(32)
+    f.session_token = token
     db.commit()
-    return {"ok": True, "mensagem": "PIN da farmácia definido."}
+    return {"ok": True, "mensagem": "PIN da farmácia definido.", "session_token": token}
 
 
 @router.get("/farmacia/dashboard")
@@ -350,6 +383,7 @@ def farmacia_dashboard(telefone: str, farmacia_auth: Farmacia = Depends(get_farm
             "telefone_contato": f.telefone_contato, "bairros": f.bairros,
             "plano": f.plano, "ativo": bool(f.ativo),
             "atende_manipulado": bool(f.atende_manipulado),
+            "servicos": f.servicos,
             "rating": rating, "rating_count": f.rating_count,
         },
         "leads_total": total_leads,
@@ -373,6 +407,8 @@ def farmacia_atualizar_perfil(telefone: str, payload: FarmaciaPerfilPayload, far
         f.bairros = payload.bairros
     if payload.atende_manipulado is not None:
         f.atende_manipulado = payload.atende_manipulado
+    if payload.servicos is not None:
+        f.servicos = payload.servicos
     db.commit()
     return {"ok": True, "mensagem": "Perfil atualizado."}
 
@@ -449,7 +485,15 @@ def farmacia_criar_anuncio(payload: AnuncioCriarPayload, db: Session = Depends(g
     pin = re.sub(r"\D", "", payload.pin)
     if farm.pin and hash_pin(pin, digitos) != farm.pin:
         raise HTTPException(status_code=401, detail="PIN incorreto.")
-    if not payload.texto.strip():
+    from config import SERVICOS_CLINICOS
+
+    # Serviço clínico: auto-preenche categorias e texto se necessário
+    servico_info = SERVICOS_CLINICOS.get(payload.servico or "") if payload.servico else None
+    texto_final = payload.texto.strip()
+    if servico_info and not texto_final:
+        texto_final = f"{servico_info['label']} disponível em nossa farmácia! Sem agendamento."
+
+    if not texto_final:
         raise HTTPException(status_code=400, detail="Texto do anúncio é obrigatório.")
     if payload.publico not in ("bairro", "todos"):
         raise HTTPException(status_code=400, detail="Público inválido. Use 'bairro' ou 'todos'.")
@@ -466,7 +510,10 @@ def farmacia_criar_anuncio(payload: AnuncioCriarPayload, db: Session = Depends(g
             pass
 
     cats_json = None
-    if payload.categorias:
+    # Serviço clínico: usa as categorias do serviço
+    if servico_info and servico_info["categorias"]:
+        cats_json = _json.dumps(servico_info["categorias"])
+    elif payload.categorias:
         try:
             cats = _json.loads(payload.categorias) if isinstance(payload.categorias, str) else payload.categorias
             cats_json = _json.dumps([c for c in cats if isinstance(c, str)])
@@ -474,10 +521,11 @@ def farmacia_criar_anuncio(payload: AnuncioCriarPayload, db: Session = Depends(g
             pass
 
     faixa_etaria = payload.faixa_etaria if payload.faixa_etaria in ("18-35", "36-55", "56+") else None
+    titulo_final = sanitizar(payload.titulo or "") or (servico_info["label"] if servico_info else None)
     anuncio = AnuncioPush(
         farmacia_id=farm.id,
-        texto=sanitizar(payload.texto),
-        titulo=sanitizar(payload.titulo or "") or None,
+        texto=sanitizar(texto_final),
+        titulo=titulo_final,
         publico=payload.publico,
         genero_alvo=genero_alvo,
         faixa_etaria=faixa_etaria,
