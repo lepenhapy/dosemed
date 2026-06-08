@@ -26,8 +26,10 @@ def listar_alarmes(telefone: str, usuario_auth: Usuario = Depends(get_usuario_au
 
 
 @router.post("/alarmes")
-def criar_alarme(payload: AlarmePayload, db: Session = Depends(get_db)):
+def criar_alarme(payload: AlarmePayload, usuario_auth: Usuario = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     telefone = validar_telefone(payload.telefone)
+    if usuario_auth.telefone != telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     if not re.match(r"^\d{2}:\d{2}$", payload.horario):
         raise HTTPException(status_code=400, detail="Horário inválido. Use HH:MM.")
     a = AlarmeRemedio(usuario_id=telefone, nome_med=sanitizar(payload.nome_med),

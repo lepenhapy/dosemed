@@ -35,9 +35,11 @@ router = APIRouter()
 
 
 @router.post("/estoque/{item_id}/solicitar-reposicao")
-def solicitar_reposicao(item_id: int, telefone: str, db: Session = Depends(get_db)):
+def solicitar_reposicao(item_id: int, telefone: str, usuario_auth = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     """Usuário quer reabastecer — cria solicitação de orçamento e notifica farmácias."""
     tel = validar_telefone(telefone)
+    if usuario_auth.telefone != tel:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     item = db.query(Estoque).filter(Estoque.id == item_id, Estoque.usuario_id == tel).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item não encontrado.")
@@ -207,8 +209,10 @@ def listar_orcamentos(telefone: str, usuario_auth = Depends(get_usuario_autentic
 
 @router.post("/orcamento/{solicitacao_id}/escolher/{resposta_id}")
 def escolher_farmacia(solicitacao_id: int, resposta_id: int, telefone: str,
-                      modalidade: str = "entrega", db: Session = Depends(get_db)):
+                      modalidade: str = "entrega", usuario_auth = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     tel = validar_telefone(telefone)
+    if usuario_auth.telefone != tel:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     sol = db.query(OrcamentoSolicitacao).filter(
         OrcamentoSolicitacao.id == solicitacao_id,
         OrcamentoSolicitacao.usuario_id == tel
@@ -264,8 +268,10 @@ def escolher_farmacia(solicitacao_id: int, resposta_id: int, telefone: str,
 
 
 @router.post("/orcamento/{sol_id}/confirmar-entrega")
-def confirmar_entrega_orcamento(sol_id: int, payload: EntregaPayload, db: Session = Depends(get_db)):
+def confirmar_entrega_orcamento(sol_id: int, payload: EntregaPayload, usuario_auth = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     tel = validar_telefone(payload.telefone)
+    if usuario_auth.telefone != tel:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     sol = db.query(OrcamentoSolicitacao).filter(
         OrcamentoSolicitacao.id == sol_id,
         OrcamentoSolicitacao.usuario_id == tel
@@ -296,8 +302,10 @@ def confirmar_entrega_orcamento(sol_id: int, payload: EntregaPayload, db: Sessio
 
 
 @router.post("/orcamento/{sol_id}/avaliar-farmacia")
-def avaliar_farmacia(sol_id: int, payload: AvaliarFarmaciaPayload, db: Session = Depends(get_db)):
+def avaliar_farmacia(sol_id: int, payload: AvaliarFarmaciaPayload, usuario_auth = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     tel = validar_telefone(payload.telefone)
+    if usuario_auth.telefone != tel:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     sol = db.query(OrcamentoSolicitacao).filter(
         OrcamentoSolicitacao.id == sol_id,
         OrcamentoSolicitacao.usuario_id == tel

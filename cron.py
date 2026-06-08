@@ -112,7 +112,8 @@ def cron_disparar_alarmes():
                 continue
             subs = db.query(PushSub).filter(PushSub.usuario_id == a.usuario_id).all()
             for sub in subs:
-                if enviar_push(sub, "💊 DoseMed", f"Hora de tomar {a.nome_med}"):
+                tag = f"alarme-{a.nome_med[:30].lower().replace(' ', '-')}"
+                if enviar_push(sub, "💊 DoseMed", f"Hora de tomar {a.nome_med}", tag=tag):
                     disparados += 1
         if disparados:
             logger.info(f"[ALARMES] {disparados} notificações push enviadas ({horario_atual} BRT)")

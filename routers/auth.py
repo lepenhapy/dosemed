@@ -42,9 +42,13 @@ def get_usuario(telefone: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
     session_token = None
     if not usuario.pin:
-        session_token = secrets.token_urlsafe(32)
-        usuario.session_token = session_token
-        db.commit()
+        # Reutiliza token existente para não invalidar sessão ativa
+        if not usuario.session_token:
+            session_token = secrets.token_urlsafe(32)
+            usuario.session_token = session_token
+            db.commit()
+        else:
+            session_token = usuario.session_token
     return {
         "telefone": usuario.telefone,
         "nome": usuario.nome,
@@ -104,8 +108,10 @@ async def criar_usuario(request: Request, payload: UsuarioPayload, db: Session =
 
 
 @router.put("/usuario/{telefone}")
-def editar_usuario(telefone: str, payload: EditarUsuarioPayload, db: Session = Depends(get_db)):
+def editar_usuario(telefone: str, payload: EditarUsuarioPayload, usuario_auth: Usuario = Depends(get_usuario_autenticado), db: Session = Depends(get_db)):
     telefone = validar_telefone(telefone)
+    if usuario_auth.telefone != telefone:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     usuario = db.query(Usuario).filter(Usuario.telefone == telefone).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
@@ -196,9 +202,13 @@ def definir_pin(payload: PinPayload, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.telefone == telefone).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    if usuario.pin:
+        raise HTTPException(status_code=400, detail="PIN já definido. Use a recuperação de PIN para alterá-lo.")
     usuario.pin = hash_pin(pin, telefone)
+    token = secrets.token_urlsafe(32)
+    usuario.session_token = token
     db.commit()
-    return {"mensagem": "PIN definido com sucesso."}
+    return {"mensagem": "PIN definido com sucesso.", "session_token": token}
 
 
 @router.post("/auth/verificar-pin")
