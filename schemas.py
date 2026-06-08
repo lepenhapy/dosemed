@@ -29,6 +29,7 @@ class WebhookPayload(BaseModel):
     uso_continuo: Optional[bool] = False
     preco_real: Optional[float] = None
     nome_usuario: Optional[str] = None
+    posologia: Optional[str] = None
 
 
 class EditarUsuarioPayload(BaseModel):
@@ -62,6 +63,7 @@ class EditarItemPayload(BaseModel):
     quantidade: Optional[int] = None
     manipulado: Optional[bool] = None
     preco_real: Optional[float] = None
+    posologia: Optional[str] = None
 
 
 class PinPayload(BaseModel):
@@ -97,6 +99,7 @@ class AnuncioCriarPayload(BaseModel):
     telefone: str
     pin: str
     texto: str
+    servico: Optional[str] = None  # ID do serviço clínico (ex: "pressao", "glicose")
     titulo: Optional[str] = None
     publico: str = "bairro"    # bairro | todos
     genero_alvo: Optional[str] = None  # M | F | None
@@ -165,6 +168,7 @@ class FarmaciaSetPinPayload(BaseModel):
 class FarmaciaPerfilPayload(BaseModel):
     bairros: Optional[str] = None
     atende_manipulado: Optional[int] = None
+    servicos: Optional[str] = None  # JSON: ["pressao","glicose"]
 
 
 class FarmaciaCadastroPayload(BaseModel):

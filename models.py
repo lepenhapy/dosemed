@@ -40,6 +40,7 @@ class Estoque(Base):
     quantidade = Column(Integer, default=1)
     manipulado = Column(Integer, default=0)
     uso_continuo = Column(Integer, default=0)
+    posologia = Column(String, nullable=True)
     iniciado = Column(Integer, default=0)
     data_consumo = Column(DateTime, nullable=True)
     preco_real = Column(Float, nullable=True)
@@ -93,6 +94,7 @@ class Farmacia(Base):
     plano = Column(String, default="lead")           # lead | basico | pro | manipulado
     ativo = Column(Integer, default=1)
     atende_manipulado = Column(Integer, default=0)
+    servicos = Column(String, nullable=True)          # JSON: ["pressao","glicose","vacina"]
     asaas_customer_id = Column(String, nullable=True)
     asaas_subscription_id = Column(String, nullable=True)
     pin = Column(String, nullable=True)

@@ -37,7 +37,7 @@ Base.metadata.create_all(bind=engine)
 # --- Migrations (safe add-only) ---
 _migracoes = {
     "usuarios": ["pin TEXT", "email TEXT", "bairro TEXT", "cidade TEXT", "data_nascimento DATE", "aceite_lgpd TIMESTAMP", "genero TEXT", "session_token TEXT", "pin_tentativas INTEGER DEFAULT 0", "pin_bloqueado_ate TIMESTAMP", "endereco_completo TEXT", "instrucoes_portaria TEXT"],
-    "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo TIMESTAMP", "uso_continuo INTEGER DEFAULT 0"],
+    "estoque": ["iniciado INTEGER DEFAULT 0", "data_consumo TIMESTAMP", "uso_continuo INTEGER DEFAULT 0", "posologia TEXT"],
     "anuncios_push": [
         "produto TEXT", "preco_de REAL", "preco_por REAL",
         "data_expiracao DATE", "tem_entrega INTEGER DEFAULT 0",
@@ -49,6 +49,7 @@ _migracoes = {
     "leads": ["asaas_charge_id TEXT", "criado_em TIMESTAMP"],
     "farmacias": [
         "atende_manipulado INTEGER DEFAULT 0",
+        "servicos TEXT",
         "asaas_customer_id TEXT",
         "asaas_subscription_id TEXT",
         "criado_em TIMESTAMP",

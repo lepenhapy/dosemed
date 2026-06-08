@@ -76,10 +76,17 @@ def _gerar_vapid_keys():
 _vpub = os.getenv("VAPID_PUBLIC_KEY", "")
 _vpriv = os.getenv("VAPID_PRIVATE_KEY", "")
 if PUSH_OK and (not _vpub or not _vpriv):
-    _gerar_vapid_keys()
+    # Em produção (Render), configure VAPID_PUBLIC_KEY e VAPID_PRIVATE_KEY como variáveis de ambiente.
+    # A geração automática gera chaves diferentes a cada restart, invalidando assinaturas push existentes.
+    import platform
+    if platform.system() == "Windows" or os.path.exists(".env"):
+        _gerar_vapid_keys()
+    else:
+        logger.warning("VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY não configuradas. Notificações push desativadas. "
+                       "Configure essas variáveis de ambiente no painel do Render.")
 
 
-def enviar_push(sub: PushSub, titulo: str, corpo: str) -> bool:
+def enviar_push(sub: PushSub, titulo: str, corpo: str, tag: str = "dosemed-alarme") -> bool:
     if not PUSH_OK:
         return False
     priv = os.getenv("VAPID_PRIVATE_KEY", "")
@@ -91,7 +98,7 @@ def enviar_push(sub: PushSub, titulo: str, corpo: str) -> bool:
                 "endpoint": sub.endpoint,
                 "keys": {"p256dh": sub.p256dh, "auth": sub.auth}
             },
-            data=json.dumps({"title": titulo, "body": corpo}),
+            data=json.dumps({"title": titulo, "body": corpo, "tag": tag}),
             vapid_private_key=priv,
             vapid_claims={"sub": "mailto:admin@dosemed.app"},
         )
@@ -733,6 +740,7 @@ def serializar_item(i) -> dict:
         "fabricante": i.fabricante,
         "manipulado": bool(i.manipulado),
         "uso_continuo": bool(i.uso_continuo),
+        "posologia": i.posologia,
         "iniciado": bool(i.iniciado),
         "quantidade": i.quantidade or 1,
         "preco_real": i.preco_real,

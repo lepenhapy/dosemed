@@ -31,7 +31,8 @@ router = APIRouter()
 
 
 @router.post("/webhook")
-def webhook(payload: WebhookPayload, db: Session = Depends(get_db)):
+@limiter.limit("20/hour")
+async def webhook(request: Request, payload: WebhookPayload, db: Session = Depends(get_db)):
     import logging
     logger = logging.getLogger("dosemed")
 
@@ -88,6 +89,7 @@ def webhook(payload: WebhookPayload, db: Session = Depends(get_db)):
         quantidade=max(1, payload.quantidade or 1),
         manipulado=1 if payload.manipulado else 0,
         uso_continuo=1 if payload.uso_continuo else 0,
+        posologia=sanitizar(payload.posologia or "") or None,
         preco_real=payload.preco_real,
         data_validade=data_val,
         categoria_valor=categoria,
@@ -222,6 +224,8 @@ def editar_item(item_id: int, payload: EditarItemPayload, usuario_auth: Usuario 
         item.uso_continuo = 1 if payload.uso_continuo else 0
     if payload.preco_real is not None:
         item.preco_real = payload.preco_real if payload.preco_real > 0 else None
+    if payload.posologia is not None:
+        item.posologia = sanitizar(payload.posologia) or None
     db.commit()
     return {"mensagem": "Medicamento atualizado.", "item": serializar_item(item)}
 
